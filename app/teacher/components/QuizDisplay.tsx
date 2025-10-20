@@ -31,7 +31,7 @@ export default function QuizDisplay({ quizId, quiz }: QuizDisplayProps) {
           title: 'My Game',
         });
         router.push(
-          `/app/(teacher)/games/new/success?url=${encodeURIComponent(shareUrl)}`
+          `/teacher/games/new/success?url=${encodeURIComponent(shareUrl)}`
         );
       } catch (e) {
         console.error(e);
