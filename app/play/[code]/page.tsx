@@ -1,12 +1,12 @@
 import React from "react";
 
 async function fetchGame(code: string) {
-  // Use absolute URL for server-side fetches
-  const base = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
-  const res = await fetch(`${base}/api/games/${code}`, { cache: "no-store" });
+  const base = process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000';
+  const res = await fetch(`${base}/api/auth/games/${code}`, { cache: 'no-store' });
   if (!res.ok) return null;
   return res.json();
 }
+
 
 export default async function PlayPage({ params }: { params: { code: string } }) {
   const data = await fetchGame(params.code);
