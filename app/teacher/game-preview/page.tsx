@@ -1,16 +1,26 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Navbar from '@/components/shared/Navbar';
 import { getGameWithQuiz } from '@/app/actions/game';
 
-export default function GamePreview() {
+function GamePreviewContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const gameId = searchParams.get('gameId');
 
-  const [gameData, setGameData] = useState<any>(null);
+  const [gameData, setGameData] = useState<{
+    id: string;
+    title: string;
+    shareCode: string;
+    numQuestions: number;
+    playTime: string;
+    difficulty: string;
+    shareUrl: string;
+    qrCodeUrl: string;
+    imageUrl: string;
+  } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCopiedFeedback, setShowCopiedFeedback] = useState(false);
@@ -106,7 +116,7 @@ export default function GamePreview() {
 
   return (
     <div className="min-h-screen bg-[#fffaf2]">
-      <Navbar title="Game Preview" showSignOut={true} />
+      <Navbar showSignOut={true} />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* title */}
@@ -256,5 +266,19 @@ export default function GamePreview() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function GamePreview() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#fffaf2] flex items-center justify-center">
+        <div className="text-brown font-quicksand font-bold text-xl">
+          Loading game preview...
+        </div>
+      </div>
+    }>
+      <GamePreviewContent />
+    </Suspense>
   );
 }

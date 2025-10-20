@@ -85,7 +85,15 @@ export default function TeacherDashboard() {
     },
   ]);
 
-  const [quizzes, setQuizzes] = useState<any[]>([]);
+  const [quizzes, setQuizzes] = useState<Array<{
+    id: string;
+    title: string | null;
+    numQuestions: number;
+    createdAt: Date;
+    hasGame: boolean;
+    gameId?: string;
+    pdfFilename?: string;
+  }>>([]);
 
   // fetch teacher data and stats on mount
   useEffect(() => {
@@ -172,7 +180,7 @@ export default function TeacherDashboard() {
   return (
     <div className="min-h-screen bg-[#fffaf2]">
       {/* navigation */}
-      <Navbar title="Instructor Dashboard" showSignOut={true} />
+      <Navbar showSignOut={true} />
 
       {/* main dashboard */}
       <DashboardLayout

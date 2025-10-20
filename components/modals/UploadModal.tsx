@@ -1,22 +1,19 @@
 'use client';
 
-import { useState } from 'react';
 import PDFUploadForm from '@/app/teacher/components/PDFUploadForm';
 import { Quiz } from '@/lib/processors/ai-generator';
 
 interface UploadModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onQuizGenerated: (quiz: Quiz) => void;
+  onQuizGenerated: (data: { quizId: string; quiz: Quiz }) => void;
 }
 
 export default function UploadModal({ isOpen, onClose, onQuizGenerated }: UploadModalProps) {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-
   if (!isOpen) return null;
 
-  const handleQuizGenerated = (quiz: Quiz) => {
-    onQuizGenerated(quiz);
+  const handleQuizGenerated = (data: { quizId: string; quiz: Quiz }) => {
+    onQuizGenerated(data);
     onClose();
   };
 
@@ -58,7 +55,6 @@ export default function UploadModal({ isOpen, onClose, onQuizGenerated }: Upload
           {/* upload form */}
           <PDFUploadForm
             onQuizGenerated={handleQuizGenerated}
-            onFileSelect={setSelectedFile}
           />
         </div>
       </div>

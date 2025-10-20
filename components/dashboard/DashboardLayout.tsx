@@ -42,6 +42,16 @@ interface Insight {
   description: string;
 }
 
+interface Quiz {
+  id: string;
+  title: string | null;
+  numQuestions: number;
+  createdAt: Date;
+  hasGame: boolean;
+  gameId?: string;
+  pdfFilename?: string;
+}
+
 interface DashboardLayoutProps {
   teacherData: TeacherData;
   stats: Stat[];
@@ -49,7 +59,7 @@ interface DashboardLayoutProps {
   insights: Insight[];
   selectedClass?: string;
   onUploadClick?: () => void;
-  quizzes?: any[];
+  quizzes?: Quiz[];
   onQuizzesUpdate?: () => void;
 }
 
@@ -64,7 +74,6 @@ export default function DashboardLayout({
   onQuizzesUpdate,
 }: DashboardLayoutProps) {
   const [activeTab, setActiveTab] = useState('Overview');
-  const [selectedQuizId, setSelectedQuizId] = useState<string | null>(null);
 
   // render different content based on active tab
   const renderTabContent = () => {

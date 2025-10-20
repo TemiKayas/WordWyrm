@@ -9,11 +9,10 @@ import Link from 'next/link';
  */
 
 interface NavbarProps {
-  title?: string;
   showSignOut?: boolean;
 }
 
-export default function Navbar({ title = 'Game Creation', showSignOut = true }: NavbarProps) {
+export default function Navbar({ showSignOut = true }: NavbarProps) {
 
   return (
     <nav className="bg-[#fffaf2] border-b-2 border-[#473025]/10">

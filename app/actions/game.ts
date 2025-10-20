@@ -4,11 +4,19 @@ import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { generateUniqueShareCode } from '@/lib/utils/share-code';
 import { generateGameQRCode } from '@/lib/utils/qr-code';
+import type { Game, Quiz, ProcessedContent } from '@prisma/client';
 
 //type of server action results, success or fail, T is the type of return.
 type ActionResult<T> =
   | { success: true; data: T }
   | { success: false; error: string };
+
+// Type for game with related quiz data
+type GameWithQuiz = Game & {
+  quiz: Quiz & {
+    processedContent: ProcessedContent;
+  };
+};
 
 // creates a new game from generated quiz, restricted to teachers.
 // ActionResult return with the new games ID on success or err otherwise.
@@ -66,7 +74,7 @@ export async function createGameFromQuiz(
 // returns ActionResult with game data or err msg on fail
 export async function getGameWithQuiz(
   idOrShareCode: string
-): Promise<ActionResult<{ game: any }>> { // using any for now to avoid complex type issues
+): Promise<ActionResult<{ game: GameWithQuiz }>> {
   try {
     // try to find game by share code first (more common for students)
     // if it's a long string (cuid), it's probably an ID

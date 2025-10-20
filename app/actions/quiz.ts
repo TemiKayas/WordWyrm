@@ -3,10 +3,16 @@
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { Quiz } from '@/lib/processors/ai-generator';
+import type { Quiz as PrismaQuiz, Game } from '@prisma/client';
 
 type ActionResult<T> =
   | { success: true; data: T }
   | { success: false; error: string };
+
+// Type for quiz with game info
+type QuizWithGame = PrismaQuiz & {
+  games: Pick<Game, 'id'>[];
+};
 
 // get all quizzes for the logged-in teacher
 export async function getTeacherQuizzes(): Promise<
@@ -72,7 +78,7 @@ export async function getTeacherQuizzes(): Promise<
         createdAt: quiz.createdAt,
         quizJson: typeof quiz.quizJson === 'string'
           ? JSON.parse(quiz.quizJson)
-          : quiz.quizJson as Quiz,
+          : (quiz.quizJson as unknown as Quiz),
         hasGame: quiz.games.length > 0,
         gameId: quiz.games[0]?.id,
         pdfFilename: pdf.filename,
@@ -89,7 +95,7 @@ export async function getTeacherQuizzes(): Promise<
 // get a specific quiz by ID
 export async function getQuizById(
   quizId: string
-): Promise<ActionResult<{ quiz: any }>> {
+): Promise<ActionResult<{ quiz: QuizWithGame }>> {
   try {
     const session = await auth();
     if (!session?.user || session.user.role !== 'TEACHER') {
@@ -132,7 +138,7 @@ export async function getQuizById(
 export async function updateQuizTitle(
   quizId: string,
   title: string
-): Promise<ActionResult<{ quiz: any }>> {
+): Promise<ActionResult<{ quiz: PrismaQuiz }>> {
   try {
     const session = await auth();
     if (!session?.user || session.user.role !== 'TEACHER') {
