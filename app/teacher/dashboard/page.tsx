@@ -4,18 +4,15 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/components/shared/Navbar';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
-import UploadModal from '@/components/modals/UploadModal';
 import { getTeacherStats, getTeacherQuizzes } from '@/app/actions/quiz';
-import { Quiz } from '@/lib/processors/ai-generator';
 
 export default function TeacherDashboard() {
   const router = useRouter();
-  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   // real data from backend
   const [teacherData, setTeacherData] = useState({
-    name: 'Loading...',
+    name: '',
     subjects: '',
     avatarImage: '/assets/dashboard/avatars/teacher-avatar.png',
     role: 'INSTRUCTOR',
@@ -94,6 +91,20 @@ export default function TeacherDashboard() {
   useEffect(() => {
     async function fetchData() {
       try {
+        // fetch user session to get name
+        const response = await fetch('/api/auth/session');
+        const session = await response.json();
+
+        if (session?.user) {
+          setTeacherData({
+            name: session.user.name || 'Instructor',
+            subjects: '', // Can be added later
+            avatarImage: '/assets/dashboard/avatars/teacher-avatar.png',
+            role: 'INSTRUCTOR',
+            isOnline: true,
+          });
+        }
+
         // fetch stats
         const statsResult = await getTeacherStats();
         if (statsResult.success) {
@@ -144,17 +155,8 @@ export default function TeacherDashboard() {
     fetchData();
   }, []);
 
-  const handleQuizGenerated = (quiz: Quiz) => {
-    // refresh quizzes after generating a new one
-    getTeacherQuizzes().then((result) => {
-      if (result.success) {
-        setQuizzes(result.data.quizzes);
-      }
-    });
-  };
-
-  const handleOpenUploadModal = () => {
-    setIsUploadModalOpen(true);
+  const handleOpenUpload = () => {
+    router.push('/teacher/upload');
   };
 
   if (isLoading) {
@@ -179,7 +181,7 @@ export default function TeacherDashboard() {
         activities={activities}
         insights={insights}
         selectedClass="Spanish B"
-        onUploadClick={handleOpenUploadModal}
+        onUploadClick={handleOpenUpload}
         quizzes={quizzes}
         onQuizzesUpdate={() => {
           getTeacherQuizzes().then((result) => {
@@ -188,13 +190,6 @@ export default function TeacherDashboard() {
             }
           });
         }}
-      />
-
-      {/* upload modal */}
-      <UploadModal
-        isOpen={isUploadModalOpen}
-        onClose={() => setIsUploadModalOpen(false)}
-        onQuizGenerated={handleQuizGenerated}
       />
     </div>
   );

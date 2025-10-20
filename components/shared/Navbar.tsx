@@ -31,13 +31,20 @@ export default function Navbar({ title = 'Game Creation', showSignOut = true }: 
             </div>
           </Link>
 
-          {/* center: page title */}
-          <div className="absolute left-1/2 transform -translate-x-1/2 hidden md:block">
-            {title && (
-              <h1 className="text-[#473025] font-quicksand font-bold text-xl">
-                {title}
-              </h1>
-            )}
+          {/* center: navigation links */}
+          <div className="absolute left-1/2 transform -translate-x-1/2 hidden md:flex items-center gap-8">
+            <Link
+              href="/teacher/dashboard"
+              className="text-[#473025] font-quicksand font-semibold text-lg hover:text-[#ff9f22] transition-colors"
+            >
+              Dashboard
+            </Link>
+            <Link
+              href="/teacher/upload"
+              className="text-[#473025] font-quicksand font-semibold text-lg hover:text-[#ff9f22] transition-colors"
+            >
+              Create Game
+            </Link>
           </div>
 
           {/* right side: sign out button */}
