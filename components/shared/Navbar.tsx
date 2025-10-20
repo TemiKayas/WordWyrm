@@ -31,25 +31,17 @@ export default function Navbar({ title = 'Game Creation', showSignOut = true }: 
             </div>
           </Link>
 
-          {/* center: navigation links - absolutely centered */}
-          <div className="absolute left-1/2 transform -translate-x-1/2 hidden md:flex items-center gap-6">
-            <Link
-              href="/teacher/dashboard"
-              className="text-[#473025] font-quicksand font-semibold hover:text-[#ff9f22] transition-colors"
-            >
-              Dashboard
-            </Link>
-            <Link
-              href="/teacher/create-game"
-              className="text-[#473025] font-quicksand font-semibold hover:text-[#ff9f22] transition-colors"
-            >
-              Create Game
-            </Link>
+          {/* center: page title */}
+          <div className="absolute left-1/2 transform -translate-x-1/2 hidden md:block">
+            {title && (
+              <h1 className="text-[#473025] font-quicksand font-bold text-xl">
+                {title}
+              </h1>
+            )}
           </div>
 
-          {/* right side: page title and sign out button */}
+          {/* right side: sign out button */}
           <div className="flex items-center gap-4">
-            {title && <p className="text-[#473025] font-bold text-sm sm:text-lg hidden lg:block">{title}</p>}
             {showSignOut && (
               <button
                 onClick={() => signOut({ callbackUrl: '/' })}

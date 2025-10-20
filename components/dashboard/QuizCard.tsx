@@ -62,7 +62,7 @@ export default function QuizCard({ quiz, onUpdate }: QuizCardProps) {
     }
   };
 
-  const handleQuickCreate = async () => {
+  const handleCreateGame = async () => {
     setIsCreatingGame(true);
     const result = await createGameFromQuiz(quiz.id, editedTitle);
     if (result.success) {
@@ -71,10 +71,6 @@ export default function QuizCard({ quiz, onUpdate }: QuizCardProps) {
       alert(result.error);
       setIsCreatingGame(false);
     }
-  };
-
-  const handleCustomizeCreate = () => {
-    router.push(`/teacher/create-game?quizId=${quiz.id}`);
   };
 
   const handleViewGame = () => {
@@ -175,21 +171,13 @@ export default function QuizCard({ quiz, onUpdate }: QuizCardProps) {
             View Game
           </button>
         ) : (
-          <>
-            <button
-              onClick={handleQuickCreate}
-              disabled={isCreatingGame}
-              className="bg-[#96b902] hover:bg-[#7a9700] text-white font-quicksand font-medium text-sm rounded-lg px-4 py-2 transition-all disabled:opacity-50"
-            >
-              {isCreatingGame ? 'Creating...' : 'Quick Create Game'}
-            </button>
-            <button
-              onClick={handleCustomizeCreate}
-              className="bg-cream-dark hover:bg-[#ede3d8] text-brown font-quicksand font-medium text-sm rounded-lg px-4 py-2 border-2 border-brown transition-all"
-            >
-              Customize Game
-            </button>
-          </>
+          <button
+            onClick={handleCreateGame}
+            disabled={isCreatingGame}
+            className="bg-[#96b902] hover:bg-[#7a9700] text-white font-quicksand font-medium text-sm rounded-lg px-4 py-2 transition-all disabled:opacity-50"
+          >
+            {isCreatingGame ? 'Creating...' : 'Create Game'}
+          </button>
         )}
       </div>
 
