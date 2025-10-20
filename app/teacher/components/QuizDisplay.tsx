@@ -1,21 +1,44 @@
 'use client';
 
+import { useTransition } from 'react';
+import { useRouter } from 'next/navigation';
+import { createGameFromQuiz } from '@/app/actions/createGame'; 
+
 interface QuizQuestion {
   question: string;
   options: string[];
   answer: string;
   explanation?: string;
 }
-
 interface Quiz {
   questions: QuizQuestion[];
 }
 
 interface QuizDisplayProps {
+  quizId: string;      
   quiz: Quiz;
 }
 
-export default function QuizDisplay({ quiz }: QuizDisplayProps) {
+export default function QuizDisplay({ quizId, quiz }: QuizDisplayProps) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+
+  function handleCreateGame() {
+    startTransition(async () => {
+      try {
+        const { shareUrl } = await createGameFromQuiz({
+          quizId,
+          title: 'My Game',
+        });
+        router.push(
+          `/app/(teacher)/games/new/success?url=${encodeURIComponent(shareUrl)}`
+        );
+      } catch (e) {
+        console.error(e);
+      }
+    });
+  }
+
   return (
     <div className="bg-white rounded-lg shadow p-6">
       <h2 className="text-xl font-bold mb-6">Generated Quiz</h2>
@@ -27,18 +50,13 @@ export default function QuizDisplay({ quiz }: QuizDisplayProps) {
               <span className="font-semibold text-blue-600">Q{index + 1}.</span>
               <p className="font-medium">{q.question}</p>
             </div>
-
             <div className="ml-8 space-y-2">
               {q.options.map((option, optIndex) => {
                 const isCorrect = option === q.answer;
                 return (
                   <div
                     key={optIndex}
-                    className={`p-2 rounded ${
-                      isCorrect
-                        ? 'bg-green-50 border border-green-200'
-                        : 'bg-gray-50'
-                    }`}
+                    className={`p-2 rounded ${isCorrect ? 'bg-green-50 border border-green-200' : 'bg-gray-50'}`}
                   >
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-sm text-gray-500">
@@ -67,8 +85,12 @@ export default function QuizDisplay({ quiz }: QuizDisplayProps) {
       </div>
 
       <div className="mt-6 flex gap-3">
-        <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-          Create Game from Quiz
+        <button
+          onClick={handleCreateGame}
+          disabled={isPending}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+        >
+          {isPending ? 'Creating Game…' : 'Create Game from Quiz'}
         </button>
         <button className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
           Edit Quiz

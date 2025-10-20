@@ -7,7 +7,7 @@ import FileUploadDropZone from '@/components/fileupload/FileUploadDropZone';
 import StepIndicator from '@/components/fileupload/StepIndicator';
 
 interface PDFUploadFormProps {
-  onQuizGenerated: (quiz: Quiz) => void;
+  onQuizGenerated: (payload: { quizId: string; quiz: Quiz }) => void;
   onFileSelect?: (file: File | null) => void;
 }
 
@@ -46,7 +46,7 @@ export default function PDFUploadForm({ onQuizGenerated, onFileSelect }: PDFUplo
           setProgress('');
         } else {
           setProgress('Quiz generated successfully!');
-          onQuizGenerated(result.data.quiz);
+          onQuizGenerated({ quizId: result.data.quizId, quiz: result.data.quiz });
           setSelectedFile(null);
           setTimeout(() => setProgress(''), 3000);
         }
