@@ -18,7 +18,9 @@ export default class QuizScene extends Phaser.Scene {
 
   // preload assets
   preload() {
-    // no assets to load for this basic scene
+    // load player sprites
+    this.load.image('player-front', '/assets/game/front.PNG');
+    this.load.image('player-back', '/assets/game/back.PNG');
   }
 
   // create game objects
@@ -56,17 +58,13 @@ export default class QuizScene extends Phaser.Scene {
     platforms.add(ground);
 
 
-    // create a simple player sprite
-    this.player = this.physics.add.sprite(100, 650, 'player');
+    // create player sprite with front image
+    this.player = this.physics.add.sprite(100, 650, 'player-front');
     this.player.setBounce(0);
     this.player.setCollideWorldBounds(true);
 
-    // create player texture dynamically
-    const playerGraphics = this.make.graphics({ fillStyle: { color: 0x96b902 } }); // lime color
-    playerGraphics.fillRect(0, 0, 40, 60);
-    playerGraphics.generateTexture('player', 40, 60);
-    playerGraphics.destroy();
-    this.player.setTexture('player');
+    // scale the player to a smaller size (200% smaller than before)
+    this.player.setScale(0.15);
 
 
     // add collision between player and platform
@@ -83,8 +81,12 @@ export default class QuizScene extends Phaser.Scene {
     // player movement
     if (this.cursors.left.isDown) {
       this.player.setVelocityX(-200);
+      // show front image when moving left
+      this.player.setTexture('player-front');
     } else if (this.cursors.right.isDown) {
       this.player.setVelocityX(200);
+      // show back image when moving right
+      this.player.setTexture('player-back');
     } else {
       this.player.setVelocityX(0);
     }
