@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import QuizResults from './QuizResults';
+import { useRouter } from 'next/navigation';
 
 interface QuizQuestion {
   question: string;
@@ -18,9 +20,13 @@ interface QuizDisplayProps {
 }
 
 export default function QuizDisplay({ quiz }: QuizDisplayProps) {
+  const router = useRouter();
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [showResult, setShowResult] = useState(false);
+  const [userAnswers, setUserAnswers] = useState<string[]>([]);
+  const [showQuizResults, setShowQuizResults] = useState(false);
+  const [finalScore, setFinalScore] = useState(0);
 
   const currentQuestion = quiz.questions[currentQuestionIndex];
   const totalQuestions = quiz.questions.length;
@@ -34,6 +40,11 @@ export default function QuizDisplay({ quiz }: QuizDisplayProps) {
   };
 
   const handleNext = () => {
+    // save the answer
+    const newAnswers = [...userAnswers];
+    newAnswers[currentQuestionIndex] = selectedAnswer || '';
+    setUserAnswers(newAnswers);
+
     if (currentQuestionIndex < totalQuestions - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
       setSelectedAnswer(null);
@@ -51,6 +62,46 @@ export default function QuizDisplay({ quiz }: QuizDisplayProps) {
 
   const isCorrect = selectedAnswer === currentQuestion.answer;
   const letters = ['a', 'b', 'c', 'd', 'e', 'f'];
+
+  const handleFinish = () => {
+    // save the last answer and calculate score
+    const newAnswers = [...userAnswers];
+    newAnswers[currentQuestionIndex] = selectedAnswer || '';
+
+    // calculate final score
+    const score = newAnswers.reduce((total, answer, index) => {
+      return total + (answer === quiz.questions[index].answer ? 1 : 0);
+    }, 0);
+
+    setFinalScore(score);
+    setUserAnswers(newAnswers);
+    setShowQuizResults(true);
+  };
+
+  const handleRetry = () => {
+    setCurrentQuestionIndex(0);
+    setSelectedAnswer(null);
+    setShowResult(false);
+    setUserAnswers([]);
+    setShowQuizResults(false);
+    setFinalScore(0);
+  };
+
+  const handleCreateGame = () => {
+    router.push('/teacher/game-preview');
+  };
+
+  // show results screen
+  if (showQuizResults) {
+    return (
+      <QuizResults
+        score={finalScore}
+        totalQuestions={totalQuestions}
+        onRetry={handleRetry}
+        onCreateGame={handleCreateGame}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#fffaf2] flex flex-col items-center justify-center p-4">
@@ -106,7 +157,7 @@ export default function QuizDisplay({ quiz }: QuizDisplayProps) {
                   </div>
 
                   {/* option text */}
-                  <span className="font-quicksand font-bold text-brown text-[18px] sm:text-[24px] text-left flex-1">
+                  <span className="font-quicksand font-bold text-brown text-[16px] sm:text-[20px] lg:text-[24px] text-left flex-1 break-words">
                     {option}
                   </span>
 
@@ -153,13 +204,10 @@ export default function QuizDisplay({ quiz }: QuizDisplayProps) {
               </button>
             ) : (
               <button
-                onClick={() => {
-                  // handle quiz completion
-                  alert('Quiz completed! You can now create a game from this quiz.');
-                }}
-                className="bg-brown hover:bg-brown-dark text-white font-quicksand font-bold text-[18px] sm:text-[20px] rounded-[14px] h-[56px] sm:h-[66px] px-8 transition-all"
+                onClick={handleFinish}
+                className="bg-[#473025] hover:bg-brown-dark text-white font-quicksand font-bold text-[18px] sm:text-[20px] rounded-[14px] h-[56px] sm:h-[66px] px-8 transition-all"
               >
-                Finish & Create Game
+                Finish Quiz
               </button>
             )}
           </>
@@ -174,6 +222,16 @@ export default function QuizDisplay({ quiz }: QuizDisplayProps) {
           </p>
         </div>
       )}
+
+      {/* preview game button */}
+      <div className="mt-8">
+        <button
+          onClick={handleCreateGame}
+          className="bg-[#f1e8d9] hover:bg-[#ede3d8] text-brown font-quicksand font-bold text-[16px] sm:text-[18px] rounded-[14px] h-[48px] px-6 border-2 border-brown transition-all"
+        >
+          Preview Game
+        </button>
+      </div>
     </div>
   );
 }
