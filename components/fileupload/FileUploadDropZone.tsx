@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useRef, DragEvent, ChangeEvent } from 'react';
-import Image from 'next/image';
 import FileUploadButton from './FileUploadButton';
 
 /**
@@ -106,13 +105,12 @@ export default function FileUploadDropZone({
     <div className="relative w-full pt-24">
       {/* worm character - positioned above the container with bounce animation */}
       <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 z-10">
-        <Image
-          src="/assets/fileupload/worm-character.png"
-          alt="WordWyrm Character"
+        <img
+          src="/assets/fileupload/eating.gif"
+          alt="WordWyrm eating"
           width={200}
           height={200}
           className="animate-bounce-slow"
-          priority
         />
       </div>
 

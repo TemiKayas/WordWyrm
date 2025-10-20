@@ -1,51 +1,97 @@
 'use client';
 
-import { useState } from 'react';
-import { Quiz } from '@/lib/processors/ai-generator';
 import Navbar from '@/components/shared/Navbar';
-import PDFUploadForm from '../components/PDFUploadForm';
-import PDFPreview from '@/components/fileupload/PDFPreview';
-import QuizDisplay from '../components/QuizDisplay';
+import DashboardLayout from '@/components/dashboard/DashboardLayout';
 
 export default function TeacherDashboard() {
-  const [currentQuiz, setCurrentQuiz] = useState<Quiz | null>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  // mock data - replace with actual data from your backend
+  const teacherData = {
+    name: 'Bilingual Ben',
+    subjects: 'English | Spanish',
+    avatarImage: '/assets/dashboard/avatars/teacher-avatar.png',
+    role: 'INSTRUCTOR',
+    isOnline: true,
+  };
+
+  const stats = [
+    {
+      icon: '/assets/dashboard/icons/people-icon.svg',
+      value: 23,
+      label: 'Students',
+      iconAlt: 'students icon',
+    },
+    {
+      icon: '/assets/dashboard/icons/game-icon.svg',
+      value: 7,
+      label: 'Games Created',
+      iconAlt: 'games icon',
+    },
+    {
+      icon: '/assets/dashboard/icons/chart-icon.svg',
+      value: '87%',
+      label: 'Avg Score',
+      iconAlt: 'chart icon',
+    },
+    {
+      icon: '/assets/dashboard/icons/clock-line-icon.svg',
+      value: 31,
+      label: 'Hours Played',
+      iconAlt: 'clock icon',
+    },
+  ];
+
+  const activities = [
+    {
+      studentName: 'Allison',
+      gameName: 'Monkey Swing',
+      score: 95,
+      timeAgo: '2 minutes ago',
+      avatarImage: '/assets/dashboard/avatars/student-1.png',
+    },
+    {
+      studentName: 'Evan',
+      gameName: 'Monkey Swing',
+      score: 95,
+      timeAgo: '1 hour ago',
+      avatarImage: '/assets/dashboard/avatars/student-2.png',
+    },
+    {
+      studentName: 'Floopa',
+      gameName: 'Monkey Swing',
+      score: 95,
+      timeAgo: 'Today 10:14am',
+      avatarImage: '/assets/dashboard/avatars/student-3.png',
+    },
+  ];
+
+  const insights = [
+    {
+      type: 'success' as const,
+      icon: '/assets/dashboard/icons/check-circle-icon.svg',
+      title: 'Great Completion Rate',
+      description: 'Students are completing games',
+    },
+    {
+      type: 'warning' as const,
+      icon: '/assets/dashboard/icons/help-icon.svg',
+      title: 'Grammar Needs Attention',
+      description: 'Grammar concepts need more practice (avg: 68%)',
+    },
+  ];
 
   return (
     <div className="min-h-screen bg-[#fffaf2]">
-      {/* Navigation */}
-      <Navbar title="Game Creation" showBack={true} showSignOut={true} />
+      {/* navigation */}
+      <Navbar title="Instructor Dashboard" showSignOut={true} />
 
-      {/* main */}
-      <main className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
-        {!currentQuiz ? (
-          <div className={`flex flex-col w-full animate-fade-in transition-all duration-500 ${
-            selectedFile ? 'lg:flex-row gap-6 items-start' : 'items-center max-w-2xl mx-auto'
-          }`}>
-            {/* Upload Form */}
-            <div className={`flex flex-col w-full transition-all duration-500 ${
-              selectedFile ? 'lg:w-1/2' : 'items-center'
-            }`}>
-              <PDFUploadForm
-                onQuizGenerated={setCurrentQuiz}
-                onFileSelect={setSelectedFile}
-              />
-            </div>
-
-            {/* PDF Preview, shows on RHS when file is selected */}
-            {selectedFile && (
-              <div className="w-full lg:w-1/2 animate-slide-in-right">
-                <PDFPreview file={selectedFile} />
-              </div>
-            )}
-          </div>
-        ) : (
-          /* Quiz Display - Shows after quiz is generated */
-          <div className="animate-fade-in">
-            <QuizDisplay quiz={currentQuiz} />
-          </div>
-        )}
-      </main>
+      {/* main dashboard */}
+      <DashboardLayout
+        teacherData={teacherData}
+        stats={stats}
+        activities={activities}
+        insights={insights}
+        selectedClass="Spanish B"
+      />
     </div>
   );
 }
