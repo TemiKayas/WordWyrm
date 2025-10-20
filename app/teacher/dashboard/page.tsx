@@ -9,6 +9,7 @@ import QuizDisplay from '../components/QuizDisplay';
 
 export default function TeacherDashboard() {
   const [currentQuiz, setCurrentQuiz] = useState<Quiz | null>(null);
+  const [quizId, setQuizId] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   return (
@@ -27,7 +28,10 @@ export default function TeacherDashboard() {
               selectedFile ? 'lg:w-1/2' : 'items-center'
             }`}>
               <PDFUploadForm
-                onQuizGenerated={setCurrentQuiz}
+                onQuizGenerated={({ quiz, quizId }) => {
+                  setCurrentQuiz(quiz);
+                  setQuizId(quizId);
+                }}
                 onFileSelect={setSelectedFile}
               />
             </div>
@@ -42,7 +46,7 @@ export default function TeacherDashboard() {
         ) : (
           /* Quiz Display - Shows after quiz is generated */
           <div className="animate-fade-in">
-            <QuizDisplay quiz={currentQuiz} />
+            <QuizDisplay quiz={currentQuiz} quizId={quizId} />
           </div>
         )}
       </main>
