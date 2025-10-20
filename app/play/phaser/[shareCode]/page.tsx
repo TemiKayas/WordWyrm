@@ -7,11 +7,11 @@ import { Quiz } from '@/lib/processors/ai-generator';
 import PhaserGame from '@/components/game/PhaserGame';
 
 // main page component for playing a phaser game
-// fetches game/quiz data from game ID in URL, handles loading/error states, renders phaser game canvas
+// fetches game/quiz data from share code in URL, handles loading/error states, renders phaser game canvas
 export default function PhaserGamePage() {
-  // get gameId from URL params
+  // get shareCode from URL params
   const params = useParams();
-  const gameId = params.gameId as string;
+  const shareCode = params.shareCode as string;
 
   // state for quiz data
   const [quiz, setQuiz] = useState<Quiz | null>(null);
@@ -20,14 +20,14 @@ export default function PhaserGamePage() {
   // state for errors during fetch
   const [error, setError] = useState<string | null>(null);
 
-  // effect hook to fetch game data on mount or gameId change
+  // effect hook to fetch game data on mount or shareCode change
   useEffect(() => {
-    if (!gameId) return;
+    if (!shareCode) return;
 
     const fetchGame = async () => {
       try {
-        // fetch game and quiz data
-        const result = await getGameWithQuiz(gameId);
+        // fetch game and quiz data by share code
+        const result = await getGameWithQuiz(shareCode);
 
         if (result.success) {
           const gameData = result.data.game;
@@ -50,7 +50,7 @@ export default function PhaserGamePage() {
     };
 
     fetchGame();
-  }, [gameId]);
+  }, [shareCode]);
 
   // loading message
   if (loading) {

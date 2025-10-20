@@ -3,6 +3,7 @@
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { generateUniqueShareCode } from '@/lib/utils/share-code';
+import { generateGameQRCode } from '@/lib/utils/qr-code';
 
 //type of server action results, success or fail, T is the type of return.
 type ActionResult<T> =
@@ -34,6 +35,10 @@ export async function createGameFromQuiz(
     // gen a unique 6-character code for sharing the game
     const shareCode = await generateUniqueShareCode();
 
+    // generate QR code and upload to Vercel Blob
+    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+    const qrCodeUrl = await generateGameQRCode(shareCode, baseUrl);
+
     // create the new game record in the db linking it to the quiz and teacher
     const game = await db.game.create({
       data: {
@@ -41,6 +46,7 @@ export async function createGameFromQuiz(
         teacherId: teacher.id,
         title,
         shareCode,
+        qrCodeUrl,
       },
     });
 
@@ -56,23 +62,41 @@ export async function createGameFromQuiz(
   }
 }
 
-// gets specific game with associated quiz, loads all info for student to play the game
+// gets specific game with associated quiz by ID or share code
 // returns ActionResult with game data or err msg on fail
 export async function getGameWithQuiz(
-  gameId: string
+  idOrShareCode: string
 ): Promise<ActionResult<{ game: any }>> { // using any for now to avoid complex type issues
   try {
-    // fetch the game from the db and the related quiz and its source content
-    const game = await db.game.findUnique({
-      where: { id: gameId },
-      include: {
-        quiz: {
-          include: {
-            processedContent: true, // includes the original text from which the quiz was generated
+    // try to find game by share code first (more common for students)
+    // if it's a long string (cuid), it's probably an ID
+    let game;
+
+    if (idOrShareCode.length === 6) {
+      // likely a share code
+      game = await db.game.findUnique({
+        where: { shareCode: idOrShareCode },
+        include: {
+          quiz: {
+            include: {
+              processedContent: true,
+            },
           },
         },
-      },
-    });
+      });
+    } else {
+      // likely a game ID
+      game = await db.game.findUnique({
+        where: { id: idOrShareCode },
+        include: {
+          quiz: {
+            include: {
+              processedContent: true,
+            },
+          },
+        },
+      });
+    }
 
     // if the game is not found, return an error.
     if (!game) {

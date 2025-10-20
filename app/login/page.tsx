@@ -19,12 +19,20 @@ export default function LoginPage() {
 
         if (!result.success) {
           setError(result.error);
+        } else {
+          // Redirect based on user role
+          if (result.data.role === 'TEACHER') {
+            router.push('/teacher/dashboard');
+          } else if (result.data.role === 'STUDENT') {
+            router.push('/student/dashboard');
+          } else {
+            router.push('/');
+          }
+          router.refresh();
         }
-      } catch {
-        // NextAuth redirects on success, which throws an error
-        // So we catch it and manually redirect
-        router.push('/');
-        router.refresh();
+      } catch (err) {
+        console.error('Login error:', err);
+        setError('An unexpected error occurred');
       }
     });
   }
