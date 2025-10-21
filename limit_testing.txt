@@ -1,0 +1,10 @@
+Test multiple uploads, multiple seqeuential as well, giant file upload, really stress test it. How many PDFs can we store? 
+Deleting games from the DB, is addition and subtraction of games seamless? 
+Edit games/ change material going into the game.
+Optimizing generation, can we speed up Gemini? 
+Need better error handling
+make sure colors for text contrast well
+How many tokens do we actually get? Gotta make sure we dont run out of tokens
+Thnk carefully about what well visualize when we start to visuale data 
+Security testing for auth and secret / private information 
+Screen PDFs for malware or non PDF's 
