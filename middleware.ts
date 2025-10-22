@@ -43,5 +43,6 @@ export default auth((req) => {
 });
 
 export const config = {
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|play).*)'],
+  // Exclude: api routes, Next.js internals, static files, public files, auth pages, and play pages
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|login|signup|play|.*\\..*).*)'],
 };
