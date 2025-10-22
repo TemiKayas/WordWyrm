@@ -1,5 +1,12 @@
-import { auth } from './lib/auth';
+import NextAuth from 'next-auth';
+import { authConfig } from './lib/auth.config';
 import { NextResponse } from 'next/server';
+
+/**
+ * Middleware using lightweight auth config (no Prisma or bcryptjs)
+ * This keeps the Edge Function bundle size under 1MB
+ */
+const { auth } = NextAuth(authConfig);
 
 export default auth((req) => {
   const path = req.nextUrl.pathname;
