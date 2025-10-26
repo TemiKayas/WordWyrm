@@ -11,7 +11,7 @@ type ActionResult<T> =
 
 // Type for quiz with game info
 type QuizWithGame = PrismaQuiz & {
-  games: Pick<Game, 'id'>[];
+  games: Pick<Game, 'id' | 'shareCode'>[];
 };
 
 // get all quizzes for the logged-in teacher
@@ -25,6 +25,7 @@ export async function getTeacherQuizzes(): Promise<
       quizJson: Quiz;
       hasGame: boolean;
       gameId?: string;
+      shareCode?: string;
       pdfFilename?: string;
     }>;
   }>
@@ -47,6 +48,7 @@ export async function getTeacherQuizzes(): Promise<
                     games: {
                       select: {
                         id: true,
+                        shareCode: true,
                       },
                       take: 1,
                     },
@@ -81,6 +83,7 @@ export async function getTeacherQuizzes(): Promise<
           : (quiz.quizJson as unknown as Quiz),
         hasGame: quiz.games.length > 0,
         gameId: quiz.games[0]?.id,
+        shareCode: quiz.games[0]?.shareCode,
         pdfFilename: pdf.filename,
       })) || []
     );
