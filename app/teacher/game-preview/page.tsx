@@ -77,8 +77,12 @@ function GamePreviewContent() {
   };
 
   const handleLaunchGame = () => {
-    if (gameData?.shareCode) {
-      window.open(`/play/phaser/${gameData.shareCode}`, '_blank');
+    // open tower defense game with quiz data in new tab
+    if (gameData?.id) {
+      window.open(`/play/td?gameId=${gameData.id}`, '_blank');
+    } else {
+      // fallback to demo if no gameId
+      window.open('/play/td', '_blank');
     }
   };
 
