@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { createGame } from '@/app/actions/game';
 import Button from '@/components/ui/Button';
 
-export default function GameSettingsPage() {
+function GameSettingsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const quizId = searchParams.get('quizId');
@@ -69,8 +69,6 @@ export default function GameSettingsPage() {
         quizId,
         title,
         description,
-        gameMode,
-        isPublic,
       });
 
       if (result.success) {
@@ -317,5 +315,15 @@ export default function GameSettingsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function GameSettingsPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#fffaf2] flex items-center justify-center">
+      <div className="text-[#473025] font-quicksand font-bold text-xl">Loading...</div>
+    </div>}>
+      <GameSettingsContent />
+    </Suspense>
   );
 }

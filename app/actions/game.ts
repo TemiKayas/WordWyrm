@@ -18,16 +18,14 @@ type GameWithQuiz = Game & {
   };
 };
 
-// creates a new game with full settings (title, description, game mode, etc.)
+// creates a new game with full settings (title, description, etc.)
 export async function createGame(params: {
   quizId: string;
   title: string;
   description?: string;
-  gameMode?: string;
-  isPublic?: boolean;
 }): Promise<ActionResult<{ gameId: string; shareCode: string }>> {
   try {
-    const { quizId, title, description, gameMode, isPublic } = params;
+    const { quizId, title, description } = params;
 
     // ensure user is a teacher
     const session = await auth();
@@ -58,8 +56,6 @@ export async function createGame(params: {
         teacherId: teacher.id,
         title,
         description,
-        gameMode: gameMode || 'tower-defense',
-        isPublic: isPublic !== undefined ? isPublic : true,
         shareCode,
         qrCodeUrl,
       },
