@@ -36,8 +36,8 @@ export default function Sidebar({ onPlayClick, onCreateClick }: SidebarProps) {
   return (
     <div className="fixed left-0 top-0 h-screen w-[200px] md:w-[240px] lg:w-[278px] bg-gradient-to-b from-[#fffaf2] to-[#fff5e9] shadow-[0px_1.625px_1.625px_0px_rgba(0,0,0,0.25)] flex flex-col z-50">
       {/* logo */}
-      <div className="pt-5 pl-5 mb-4">
-        <Link href="/teacher/dashboard" className="block relative w-[90px] h-[77px] md:w-[110px] md:h-[94px] lg:w-[130px] lg:h-[111px] hover:opacity-80 transition-opacity cursor-pointer">
+      <div className="pt-3 pl-3 -mb-2">
+        <Link href="/teacher/dashboard" className="block relative w-[140px] h-[120px] md:w-[160px] md:h-[136px] lg:w-[180px] lg:h-[154px] cursor-pointer mx-auto">
           <Image
             src="/assets/dashboard/wordwyrm-logo-large.png"
             alt="WordWyrm Logo"

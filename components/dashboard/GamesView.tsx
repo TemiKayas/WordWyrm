@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import GameCard from './GameCard';
 import Image from 'next/image';
-import { getTeacherQuizzes } from '@/app/actions/quiz';
+import { getTeacherQuizzes, deleteQuiz } from '@/app/actions/quiz';
 
 interface Game {
   id: string;
@@ -77,6 +77,20 @@ export default function GamesView({ onCreateGame }: GamesViewProps) {
     router.push(`/teacher/game-preview?quizId=${game.id}`);
   };
 
+  const handleDelete = async (game: Game) => {
+    if (!confirm(`Are you sure you want to delete "${game.title}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    const result = await deleteQuiz(game.id);
+    if (result.success) {
+      // refresh the games list
+      setGames(games.filter(g => g.id !== game.id));
+    } else {
+      alert(`Failed to delete game: ${result.error}`);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -96,7 +110,7 @@ export default function GamesView({ onCreateGame }: GamesViewProps) {
         </h2>
         <button
           onClick={onCreateGame}
-          className="btn-primary bg-[#fd9227] border-[1.5px] border-[#730f11] rounded-[15px] h-[40px] md:h-[44px] px-4 md:px-6 flex items-center gap-2 hover:bg-[#e6832b] cursor-pointer"
+          className="justify-center btn-primary bg-[#fd9227] border-[1.5px] border-[#730f11] rounded-[15px] h-[40px] md:h-[44px] px-4 md:px-6 flex items-center gap-2 hover:bg-[#e6832b] cursor-pointer"
         >
           <div className="w-[16px] h-[16px] md:w-[18px] md:h-[18px] relative flex-shrink-0">
             <Image
@@ -133,6 +147,7 @@ export default function GamesView({ onCreateGame }: GamesViewProps) {
                 {...game}
                 onPlay={() => handlePlay(game)}
                 onEdit={() => handleEdit(game)}
+                onDelete={() => handleDelete(game)}
               />
             ))}
           </div>
@@ -152,6 +167,7 @@ export default function GamesView({ onCreateGame }: GamesViewProps) {
                 key={draft.id}
                 {...draft}
                 onEdit={() => handleEdit(draft)}
+                onDelete={() => handleDelete(draft)}
               />
             ))}
           </div>

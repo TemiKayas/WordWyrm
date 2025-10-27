@@ -84,7 +84,7 @@ export default function StudentsTable({
   ],
 }: StudentsTableProps) {
   return (
-    <div className="bg-[#fff5e8] rounded-[25px] p-4 md:p-6 lg:p-8 overflow-x-auto">
+    <div className="rounded-[25px] p-4 md:p-6 lg:p-8 overflow-x-auto">
       <h2 className="font-quicksand font-bold text-[#473025] text-[24px] md:text-[28px] lg:text-[32px] leading-[1.198] mb-6 md:mb-8">
         Students
       </h2>
@@ -110,7 +110,7 @@ export default function StudentsTable({
         {students.map((student, index) => (
           <div
             key={index}
-            className="bg-[#fffbf6] border-[3px] border-[#473025] rounded-[15px] h-auto md:h-[70px] lg:h-[82px] grid grid-cols-1 md:grid-cols-4 gap-3 md:gap-4 items-center p-4 md:px-6"
+            className="bg-[#fffbf6] border-[3px] border-[#473025] rounded-[15px] h-auto md:h-[70px] lg:h-[82px] grid grid-cols-1 md:grid-cols-4 gap-3 md:gap-4 items-center p-4 md:px-6 hover:bg-[#fff5e8] hover:scale-[1.01] transition-all duration-200 cursor-pointer"
           >
             {/* Name & Avatar */}
             <div className="flex items-center gap-3 justify-center md:justify-start">
@@ -127,21 +127,21 @@ export default function StudentsTable({
               </span>
             </div>
 
-            {/* Work Completed Progress Bar */}
+            {/* work completed progress bar */}
             <div className="flex items-center justify-center">
-              <div className="relative bg-[#fffbf6] border-[2.5px] border-[#473025] rounded-[5px] h-[28px] md:h-[32px] w-[100px] md:w-[119px]">
-                {/* Progress Fill */}
+              <div className="relative bg-[#fffbf6] border-[2.5px] border-[#473025] rounded-[5px] h-[28px] md:h-[32px] w-[100px] md:w-[119px] overflow-hidden">
+                {/* progress fill */}
                 {student.workCompleted !== '0/10' && (
                   <div
-                    className={`absolute left-0 top-0 h-full rounded-l-[5px] border-r-[2.5px] border-[#473025] ${getProgressBarColor(
+                    className={`absolute left-0 top-0 h-full ${getProgressBarColor(
                       student.workCompleted
-                    )}`}
+                    )} ${getProgressPercentage(student.workCompleted) < 100 ? 'border-r-[2.5px] border-[#473025]' : ''}`}
                     style={{
-                      width: `${getProgressPercentage(student.workCompleted)}%`,
+                      width: `calc(${getProgressPercentage(student.workCompleted)}% - ${getProgressPercentage(student.workCompleted) === 100 ? '0px' : '0px'})`,
                     }}
                   />
                 )}
-                {/* Text Overlay */}
+                {/* text overlay */}
                 <div className="absolute inset-0 flex items-center justify-center">
                   <span className="font-quicksand font-bold text-[#473025] text-[14px] md:text-[16px] leading-[95.85%] relative z-10">
                     {student.workCompleted}
@@ -150,14 +150,14 @@ export default function StudentsTable({
               </div>
             </div>
 
-            {/* Average Score */}
+            {/* average score */}
             <div className="text-center">
               <span className="font-quicksand font-bold text-[#473025] text-[14px] md:text-[16px] leading-[95.85%]">
                 {student.averageScore}
               </span>
             </div>
 
-            {/* Email */}
+            {/* email */}
             <div className="text-center md:text-right">
               <a
                 href={`mailto:${student.email}`}

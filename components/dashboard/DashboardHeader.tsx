@@ -1,6 +1,8 @@
 'use client';
 
 import Image from 'next/image';
+import { signOut } from 'next-auth/react';
+import { useState } from 'react';
 
 interface DashboardHeaderProps {
   userName: string;
@@ -11,8 +13,14 @@ interface DashboardHeaderProps {
 export default function DashboardHeader({
   userName,
   userRole = 'INSTRUCTOR',
-  userPhoto = '/assets/dashboard/student-avatar-evan.png',
+  userPhoto = '/public/assets/dashboard/avatars/teacher-avatar.png',
+
 }: DashboardHeaderProps) {
+  const [showDropdown, setShowDropdown] = useState(false);
+
+  const handleSignOut = async () => {
+    await signOut({ callbackUrl: '/login' });
+  };
   return (
     <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 md:mb-8 gap-4 md:gap-0">
       <h1 className="font-quicksand font-bold text-[#473025] text-[24px] md:text-[30px] lg:text-[36px]">
@@ -38,16 +46,19 @@ export default function DashboardHeader({
             </p>
           </div>
 
-          <div className="flex flex-col items-center gap-1">
+          <div className="relative flex flex-col items-center gap-1">
             {/* profile photo */}
-            <div className="relative w-[36px] h-[36px] md:w-[40px] md:h-[40px] rounded-full overflow-hidden border-[3px] border-[#473025]">
+            <button
+              onClick={() => setShowDropdown(!showDropdown)}
+              className="relative w-[36px] h-[36px] md:w-[40px] md:h-[40px] rounded-full overflow-hidden border-[3px] border-[#473025] cursor-pointer hover:opacity-80 transition-opacity"
+            >
               <Image
                 src={userPhoto}
                 alt={userName}
                 fill
                 className="object-cover"
               />
-            </div>
+            </button>
 
             {/* role badge */}
             <div className="bg-[#473025] rounded-[41px] px-2 md:px-3 py-0.5">
@@ -55,6 +66,18 @@ export default function DashboardHeader({
                 {userRole}
               </p>
             </div>
+
+            {/* dropdown menu */}
+            {showDropdown && (
+              <div className="absolute top-12 right-0 mt-2 w-36 bg-white border-2 border-[#473025] rounded-lg shadow-lg overflow-hidden z-50">
+                <button
+                  onClick={handleSignOut}
+                  className="w-full px-4 py-2 text-left font-quicksand font-bold text-[#ff4880] text-sm hover:bg-[#fff5e8] transition-colors cursor-pointer"
+                >
+                  Sign Out
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
