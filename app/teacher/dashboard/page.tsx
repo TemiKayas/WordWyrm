@@ -19,7 +19,7 @@ export default function TeacherDashboard() {
   const [teacherData, setTeacherData] = useState({
     name: '',
     role: 'INSTRUCTOR',
-    photo: '/assets/dashboard/instructor-profile-photo.png',
+    photo: '/assets/dashboard/avatars/instructor-profile-photo.png',
   });
 
   const [stats, setStats] = useState({
@@ -43,7 +43,7 @@ export default function TeacherDashboard() {
           setTeacherData({
             name: session.user.name || 'Instructor',
             role: 'INSTRUCTOR',
-            photo: '/assets/dashboard/instructor-profile-photo.png',
+            photo: '/assets/dashboard/avatars/instructor-profile-photo.png',
           });
         }
 

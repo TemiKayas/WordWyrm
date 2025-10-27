@@ -158,6 +158,8 @@ model Game {
   teacherId   String
   title       String
   description String?   @db.Text
+  gameMode    String    @default("tower-defense") // Game mode: tower-defense, fallacy, zombies
+  isPublic    Boolean   @default(true) // Whether game is public or private
   shareCode   String    @unique // Short code for joining (e.g., "ABC123")
   qrCodeUrl   String?   // Vercel Blob URL for QR code image
   active      Boolean   @default(true)

@@ -5,8 +5,6 @@ import { db } from '@/lib/db';
 import { uploadPDF } from '@/lib/blob';
 import { extractTextFromPDF, validatePDF } from '@/lib/processors/pdf-processor';
 import { generateQuiz, Quiz } from '@/lib/processors/ai-generator';
-import { generateUniqueShareCode } from '@/lib/utils/share-code';
-import { generateGameQRCode } from '@/lib/utils/qr-code';
 
 type ActionResult<T> =
   | { success: true; data: T }
@@ -14,7 +12,7 @@ type ActionResult<T> =
 
 export async function uploadAndProcessPDF(
   formData: FormData
-): Promise<ActionResult<{ quizId: string; quiz: Quiz; gameId: string; shareCode: string }>> {
+): Promise<ActionResult<{ quizId: string; quiz: Quiz }>> {
   try {
     // Check authentication
     const session = await auth();
@@ -105,31 +103,13 @@ export async function uploadAndProcessPDF(
       },
     });
 
-    // Automatically create a Tower Defense game from the quiz
-    console.log('Creating Tower Defense game...');
-    const shareCode = await generateUniqueShareCode();
-    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
-    const qrCodeUrl = await generateGameQRCode(shareCode, baseUrl);
-
-    const game = await db.game.create({
-      data: {
-        quizId: quizRecord.id,
-        teacherId: teacher.id,
-        title: file.name.replace('.pdf', ''),
-        shareCode,
-        qrCodeUrl,
-      },
-    });
-
-    console.log('Game created successfully with shareCode:', shareCode);
+    console.log('Quiz created successfully. Ready for game settings.');
 
     return {
       success: true,
       data: {
         quizId: quizRecord.id,
         quiz: quiz,
-        gameId: game.id,
-        shareCode: shareCode,
       },
     };
   } catch (error) {

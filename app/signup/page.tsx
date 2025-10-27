@@ -5,6 +5,7 @@ import { signup } from '@/app/actions/auth';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import Button from '@/components/ui/Button';
 
 export default function SignupPage() {
   const [error, setError] = useState<string | null>(null);
@@ -45,26 +46,26 @@ export default function SignupPage() {
 
       {/* main content */}
       <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-24 max-w-6xl mx-auto mt-20">
-        {/* left side - gif */}
+        {/* left side - dragon character */}
         <div className="flex-shrink-0">
           <img
-            src="/assets/dashboard/avatars/student-3.png"
+            src="/assets/dashboard/avatars/dragon-teaching.png"
             alt="WordWyrm mascot"
-            width={400}
-            height={400}
+            width={312}
+            height={312}
             className="object-contain"
           />
         </div>
 
         {/* right side - signup form */}
-        <div className="card bg-cream-dark border-[#473025] border-4 shadow-xl w-full max-w-md rounded-[30px]">
+        <div className="card bg-cream-dark border-[#473025] border-4 shadow-xl w-full max-w-2xl rounded-[30px]">
           <div className="card-body p-8">
             {/* title */}
             <h2 className="font-quicksand font-bold text-brown text-[32px] text-center mb-6">
               Create Account
             </h2>
 
-            <form action={handleSubmit} className="space-y-6">
+            <form action={handleSubmit} className="space-y-5">
               {error && (
                 <div className="alert alert-error bg-red-100 border-2 border-error rounded-lg p-3">
                   <span className="font-quicksand text-sm text-error">{error}</span>
@@ -72,9 +73,9 @@ export default function SignupPage() {
               )}
 
               {/* name */}
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text font-quicksand font-semibold text-brown">Full Name</span>
+              <div className="space-y-2">
+                <label htmlFor="name" className="font-quicksand font-bold text-[#473025] text-[16px]">
+                  Full Name
                 </label>
                 <input
                   type="text"
@@ -82,14 +83,14 @@ export default function SignupPage() {
                   name="name"
                   required
                   placeholder="Enter your full name"
-                  className="input bg-[#f5ebe0] border-0 font-quicksand placeholder:text-[#c4a46f] focus:outline-none focus:ring-2 focus:ring-brown"
+                  className="w-full bg-[#fffbf6] border-[3px] border-[#473025] rounded-[11px] h-[50px] px-4 font-quicksand text-[#473025] placeholder:text-[#a7613c] focus:outline-none focus:ring-2 focus:ring-[#ff9f22] hover:border-[#ff9f22] transition-all"
                 />
               </div>
 
               {/* email */}
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text font-quicksand font-semibold text-brown">Email Address</span>
+              <div className="space-y-2">
+                <label htmlFor="email" className="font-quicksand font-bold text-[#473025] text-[16px]">
+                  Email Address
                 </label>
                 <input
                   type="email"
@@ -97,14 +98,14 @@ export default function SignupPage() {
                   name="email"
                   required
                   placeholder="Enter your email address"
-                  className="input bg-[#f5ebe0] border-0 font-quicksand placeholder:text-[#c4a46f] focus:outline-none focus:ring-2 focus:ring-brown"
+                  className="w-full bg-[#fffbf6] border-[3px] border-[#473025] rounded-[11px] h-[50px] px-4 font-quicksand text-[#473025] placeholder:text-[#a7613c] focus:outline-none focus:ring-2 focus:ring-[#ff9f22] hover:border-[#ff9f22] transition-all"
                 />
               </div>
 
               {/* password */}
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text font-quicksand font-semibold text-brown">Password</span>
+              <div className="space-y-2">
+                <label htmlFor="password" className="font-quicksand font-bold text-[#473025] text-[16px]">
+                  Password
                 </label>
                 <input
                   type="password"
@@ -113,43 +114,43 @@ export default function SignupPage() {
                   required
                   minLength={6}
                   placeholder="At least 6 characters"
-                  className="input bg-[#f5ebe0] border-0 font-quicksand placeholder:text-brown focus:outline-none focus:ring-2 focus:ring-brown"
+                  className="w-full bg-[#fffbf6] border-[3px] border-[#473025] rounded-[11px] h-[50px] px-4 font-quicksand text-[#473025] placeholder:text-[#a7613c] focus:outline-none focus:ring-2 focus:ring-[#ff9f22] hover:border-[#ff9f22] transition-all"
                 />
               </div>
 
               {/* role selection */}
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text font-quicksand font-semibold text-brown">I am a...</span>
+              <div className="space-y-2">
+                <label className="font-quicksand font-bold text-[#473025] text-[16px]">
+                  I am a...
                 </label>
-                <div className="space-y-3">
-                  <label className="flex items-center p-4 bg-[#f5ebe0] border-2 border-transparent rounded-lg cursor-pointer hover:border-brown transition-all">
+                <div className="flex gap-3">
+                  <label className="flex-1 flex items-center p-4 bg-[#fffbf6] border-[3px] border-[#473025] rounded-[11px] cursor-pointer hover:bg-[#fff5e8] hover:border-[#ff9f22] transition-all">
                     <input
                       type="radio"
                       name="role"
                       value="TEACHER"
                       required
-                      className="radio radio-sm mr-3"
+                      className="radio radio-sm mr-3 accent-[#473025]"
                     />
                     <div>
-                      <div className="font-quicksand font-bold text-brown">Teacher</div>
-                      <div className="font-quicksand text-sm text-[#c4a46f]">
+                      <div className="font-quicksand font-bold text-[#473025] text-[15px]">Teacher</div>
+                      <div className="font-quicksand text-xs text-[#a7613c]">
                         Create and manage quizzes
                       </div>
                     </div>
                   </label>
 
-                  <label className="flex items-center p-4 bg-[#f5ebe0] border-2 border-transparent rounded-lg cursor-pointer hover:border-brown transition-all">
+                  <label className="flex-1 flex items-center p-4 bg-[#fffbf6] border-[3px] border-[#473025] rounded-[11px] cursor-pointer hover:bg-[#fff5e8] hover:border-[#ff9f22] transition-all">
                     <input
                       type="radio"
                       name="role"
                       value="STUDENT"
                       required
-                      className="radio radio-sm mr-3"
+                      className="radio radio-sm mr-3 accent-[#473025]"
                     />
                     <div>
-                      <div className="font-quicksand font-bold text-brown">Student</div>
-                      <div className="font-quicksand text-sm text-[#c4a46f]">
+                      <div className="font-quicksand font-bold text-[#473025] text-[15px]">Student</div>
+                      <div className="font-quicksand text-xs text-[#a7613c]">
                         Join and play quizzes
                       </div>
                     </div>
@@ -158,13 +159,16 @@ export default function SignupPage() {
               </div>
 
               {/* signup button */}
-              <button
+              <Button
                 type="submit"
                 disabled={isPending}
-                className="bg-[#473025] border-0 hover:cursor-pointer hover:bg-brown-dark text-white font-quicksand font-bold text-[20px] w-full rounded-[7px] h-[55px] flex items-center justify-center transition-all disabled:opacity-50"
+                variant="primary"
+                size="md"
+                className="w-full"
+                isLoading={isPending}
               >
-                {isPending ? 'Creating account...' : 'Sign Up'}
-              </button>
+                Sign Up
+              </Button>
 
               {/* divider */}
               <div className="relative flex items-center justify-center my-2">

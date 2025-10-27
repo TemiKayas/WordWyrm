@@ -50,14 +50,11 @@ export default function DashboardHeader({
             {/* profile photo */}
             <button
               onClick={() => setShowDropdown(!showDropdown)}
-              className="relative w-[36px] h-[36px] md:w-[40px] md:h-[40px] rounded-full overflow-hidden border-[3px] border-[#473025] cursor-pointer hover:opacity-80 transition-opacity"
+              className="relative w-[36px] h-[36px] md:w-[40px] md:h-[40px] rounded-full bg-[#96b902] border-[3px] border-[#473025] cursor-pointer hover:opacity-90 transition-all flex items-center justify-center"
             >
-              <Image
-                src={userPhoto}
-                alt={userName}
-                fill
-                className="object-cover"
-              />
+              <span className="font-quicksand font-bold text-white text-[18px] md:text-[20px]">
+                {userName.charAt(0).toUpperCase()}
+              </span>
             </button>
 
             {/* role badge */}

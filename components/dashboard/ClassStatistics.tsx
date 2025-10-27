@@ -76,7 +76,7 @@ export default function ClassStatistics({
         </h3>
 
         {/* Donut Chart */}
-        <div className="absolute right-0 top-12 w-[180px] h-[180px]">
+        <div className="absolute right-0 top-20 w-[180px] h-[180px]">
           <Image
             src="/assets/dashboard/completion-donut-chart.svg"
             alt="Completion Chart"
@@ -95,7 +95,7 @@ export default function ClassStatistics({
         </div>
 
         {/* Legend Items */}
-        <div className="space-y-4 mt-4">
+        <div className="space-y-4 mt-12">
           {/* All Assignments */}
           <div className="flex items-center gap-3">
             <div className="font-quicksand font-bold text-[#96b902] text-[39.529px] leading-normal w-[76px]">

@@ -24,14 +24,14 @@ export default function ClassTabs({
   return (
     <div className="mb-6 md:mb-8">
       {/* Tab Navigation */}
-      <div className="relative bg-[#fffbf6] border-[3px] border-[#473025] rounded-[250px] h-[40px] md:h-[45px] flex items-center overflow-hidden">
+      <div className="relative bg-[#fffbf6] border-[3px] border-[#473025] rounded-[250px] h-[40px] md:h-[45px] flex items-center overflow-hidden p-[6px]">
         {/* Active Tab Indicator */}
         <div
           className="absolute bg-[#473025] h-[28px] md:h-[33px] rounded-[300px] transition-all duration-300 ease-in-out"
           style={{
             left: '6px',
-            width: `calc(${100 / classes.length}% - 12px)`,
-            transform: `translateX(calc(${classes.indexOf(activeTab) * 100}% + ${classes.indexOf(activeTab) * 6}px))`,
+            width: `calc(50% - 9px)`,
+            transform: `translateX(${classes.indexOf(activeTab) === 0 ? '0' : 'calc(100% + 6px)'})`,
           }}
         />
 
