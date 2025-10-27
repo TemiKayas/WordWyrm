@@ -5,6 +5,7 @@ import { login } from '@/app/actions/auth';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import Button from '@/components/ui/Button';
 
 export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
@@ -56,13 +57,13 @@ export default function LoginPage() {
 
       {/* main content */}
       <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-24 max-w-6xl mx-auto mt-20">
-        {/* left side - gif */}
+        {/* left side - dragon character */}
         <div className="flex-shrink-0">
           <img
-            src="/assets/dashboard/avatars/student-3.png"
+            src="/assets/dashboard/avatars/dragon-teaching.png"
             alt="WordWyrm mascot"
-            width={400}
-            height={400}
+            width={312}
+            height={312}
             className="object-contain"
           />
         </div>
@@ -75,7 +76,7 @@ export default function LoginPage() {
               Welcome Back!
             </h2>
 
-            <form action={handleSubmit} className="space-y-6">
+            <form action={handleSubmit} className="space-y-5">
               {error && (
                 <div className="alert alert-error bg-red-100 border-2 border-error rounded-lg p-3">
                   <span className="font-quicksand text-sm text-error">{error}</span>
@@ -83,43 +84,46 @@ export default function LoginPage() {
               )}
 
               {/* email */}
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text font-quicksand font-semibold text-brown">Email Address</span>
+              <div className="space-y-2">
+                <label htmlFor="email" className="font-quicksand font-bold text-[#473025] text-[16px]">
+                  Email Address
                 </label>
                 <input
                   type="email"
                   id="email"
                   name="email"
                   required
-                  placeholder="Enter your Email Address"
-                  className="input bg-[#f5ebe0] border-0 font-quicksand placeholder:text-[#c4a46f] focus:outline-none focus:ring-2 focus:ring-brown"
+                  placeholder="Enter your email address"
+                  className="w-full bg-[#fffbf6] border-[3px] border-[#473025] rounded-[11px] h-[50px] px-4 font-quicksand text-[#473025] placeholder:text-[#a7613c] focus:outline-none focus:ring-2 focus:ring-[#ff9f22] hover:border-[#ff9f22] transition-all"
                 />
               </div>
 
               {/* password */}
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text font-quicksand font-semibold text-brown">Password</span>
+              <div className="space-y-2">
+                <label htmlFor="password" className="font-quicksand font-bold text-[#473025] text-[16px]">
+                  Password
                 </label>
                 <input
                   type="password"
                   id="password"
                   name="password"
                   required
-                  placeholder="••••••••"
-                  className="input bg-[#f5ebe0] border-0 font-quicksand placeholder:text-brown focus:outline-none focus:ring-2 focus:ring-brown"
+                  placeholder="Enter your password"
+                  className="w-full bg-[#fffbf6] border-[3px] border-[#473025] rounded-[11px] h-[50px] px-4 font-quicksand text-[#473025] placeholder:text-[#a7613c] focus:outline-none focus:ring-2 focus:ring-[#ff9f22] hover:border-[#ff9f22] transition-all"
                 />
               </div>
 
               {/* login button */}
-              <button
+              <Button
                 type="submit"
                 disabled={isPending}
-                className="bg-[#473025] border-0 hover:cursor-pointer hover:bg-brown-dark text-white font-quicksand font-bold text-[20px] w-full rounded-[7px] h-[55px] flex items-center justify-center transition-all disabled:opacity-50"
+                variant="primary"
+                size="md"
+                className="w-full"
+                isLoading={isPending}
               >
-                {isPending ? 'Signing in...' : 'Log In'}
-              </button>
+                Log In
+              </Button>
 
               {/* divider */}
               <div className="relative flex items-center justify-center my-2">

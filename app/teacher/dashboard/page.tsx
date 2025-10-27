@@ -2,98 +2,34 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Navbar from '@/components/shared/Navbar';
-import DashboardLayout from '@/components/dashboard/DashboardLayout';
-import { getTeacherStats, getTeacherQuizzes } from '@/app/actions/quiz';
+import Sidebar from '@/components/dashboard/Sidebar';
+import DashboardHeader from '@/components/dashboard/DashboardHeader';
+import ClassTabs from '@/components/dashboard/ClassTabs';
+import ClassStatistics from '@/components/dashboard/ClassStatistics';
+import StudentsTable from '@/components/dashboard/StudentsTable';
+import GamesView from '@/components/dashboard/GamesView';
+import { getTeacherStats } from '@/app/actions/quiz';
 
 export default function TeacherDashboard() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('My Classes');
 
   // real data from backend
   const [teacherData, setTeacherData] = useState({
     name: '',
-    subjects: '',
-    avatarImage: '/assets/dashboard/avatars/teacher-avatar.png',
     role: 'INSTRUCTOR',
-    isOnline: true,
+    photo: '/assets/dashboard/avatars/instructor-profile-photo.png',
   });
 
-  const [stats, setStats] = useState([
-    {
-      icon: '/assets/dashboard/icons/people-icon.svg',
-      value: 0,
-      label: 'Students',
-      iconAlt: 'students icon',
+  const [stats, setStats] = useState({
+    averageScore: 67,
+    completionData: {
+      allAssignments: 12,
+      someAssignments: 4,
+      noAssignments: 1,
     },
-    {
-      icon: '/assets/dashboard/icons/game-icon.svg',
-      value: 0,
-      label: 'Games Created',
-      iconAlt: 'games icon',
-    },
-    {
-      icon: '/assets/dashboard/icons/chart-icon.svg',
-      value: '0%',
-      label: 'Avg Score',
-      iconAlt: 'chart icon',
-    },
-    {
-      icon: '/assets/dashboard/icons/clock-line-icon.svg',
-      value: 0,
-      label: 'Hours Played',
-      iconAlt: 'clock icon',
-    },
-  ]);
-
-  const [activities] = useState([
-    {
-      studentName: 'Allison',
-      gameName: 'Monkey Swing',
-      score: 95,
-      timeAgo: '2 minutes ago',
-      avatarImage: '/assets/dashboard/avatars/student-1.png',
-    },
-    {
-      studentName: 'Evan',
-      gameName: 'Monkey Swing',
-      score: 95,
-      timeAgo: '1 hour ago',
-      avatarImage: '/assets/dashboard/avatars/student-2.png',
-    },
-    {
-      studentName: 'Floopa',
-      gameName: 'Monkey Swing',
-      score: 95,
-      timeAgo: 'Today 10:14am',
-      avatarImage: '/assets/dashboard/avatars/student-3.png',
-    },
-  ]);
-
-  const [insights] = useState([
-    {
-      type: 'success' as const,
-      icon: '/assets/dashboard/icons/check-circle-icon.svg',
-      title: 'Great Completion Rate',
-      description: 'Students are completing games',
-    },
-    {
-      type: 'warning' as const,
-      icon: '/assets/dashboard/icons/help-icon.svg',
-      title: 'Grammar Needs Attention',
-      description: 'Grammar concepts need more practice (avg: 68%)',
-    },
-  ]);
-
-  const [quizzes, setQuizzes] = useState<Array<{
-    id: string;
-    title: string | null;
-    numQuestions: number;
-    createdAt: Date;
-    hasGame: boolean;
-    gameId?: string;
-    pdfFilename?: string;
-  }>>([]);
+  });
 
   // fetch teacher data and stats on mount
   useEffect(() => {
@@ -106,51 +42,23 @@ export default function TeacherDashboard() {
         if (session?.user) {
           setTeacherData({
             name: session.user.name || 'Instructor',
-            subjects: '', // Can be added later
-            avatarImage: '/assets/dashboard/avatars/teacher-avatar.png',
             role: 'INSTRUCTOR',
-            isOnline: true,
+            photo: '/assets/dashboard/avatars/instructor-profile-photo.png',
           });
         }
 
-        // fetch stats
+        // fetch stats (keeping dummy data for now since we don't have real student data)
         const statsResult = await getTeacherStats();
         if (statsResult.success) {
-          const { totalStudents, totalGames, avgScore, totalHoursPlayed } =
-            statsResult.data.stats;
-
-          setStats([
-            {
-              icon: '/assets/dashboard/icons/people-icon.svg',
-              value: totalStudents,
-              label: 'Students',
-              iconAlt: 'students icon',
+          // use dummy data since we don't have real student completion data yet
+          setStats({
+            averageScore: 67, // dummy data
+            completionData: {
+              allAssignments: 12,
+              someAssignments: 4,
+              noAssignments: 1,
             },
-            {
-              icon: '/assets/dashboard/icons/game-icon.svg',
-              value: totalGames,
-              label: 'Games Created',
-              iconAlt: 'games icon',
-            },
-            {
-              icon: '/assets/dashboard/icons/chart-icon.svg',
-              value: `${avgScore}%`,
-              label: 'Avg Score',
-              iconAlt: 'chart icon',
-            },
-            {
-              icon: '/assets/dashboard/icons/clock-line-icon.svg',
-              value: totalHoursPlayed,
-              label: 'Hours Played',
-              iconAlt: 'clock icon',
-            },
-          ]);
-        }
-
-        // fetch quizzes
-        const quizzesResult = await getTeacherQuizzes();
-        if (quizzesResult.success) {
-          setQuizzes(quizzesResult.data.quizzes);
+          });
         }
 
         setIsLoading(false);
@@ -163,13 +71,17 @@ export default function TeacherDashboard() {
     fetchData();
   }, []);
 
-  const handleOpenUpload = () => {
+  const handleCreateClick = () => {
     router.push('/teacher/upload');
+  };
+
+  const handlePlayClick = () => {
+    router.push('/teacher/games');
   };
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#fffaf2] flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-r from-[#fffaf2] to-[#fff5e9] flex items-center justify-center">
         <div className="text-brown font-quicksand font-bold text-xl">
           Loading dashboard...
         </div>
@@ -178,27 +90,42 @@ export default function TeacherDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-[#fffaf2]">
-      {/* navigation */}
-      <Navbar showSignOut={true} />
+    <div className="min-h-screen bg-gradient-to-r from-[#fffaf2] to-[#fff5e9]">
+      {/* Sidebar Navigation */}
+      <Sidebar onPlayClick={handlePlayClick} onCreateClick={handleCreateClick} />
 
-      {/* main dashboard */}
-      <DashboardLayout
-        teacherData={teacherData}
-        stats={stats}
-        activities={activities}
-        insights={insights}
-        selectedClass="Spanish B"
-        onUploadClick={handleOpenUpload}
-        quizzes={quizzes}
-        onQuizzesUpdate={() => {
-          getTeacherQuizzes().then((result) => {
-            if (result.success) {
-              setQuizzes(result.data.quizzes);
-            }
-          });
-        }}
-      />
+      {/* Main Content Area */}
+      <div className="ml-[200px] md:ml-[240px] lg:ml-[278px] min-h-screen">
+        {/* Main Content Container */}
+        <div className="max-w-[996px] mx-auto bg-[#fffbf6] rounded-[15px] shadow-sm min-h-screen p-4 md:p-6 lg:p-8">
+          {/* Header */}
+          <DashboardHeader
+            userName={teacherData.name}
+            userRole={teacherData.role}
+            userPhoto={teacherData.photo}
+          />
+
+          {/* Class Tabs */}
+          <ClassTabs onClassChange={setActiveTab} selectedClass={activeTab} />
+
+          {/* Content based on active tab */}
+          {activeTab === 'My Classes' ? (
+            <>
+              {/* Class Statistics Section */}
+              <ClassStatistics
+                averageScore={stats.averageScore}
+                completionData={stats.completionData}
+              />
+
+              {/* Students Table */}
+              <StudentsTable />
+            </>
+          ) : (
+            /* Games View */
+            <GamesView onCreateGame={handleCreateClick} />
+          )}
+        </div>
+      </div>
     </div>
   );
 }

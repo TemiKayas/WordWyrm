@@ -70,11 +70,19 @@ function TowerDefenseContent() {
 
         if (result.success) {
           const gameData = result.data.game;
+          let quizData = gameData.quiz.quizJson;
+
           // quizJson from server might be a string, parse it
-          if (typeof gameData.quiz.quizJson === 'string') {
-            gameData.quiz.quizJson = JSON.parse(gameData.quiz.quizJson);
+          if (typeof quizData === 'string') {
+            quizData = JSON.parse(quizData);
           }
-          setQuiz(gameData.quiz.quizJson as Quiz);
+
+          // Validate and type assert to Quiz
+          if (quizData && typeof quizData === 'object' && 'questions' in quizData) {
+            setQuiz(quizData as unknown as Quiz);
+          } else {
+            setError('Invalid quiz data format');
+          }
         } else {
           // set error state if fetch fails
           setError(result.error);

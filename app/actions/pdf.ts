@@ -92,16 +92,18 @@ export async function uploadAndProcessPDF(
     console.log('Generating quiz with Gemini AI...');
     const quiz = await generateQuiz(extractedText, numQuestions);
 
-    // Save quiz
+    // save quiz
     console.log('Saving quiz to database...');
     const quizRecord = await db.quiz.create({
       data: {
         processedContentId: processedContent.id,
-        title: `Quiz: ${file.name}`,
+        title: file.name.replace('.pdf', ''),
         numQuestions: quiz.questions.length,
         quizJson: JSON.parse(JSON.stringify(quiz)),
       },
     });
+
+    console.log('Quiz created successfully. Ready for game settings.');
 
     return {
       success: true,

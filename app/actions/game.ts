@@ -18,6 +18,61 @@ type GameWithQuiz = Game & {
   };
 };
 
+// creates a new game with full settings (title, description, etc.)
+export async function createGame(params: {
+  quizId: string;
+  title: string;
+  description?: string;
+}): Promise<ActionResult<{ gameId: string; shareCode: string }>> {
+  try {
+    const { quizId, title, description } = params;
+
+    // ensure user is a teacher
+    const session = await auth();
+    if (!session?.user || session.user.role !== 'TEACHER') {
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    // verify that the teacher has a profile in db
+    const teacher = await db.teacher.findUnique({
+      where: { userId: session.user.id },
+    });
+
+    if (!teacher) {
+      return { success: false, error: 'Teacher profile not found' };
+    }
+
+    // gen a unique 6-character code for sharing the game
+    const shareCode = await generateUniqueShareCode();
+
+    // generate QR code and upload to Vercel Blob
+    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+    const qrCodeUrl = await generateGameQRCode(shareCode, baseUrl);
+
+    // create the new game record in the db
+    const game = await db.game.create({
+      data: {
+        quizId,
+        teacherId: teacher.id,
+        title,
+        description,
+        shareCode,
+        qrCodeUrl,
+      },
+    });
+
+    // return new game info on success
+    return { success: true, data: { gameId: game.id, shareCode: game.shareCode } };
+  } catch (error) {
+    // log the err for debugging and return generic err
+    console.error('Failed to create game:', error);
+    return {
+      success: false,
+      error: 'Failed to create game. Please try again.',
+    };
+  }
+}
+
 // creates a new game from generated quiz, restricted to teachers.
 // ActionResult return with the new games ID on success or err otherwise.
 export async function createGameFromQuiz(

@@ -1,17 +1,18 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { uploadAndProcessPDF } from '@/app/actions/pdf';
-import { Quiz } from '@/lib/processors/ai-generator';
 import FileUploadDropZone from '@/components/fileupload/FileUploadDropZone';
 import StepIndicator from '@/components/fileupload/StepIndicator';
+import Button from '@/components/ui/Button';
 
 interface PDFUploadFormProps {
-  onQuizGenerated: (data: { quizId: string; quiz: Quiz }) => void;
   onFileSelect?: (file: File | null) => void;
 }
 
-export default function PDFUploadForm({ onQuizGenerated, onFileSelect }: PDFUploadFormProps) {
+export default function PDFUploadForm({ onFileSelect }: PDFUploadFormProps) {
+  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [progress, setProgress] = useState<string>('');
@@ -45,10 +46,9 @@ export default function PDFUploadForm({ onQuizGenerated, onFileSelect }: PDFUplo
           setError(result.error);
           setProgress('');
         } else {
-          setProgress('Quiz generated successfully!');
-          onQuizGenerated(result.data);
-          setSelectedFile(null);
-          setTimeout(() => setProgress(''), 3000);
+          setProgress('Quiz generated successfully! Redirecting...');
+          // Redirect to game settings page
+          router.push(`/teacher/game-settings?quizId=${result.data.quizId}`);
         }
       } catch {
         setError('An unexpected error occurred');
@@ -121,15 +121,18 @@ export default function PDFUploadForm({ onQuizGenerated, onFileSelect }: PDFUplo
       </div>
 
       {/* Generate Quiz Button */}
-      <button
+      <Button
         type="button"
         onClick={handleSubmit}
         disabled={isPending || !selectedFile}
-        className="w-full px-5 py-3 bg-[#96b902] hover:bg-[#7a9700] text-[#fffdfa] text-lg font-bold rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl disabled:bg-gray-400 disabled:cursor-not-allowed active:scale-95 animate-slide-up"
-        style={{ animationDelay: '0.3s' }}
+        variant="success"
+        size="md"
+        className="w-full animate-slide-up shadow-lg hover:shadow-xl"
+        style={{ animationDelay: '0.3s' } as React.CSSProperties}
+        isLoading={isPending}
       >
-        {isPending ? 'Processing PDF...' : 'Generate Quiz'}
-      </button>
+        Generate Quiz
+      </Button>
     </div>
   );
 }
