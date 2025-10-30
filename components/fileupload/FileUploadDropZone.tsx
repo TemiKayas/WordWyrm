@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useRef, DragEvent, ChangeEvent } from 'react';
-import Image from 'next/image';
 import FileUploadButton from './FileUploadButton';
 
 /**
@@ -31,6 +30,8 @@ export default function FileUploadDropZone({
   const [error, setError] = useState<string | null>(null);
   // reference to hidden file input element
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // gif key to force reload/replay
+  const [gifKey, setGifKey] = useState(0);
 
   // validate file type and size
   const validateFile = (file: File): string | null => {
@@ -54,6 +55,8 @@ export default function FileUploadDropZone({
     }
     setError(null);
     onFileSelect(file);
+    // restart the gif animation
+    setGifKey(prev => prev + 1);
   };
 
   // drag and drop event handlers
@@ -104,15 +107,15 @@ export default function FileUploadDropZone({
 
   return (
     <div className="relative w-full pt-24">
-      {/* worm character - positioned above the container with bounce animation */}
+      {/* worm character - positioned above the container */}
       <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 z-10">
-        <Image
-          src="/assets/fileupload/worm-character.png"
-          alt="WordWyrm Character"
+        <img
+          key={gifKey}
+          src={`/assets/fileupload/eating.gif?t=${gifKey}`}
+          alt="WordWyrm eating"
           width={200}
           height={200}
-          className="animate-bounce-slow"
-          priority
+          className="object-contain"
         />
       </div>
 

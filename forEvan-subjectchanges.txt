@@ -1,0 +1,332 @@
+CHANGES MADE FOR SUBJECT-SPECIFIC QUIZ GENERATION FEATURE
+==========================================================
+
+Overview:
+- Added ability for teachers to select academic subjects (English, Math, Science, History, Language) during PDF upload
+- Each subject has customized Gemini prompts that generate subject-appropriate quiz questions
+- If no subject is selected, defaults to GENERAL with the original prompt style
+
+==========================================================
+FILE 1: prisma/schema.prisma
+==========================================================
+
+CHANGE 1 - Added Subject Enum (Lines 39-46):
+-------------------------------------------
+Added new enum after the Role enum:
+
+enum Subject {
+  ENGLISH
+  MATH
+  SCIENCE
+  HISTORY
+  LANGUAGE
+  GENERAL // Default when no subject is selected
+}
+
+Location: After line 37 (after Role enum definition)
+
+
+CHANGE 2 - Added subject field to Quiz model (Line 154):
+--------------------------------------------------------
+Modified the Quiz model to include a subject field:
+
+Before (Line 141-153):
+model Quiz {
+  id                  String   @id @default(cuid())
+  processedContentId  String
+  title               String?
+  numQuestions        Int      @default(5)
+  quizJson            Json     // Store the quiz questions/answers as JSON
+  createdAt           DateTime @default(now())
+
+  processedContent  ProcessedContent  @relation(fields: [processedContentId], references: [id], onDelete: Cascade)
+  games             Game[]
+
+  @@index([processedContentId])
+}
+
+After (Line 150-163):
+model Quiz {
+  id                  String   @id @default(cuid())
+  processedContentId  String
+  title               String?
+  subject             Subject  @default(GENERAL) // Academic subject for tailored questions
+  numQuestions        Int      @default(5)
+  quizJson            Json     // Store the quiz questions/answers as JSON
+  createdAt           DateTime @default(now())
+
+  processedContent  ProcessedContent  @relation(fields: [processedContentId], references: [id], onDelete: Cascade)
+  games             Game[]
+
+  @@index([processedContentId])
+}
+
+Added line 154: subject             Subject  @default(GENERAL) // Academic subject for tailored questions
+
+
+==========================================================
+FILE 2: lib/processors/ai-generator.ts
+==========================================================
+
+CHANGE 1 - Added Subject Enum (Lines 5-12):
+-------------------------------------------
+Added Subject enum export at the top of the file after imports:
+
+export enum Subject {
+  ENGLISH = 'ENGLISH',
+  MATH = 'MATH',
+  SCIENCE = 'SCIENCE',
+  HISTORY = 'HISTORY',
+  LANGUAGE = 'LANGUAGE',
+  GENERAL = 'GENERAL',
+}
+
+Location: After line 3 (after genAI initialization), before interfaces
+
+
+CHANGE 2 - Added getSubjectSpecificInstructions function (Lines 25-84):
+------------------------------------------------------------------------
+Added new helper function before generateQuiz:
+
+/**
+ * Get subject-specific instructions for quiz generation
+ */
+function getSubjectSpecificInstructions(subject: Subject): string {
+  switch (subject) {
+    case Subject.ENGLISH:
+      return `Focus on:
+- Reading comprehension and analysis
+- Literary devices (metaphors, similes, imagery, etc.)
+- Grammar, syntax, and vocabulary usage
+- Theme identification and character analysis
+- Writing techniques and author's purpose
+- Ensure questions test deep understanding of the text, not just recall`;
+
+    case Subject.MATH:
+      return `Focus on:
+- Problem-solving and mathematical reasoning
+- Application of formulas and theorems
+- Step-by-step solution processes
+- Mathematical concepts and principles
+- Include numerical problems when relevant
+- Ensure answer options are mathematically distinct and plausible`;
+
+    case Subject.SCIENCE:
+      return `Focus on:
+- Scientific concepts, theories, and principles
+- Cause-and-effect relationships
+- Experimental methods and observations
+- Scientific terminology and definitions
+- Real-world applications of concepts
+- Ensure questions require scientific reasoning, not just memorization`;
+
+    case Subject.HISTORY:
+      return `Focus on:
+- Historical events, dates, and timelines
+- Cause-and-effect relationships in historical contexts
+- Key figures, their roles, and contributions
+- Historical significance and impact
+- Connections between past and present
+- Ensure questions test analytical thinking about historical context`;
+
+    case Subject.LANGUAGE:
+      return `Focus on:
+- Vocabulary and word meanings
+- Grammar rules and sentence structure
+- Language usage and idiomatic expressions
+- Translation and comprehension (if applicable)
+- Cultural context of language use
+- Ensure questions test practical language understanding`;
+
+    case Subject.GENERAL:
+    default:
+      return `Focus on:
+- Key concepts and main ideas from the text
+- Important details and supporting information
+- Logical reasoning and comprehension
+- Practical application of the content
+- Ensure questions cover different sections of the material`;
+  }
+}
+
+Location: After Quiz interface (line 23), before generateQuiz function
+
+
+CHANGE 3 - Updated generateQuiz function signature (Lines 86-89):
+------------------------------------------------------------------
+Modified function to accept subject parameter:
+
+Before (Lines 25-27):
+export async function generateQuiz(
+  text: string,
+  numQuestions: number = 5
+): Promise<Quiz> {
+
+After (Lines 86-89):
+export async function generateQuiz(
+  text: string,
+  numQuestions: number = 5,
+  subject: Subject = Subject.GENERAL
+): Promise<Quiz> {
+
+Added parameter on line 89: subject: Subject = Subject.GENERAL
+
+
+CHANGE 4 - Updated prompt generation (Lines 99-128):
+----------------------------------------------------
+Modified the prompt to include subject-specific instructions:
+
+Before (Lines 28-51):
+    const prompt = `You are a quiz generator. Based on the following text, create ${numQuestions} multiple-choice questions.
+
+TEXT:
+${text.slice(0, 10000)}
+
+Generate a JSON object with this exact structure:
+{
+  "questions": [
+    {
+      "question": "Question text here?",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "answer": "The correct option text",
+      "explanation": "Brief explanation of why this is correct"
+    }
+  ]
+}
+
+Requirements:
+- Create exactly ${numQuestions} questions
+- Each question must have exactly 4 options
+- The answer must be one of the options (exact match)
+- Questions should test understanding, not just memorization
+- Cover different parts of the text
+- Keep questions clear and concise`;
+
+After (Lines 99-128):
+    const subjectInstructions = getSubjectSpecificInstructions(subject);
+
+    const prompt = `You are an expert quiz generator specializing in ${subject} education. Based on the following text, create ${numQuestions} multiple-choice questions.
+
+TEXT:
+${text.slice(0, 10000)}
+
+SUBJECT-SPECIFIC GUIDELINES:
+${subjectInstructions}
+
+Generate a JSON object with this exact structure:
+{
+  "questions": [
+    {
+      "question": "Question text here?",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "answer": "The correct option text",
+      "explanation": "Brief explanation of why this is correct"
+    }
+  ]
+}
+
+Requirements:
+- Create exactly ${numQuestions} questions
+- Each question must have exactly 4 options
+- The answer must be one of the options (exact match)
+- Questions should test understanding, not just memorization
+- Cover different parts of the text
+- Keep questions clear and concise
+- Follow the subject-specific guidelines above`;
+
+Added line 99: const subjectInstructions = getSubjectSpecificInstructions(subject);
+Modified line 101: Added "specializing in ${subject} education"
+Added lines 106-107: SUBJECT-SPECIFIC GUIDELINES section
+Modified line 128: Added "Follow the subject-specific guidelines above"
+
+
+==========================================================
+FILE 3: app/actions/pdf.ts
+==========================================================
+
+CHANGE 1 - Import Subject enum (Line 7):
+-----------------------------------------
+Updated imports to include Subject:
+
+Before:
+import { generateQuiz, Quiz } from '@/lib/processors/ai-generator';
+
+After:
+import { generateQuiz, Quiz, Subject } from '@/lib/processors/ai-generator';
+
+Added Subject to the imports on line 7
+
+
+CHANGE 2 - Extract subject from formData (Lines 46-50):
+-------------------------------------------------------
+Added code to extract and validate subject parameter:
+
+Added after line 44 (after numQuestions extraction):
+
+    // Get subject (default GENERAL if not provided)
+    const subjectValue = formData.get('subject') as string;
+    const subject = subjectValue && subjectValue in Subject
+      ? (subjectValue as Subject)
+      : Subject.GENERAL;
+
+Location: Lines 46-50, after numQuestions is extracted, before blob upload
+
+
+CHANGE 3 - Pass subject to generateQuiz (Line 99):
+--------------------------------------------------
+Updated generateQuiz call to include subject parameter:
+
+Before (Line 93):
+    const quiz = await generateQuiz(extractedText, numQuestions);
+
+After (Lines 98-99):
+    console.log(`Generating quiz with Gemini AI (Subject: ${subject})...`);
+    const quiz = await generateQuiz(extractedText, numQuestions, subject);
+
+Modified line 98: Updated console.log to include subject
+Modified line 99: Added subject as third parameter to generateQuiz
+
+
+CHANGE 4 - Save subject to database (Line 107):
+-----------------------------------------------
+Updated quiz creation to save subject field:
+
+Before (Lines 97-103):
+    const quizRecord = await db.quiz.create({
+      data: {
+        processedContentId: processedContent.id,
+        title: file.name.replace('.pdf', ''),
+        numQuestions: quiz.questions.length,
+        quizJson: JSON.parse(JSON.stringify(quiz)),
+      },
+    });
+
+After (Lines 103-111):
+    const quizRecord = await db.quiz.create({
+      data: {
+        processedContentId: processedContent.id,
+        title: file.name.replace('.pdf', ''),
+        subject: subject,
+        numQuestions: quiz.questions.length,
+        quizJson: JSON.parse(JSON.stringify(quiz)),
+      },
+    });
+
+Added line 107: subject: subject,
+
+
+==========================================================
+SUMMARY OF CHANGES
+==========================================================
+
+3 files modified:
+1. prisma/schema.prisma - Added Subject enum and subject field to Quiz model
+2. lib/processors/ai-generator.ts - Added Subject enum, subject-specific prompt logic, and updated function signature
+3. app/actions/pdf.ts - Import Subject, extract from formData, pass to generator, save to database
+
+NEW FUNCTIONALITY:
+- Teachers can now pass a 'subject' parameter in formData when uploading PDFs
+- Supported values: 'ENGLISH', 'MATH', 'SCIENCE', 'HISTORY', 'LANGUAGE', or null/undefined for 'GENERAL'
+- Each subject gets customized prompts that generate appropriate questions
+- Subject is stored in the Quiz table for future reference
+

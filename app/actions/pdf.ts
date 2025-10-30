@@ -4,7 +4,7 @@ import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { uploadPDF } from '@/lib/blob';
 import { extractTextFromPDF, validatePDF } from '@/lib/processors/pdf-processor';
-import { generateQuiz, Quiz } from '@/lib/processors/ai-generator';
+import { generateQuiz, Quiz, Subject } from '@/lib/processors/ai-generator';
 
 type ActionResult<T> =
   | { success: true; data: T }
@@ -42,6 +42,12 @@ export async function uploadAndProcessPDF(
 
     // Get number of questions (default 5)
     const numQuestions = parseInt(formData.get('numQuestions') as string) || 5;
+
+    // Get subject (default GENERAL if not provided)
+    const subjectValue = formData.get('subject') as string;
+    const subject = subjectValue && subjectValue in Subject
+      ? (subjectValue as Subject)
+      : Subject.GENERAL;
 
     // Upload to Vercel Blob
     console.log('Uploading PDF to Vercel Blob...');
@@ -89,19 +95,22 @@ export async function uploadAndProcessPDF(
     });
 
     // Generate quiz using Gemini
-    console.log('Generating quiz with Gemini AI...');
-    const quiz = await generateQuiz(extractedText, numQuestions);
+    console.log(`Generating quiz with Gemini AI (Subject: ${subject})...`);
+    const quiz = await generateQuiz(extractedText, numQuestions, subject);
 
-    // Save quiz
+    // save quiz
     console.log('Saving quiz to database...');
     const quizRecord = await db.quiz.create({
       data: {
         processedContentId: processedContent.id,
-        title: `Quiz: ${file.name}`,
+        title: file.name.replace('.pdf', ''),
+        subject: subject,
         numQuestions: quiz.questions.length,
         quizJson: JSON.parse(JSON.stringify(quiz)),
       },
     });
+
+    console.log('Quiz created successfully. Ready for game settings.');
 
     return {
       success: true,

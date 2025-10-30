@@ -36,6 +36,15 @@ enum Role {
   ADMIN
 }
 
+enum Subject {
+  ENGLISH
+  MATH
+  SCIENCE
+  HISTORY
+  LANGUAGE
+  GENERAL // Default when no subject is selected
+}
+
 // NextAuth.js models
 model Account {
   id                String  @id @default(cuid())
@@ -142,6 +151,7 @@ model Quiz {
   id                  String   @id @default(cuid())
   processedContentId  String
   title               String?
+  subject             Subject  @default(GENERAL) // Academic subject for tailored questions
   numQuestions        Int      @default(5)
   quizJson            Json     // Store the quiz questions/answers as JSON
   createdAt           DateTime @default(now())

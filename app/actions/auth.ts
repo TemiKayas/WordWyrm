@@ -111,7 +111,7 @@ export async function signup(
 
 export async function login(
   formData: FormData
-): Promise<ActionResult<{ message: string }>> {
+): Promise<ActionResult<{ message: string; role: string }>> {
   try {
     // Extract and validate data
     const rawData = {
@@ -121,16 +121,28 @@ export async function login(
 
     const validatedData = loginSchema.parse(rawData);
 
+    // Get user to check role before signing in
+    const user = await db.user.findUnique({
+      where: { email: validatedData.email },
+    });
+
+    if (!user) {
+      return {
+        success: false,
+        error: 'Invalid email or password',
+      };
+    }
+
     // Attempt sign in
     await signIn('credentials', {
       email: validatedData.email,
       password: validatedData.password,
-      redirectTo: '/', // Will be intercepted by middleware
+      redirect: false,
     });
 
     return {
       success: true,
-      data: { message: 'Logged in successfully' },
+      data: { message: 'Logged in successfully', role: user.role },
     };
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -155,7 +167,10 @@ export async function login(
       }
     }
 
-    // NextAuth throws NEXT_REDIRECT on success, so we need to re-throw it
-    throw error;
+    console.error('Login error:', error);
+    return {
+      success: false,
+      error: 'An unexpected error occurred',
+    };
   }
 }
