@@ -45,6 +45,11 @@ enum Subject {
   GENERAL // Default when no subject is selected
 }
 
+enum GameMode {
+  TRADITIONAL  // Standard quiz format
+  TOWER_DEFENSE // Phaser tower defense game
+}
+
 // NextAuth.js models
 model Account {
   id                String  @id @default(cuid())
@@ -168,8 +173,11 @@ model Game {
   teacherId   String
   title       String
   description String?   @db.Text
+  imageUrl    String?   // Custom game cover image (Vercel Blob URL)
   shareCode   String    @unique // Short code for joining (e.g., "ABC123")
   qrCodeUrl   String?   // Vercel Blob URL for QR code image
+  isPublic    Boolean   @default(false) // Whether game is publicly discoverable
+  gameMode    GameMode  @default(TRADITIONAL) // Quiz format (traditional or tower defense)
   active      Boolean   @default(true)
   maxAttempts Int       @default(1) // How many times can a student play
   timeLimit   Int?      // Time limit in seconds (optional)
@@ -183,6 +191,7 @@ model Game {
   @@index([teacherId])
   @@index([shareCode])
   @@index([active])
+  @@index([isPublic])
 }
 
 model GameSession {
