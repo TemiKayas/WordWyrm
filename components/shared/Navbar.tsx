@@ -50,7 +50,7 @@ export default function Navbar({ showSignOut = true }: NavbarProps) {
           <div className="flex items-center gap-4">
             {showSignOut && (
               <button
-                onClick={() => signOut({ callbackUrl: '/' })}
+                onClick={() => signOut({ callbackUrl: '/login' })}
                 className="px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-[#473025] hover:text-[#ff9f22] transition-colors"
               >
                 Sign Out

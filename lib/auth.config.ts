@@ -27,10 +27,13 @@ export const authConfig = {
       return session;
     },
     async redirect({ url, baseUrl }) {
-      // Allows relative callback URLs
+      // Handle callback URLs with explicit paths
       if (url.startsWith('/')) return `${baseUrl}${url}`;
-      // Allows callback URLs on the same origin
-      else if (new URL(url).origin === baseUrl) return url;
+
+      // Handle URLs on the same origin
+      if (new URL(url).origin === baseUrl) return url;
+
+      // Default: redirect to base URL (will be handled by middleware)
       return baseUrl;
     },
   },

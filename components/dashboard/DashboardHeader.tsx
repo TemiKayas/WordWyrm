@@ -13,8 +13,8 @@ interface DashboardHeaderProps {
 export default function DashboardHeader({
   userName,
   userRole = 'INSTRUCTOR',
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   userPhoto = '/public/assets/dashboard/avatars/teacher-avatar.png',
-
 }: DashboardHeaderProps) {
   const [showDropdown, setShowDropdown] = useState(false);
 

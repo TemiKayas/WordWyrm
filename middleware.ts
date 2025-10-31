@@ -15,7 +15,11 @@ export default auth((req) => {
 
   // Redirect authenticated users away from auth pages
   if (isAuthenticated && (path === '/login' || path === '/signup')) {
-    const redirectPath = userRole === 'TEACHER' ? '/teacher/dashboard' : '/student/dashboard';
+    const redirectPath = userRole === 'TEACHER'
+      ? '/teacher/dashboard'
+      : userRole === 'STUDENT'
+      ? '/student/dashboard'
+      : '/';
     return NextResponse.redirect(new URL(redirectPath, req.url));
   }
 
@@ -25,7 +29,11 @@ export default auth((req) => {
       return NextResponse.redirect(new URL('/login', req.url));
     }
     if (userRole !== 'TEACHER' && userRole !== 'ADMIN') {
-      return NextResponse.redirect(new URL('/student/dashboard', req.url));
+      // Wrong role - redirect to their appropriate dashboard or login
+      if (userRole === 'STUDENT') {
+        return NextResponse.redirect(new URL('/student/dashboard', req.url));
+      }
+      return NextResponse.redirect(new URL('/login', req.url));
     }
   }
 
@@ -35,7 +43,11 @@ export default auth((req) => {
       return NextResponse.redirect(new URL('/login', req.url));
     }
     if (userRole !== 'STUDENT' && userRole !== 'ADMIN') {
-      return NextResponse.redirect(new URL('/teacher/dashboard', req.url));
+      // Wrong role - redirect to their appropriate dashboard or login
+      if (userRole === 'TEACHER') {
+        return NextResponse.redirect(new URL('/teacher/dashboard', req.url));
+      }
+      return NextResponse.redirect(new URL('/login', req.url));
     }
   }
 
@@ -43,6 +55,7 @@ export default auth((req) => {
 });
 
 export const config = {
-  // Exclude: api routes, Next.js internals, static files, public files, auth pages, and play pages
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|login|signup|play|.*\\..*).*)'],
+  // Exclude: api routes, Next.js internals, static files, public files, and play pages
+  // NOTE: We DO include login/signup so we can redirect authenticated users away from them
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|play|.*\\..*).*)'],
 };

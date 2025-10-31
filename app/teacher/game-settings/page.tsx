@@ -13,8 +13,10 @@ function GameSettingsContent() {
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [coverImage, setCoverImage] = useState<File | null>(null);
   const [coverImagePreview, setCoverImagePreview] = useState<string>('');
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [gameMode, setGameMode] = useState('tower-defense');
   const [isPublic, setIsPublic] = useState(true);
   const [isLoading, setIsLoading] = useState(false);

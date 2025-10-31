@@ -16,14 +16,25 @@ export default function SignupPage() {
     setError(null);
 
     startTransition(async () => {
-      const result = await signup(formData);
+      try {
+        const result = await signup(formData);
 
-      if (!result.success) {
-        setError(result.error);
-      } else {
-        // Redirect based on role
-        router.push('/');
-        router.refresh();
+        if (!result.success) {
+          setError(result.error);
+        } else {
+          // Redirect based on user role
+          if (result.data.role === 'TEACHER') {
+            router.push('/teacher/dashboard');
+          } else if (result.data.role === 'STUDENT') {
+            router.push('/student/dashboard');
+          } else {
+            router.push('/');
+          }
+          router.refresh();
+        }
+      } catch (err) {
+        console.error('Signup error:', err);
+        setError('An unexpected error occurred');
       }
     });
   }
