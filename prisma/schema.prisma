@@ -147,14 +147,15 @@ model Quiz {
   createdAt           DateTime @default(now())
 
   processedContent  ProcessedContent  @relation(fields: [processedContentId], references: [id], onDelete: Cascade)
-  games             Game[]
+  games             Game[]            // Legacy: for backwards compatibility
+  gameQuizzes       GameQuiz[]        // New: many-to-many relationship
 
   @@index([processedContentId])
 }
 
 model Game {
   id          String    @id @default(cuid())
-  quizId      String
+  quizId      String?   // Legacy: made optional for backwards compatibility
   teacherId   String
   title       String
   description String?   @db.Text
@@ -166,13 +167,30 @@ model Game {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  quiz          Quiz            @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  quiz          Quiz?           @relation(fields: [quizId], references: [id], onDelete: Cascade) // Legacy
   teacher       Teacher         @relation(fields: [teacherId], references: [id], onDelete: Cascade)
   gameSessions  GameSession[]
+  gameQuizzes   GameQuiz[]      // New: many-to-many relationship
 
   @@index([teacherId])
   @@index([shareCode])
   @@index([active])
+}
+
+// Junction table for many-to-many Game-Quiz relationship
+model GameQuiz {
+  id        String   @id @default(cuid())
+  gameId    String
+  quizId    String
+  order     Int      @default(0) // Order of quiz in the game
+  createdAt DateTime @default(now())
+
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  quiz Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  @@unique([gameId, quizId])
+  @@index([gameId])
+  @@index([quizId])
 }
 
 model GameSession {

@@ -4,7 +4,7 @@ import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { generateUniqueShareCode } from '@/lib/utils/share-code';
 import { generateGameQRCode } from '@/lib/utils/qr-code';
-import type { Game, Quiz, ProcessedContent } from '@prisma/client';
+import type { Game, Quiz, ProcessedContent, PDF, GameQuiz } from '@prisma/client';
 
 //type of server action results, success or fail, T is the type of return.
 type ActionResult<T> =
@@ -61,6 +61,15 @@ export async function createGame(params: {
       },
     });
 
+    // create the initial GameQuiz record for the original PDF
+    await db.gameQuiz.create({
+      data: {
+        gameId: game.id,
+        quizId,
+        order: 0,
+      },
+    });
+
     // return new game info on success
     return { success: true, data: { gameId: game.id, shareCode: game.shareCode } };
   } catch (error) {
@@ -110,6 +119,15 @@ export async function createGameFromQuiz(
         title,
         shareCode,
         qrCodeUrl,
+      },
+    });
+
+    // create the initial GameQuiz record for the original PDF
+    await db.gameQuiz.create({
+      data: {
+        gameId: game.id,
+        quizId,
+        order: 0,
       },
     });
 
@@ -226,5 +244,174 @@ export async function updateGame(params: {
       success: false,
       error: 'Failed to update game. Please try again.',
     };
+  }
+}
+
+// Type for game with all quizzes and their PDFs
+type GameWithQuizzes = Game & {
+  gameQuizzes: (GameQuiz & {
+    quiz: Quiz & {
+      processedContent: ProcessedContent & {
+        pdf: PDF;
+      };
+    };
+  })[];
+};
+
+// Get all quizzes/PDFs attached to a game
+export async function getGameQuizzes(
+  gameId: string
+): Promise<ActionResult<{ quizzes: GameWithQuizzes['gameQuizzes'] }>> {
+  try {
+    const session = await auth();
+    if (!session?.user || session.user.role !== 'TEACHER') {
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    const game = await db.game.findUnique({
+      where: { id: gameId },
+      include: {
+        teacher: { include: { user: true } },
+        gameQuizzes: {
+          include: {
+            quiz: {
+              include: {
+                processedContent: {
+                  include: {
+                    pdf: true,
+                  },
+                },
+              },
+            },
+          },
+          orderBy: { order: 'asc' },
+        },
+      },
+    });
+
+    if (!game) {
+      return { success: false, error: 'Game not found' };
+    }
+
+    if (game.teacher.userId !== session.user.id) {
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    return { success: true, data: { quizzes: game.gameQuizzes } };
+  } catch (error) {
+    console.error('Failed to get game quizzes:', error);
+    return { success: false, error: 'Failed to retrieve game quizzes' };
+  }
+}
+
+// Add a quiz to a game
+export async function addQuizToGame(params: {
+  gameId: string;
+  quizId: string;
+}): Promise<ActionResult<{ gameQuiz: GameQuiz }>> {
+  try {
+    const { gameId, quizId } = params;
+
+    const session = await auth();
+    if (!session?.user || session.user.role !== 'TEACHER') {
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    // Verify game belongs to teacher
+    const game = await db.game.findUnique({
+      where: { id: gameId },
+      include: {
+        teacher: { include: { user: true } },
+        gameQuizzes: true,
+      },
+    });
+
+    if (!game) {
+      return { success: false, error: 'Game not found' };
+    }
+
+    if (game.teacher.userId !== session.user.id) {
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    // Check if quiz already attached
+    const existing = await db.gameQuiz.findUnique({
+      where: {
+        gameId_quizId: { gameId, quizId },
+      },
+    });
+
+    if (existing) {
+      return { success: false, error: 'Quiz already attached to this game' };
+    }
+
+    // Get the next order number
+    const maxOrder = game.gameQuizzes.reduce(
+      (max, gq) => Math.max(max, gq.order),
+      -1
+    );
+
+    // Create the game-quiz relationship
+    const gameQuiz = await db.gameQuiz.create({
+      data: {
+        gameId,
+        quizId,
+        order: maxOrder + 1,
+      },
+    });
+
+    return { success: true, data: { gameQuiz } };
+  } catch (error) {
+    console.error('Failed to add quiz to game:', error);
+    return { success: false, error: 'Failed to add quiz to game' };
+  }
+}
+
+// Remove a quiz from a game
+export async function removeQuizFromGame(params: {
+  gameId: string;
+  quizId: string;
+}): Promise<ActionResult<{ success: boolean }>> {
+  try {
+    const { gameId, quizId } = params;
+
+    const session = await auth();
+    if (!session?.user || session.user.role !== 'TEACHER') {
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    // Verify game belongs to teacher
+    const game = await db.game.findUnique({
+      where: { id: gameId },
+      include: {
+        teacher: { include: { user: true } },
+        gameQuizzes: true,
+      },
+    });
+
+    if (!game) {
+      return { success: false, error: 'Game not found' };
+    }
+
+    if (game.teacher.userId !== session.user.id) {
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    // Don't allow removing if it's the only quiz
+    if (game.gameQuizzes.length === 1) {
+      return { success: false, error: 'Cannot remove the only quiz from a game' };
+    }
+
+    // Delete the game-quiz relationship
+    await db.gameQuiz.delete({
+      where: {
+        gameId_quizId: { gameId, quizId },
+      },
+    });
+
+    return { success: true, data: { success: true } };
+  } catch (error) {
+    console.error('Failed to remove quiz from game:', error);
+    return { success: false, error: 'Failed to remove quiz from game' };
   }
 }

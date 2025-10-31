@@ -13,6 +13,7 @@ function GamePreviewContent() {
   const [gameData, setGameData] = useState<{
     id: string;
     title: string;
+    description: string;
     shareCode: string;
     numQuestions: number;
     playTime: string;
@@ -44,6 +45,7 @@ function GamePreviewContent() {
           setGameData({
             id: game.id,
             title: game.title,
+            description: game.description || '',
             shareCode: game.shareCode,
             numQuestions: game.quiz.numQuestions,
             playTime: `~${estimatedMinutes}min`,
@@ -133,6 +135,18 @@ function GamePreviewContent() {
           <div className="space-y-6">
             {/* game preview card */}
             <div className="bg-[#fffcf8] border-4 border-brown rounded-[15px] p-6">
+              {/* game title and description */}
+              <div className="mb-4">
+                <h2 className="font-quicksand font-bold text-brown text-[24px] mb-2">
+                  {gameData.title}
+                </h2>
+                {gameData.description && (
+                  <p className="font-quicksand text-[#717182] text-[14px] leading-relaxed">
+                    {gameData.description}
+                  </p>
+                )}
+              </div>
+
               {/* game image/thumbnail */}
               <div className="relative w-full aspect-video bg-[#f1e8d9] rounded-[20px] mb-6 overflow-hidden flex items-center justify-center">
                 <img
