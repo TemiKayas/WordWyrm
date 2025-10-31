@@ -73,8 +73,8 @@ export default function GamesView({ onCreateGame }: GamesViewProps) {
   };
 
   const handleEdit = (game: Game) => {
-    // Navigate to game preview/edit page
-    router.push(`/teacher/game-preview?quizId=${game.id}`);
+    // Navigate to game edit page
+    router.push(`/teacher/games/edit?quizId=${game.id}`);
   };
 
   const handleDelete = async (game: Game) => {

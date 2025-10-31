@@ -11,7 +11,7 @@ type ActionResult<T> =
 
 // Type for quiz with game info
 type QuizWithGame = PrismaQuiz & {
-  games: Pick<Game, 'id' | 'shareCode'>[];
+  games: Game[];
 };
 
 // get all quizzes for the logged-in teacher
@@ -182,6 +182,57 @@ export async function updateQuizTitle(
   } catch (error) {
     console.error('Failed to update quiz:', error);
     return { success: false, error: 'Failed to update quiz' };
+  }
+}
+
+// update quiz questions
+export async function updateQuizQuestions(
+  quizId: string,
+  quizJson: Quiz
+): Promise<ActionResult<{ quiz: PrismaQuiz }>> {
+  try {
+    const session = await auth();
+    if (!session?.user || session.user.role !== 'TEACHER') {
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    // verify ownership
+    const quiz = await db.quiz.findUnique({
+      where: { id: quizId },
+      include: {
+        processedContent: {
+          include: {
+            pdf: {
+              include: {
+                teacher: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!quiz) {
+      return { success: false, error: 'Quiz not found' };
+    }
+
+    if (quiz.processedContent.pdf.teacher.userId !== session.user.id) {
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    // update the quiz questions and numQuestions
+    const updatedQuiz = await db.quiz.update({
+      where: { id: quizId },
+      data: {
+        quizJson: quizJson as unknown as object,
+        numQuestions: quizJson.questions.length,
+      },
+    });
+
+    return { success: true, data: { quiz: updatedQuiz } };
+  } catch (error) {
+    console.error('Failed to update quiz questions:', error);
+    return { success: false, error: 'Failed to update quiz questions' };
   }
 }
 

@@ -174,3 +174,57 @@ export async function getGameWithQuiz(
     return { success: false, error: 'Failed to retrieve game data.' };
   }
 }
+
+// updates game details (title, description, active status)
+export async function updateGame(params: {
+  gameId: string;
+  title?: string;
+  description?: string;
+  active?: boolean;
+  maxAttempts?: number;
+  timeLimit?: number | null;
+}): Promise<ActionResult<{ game: Game }>> {
+  try {
+    const { gameId, ...updateData } = params;
+
+    // ensure user is a teacher
+    const session = await auth();
+    if (!session?.user || session.user.role !== 'TEACHER') {
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    // verify game exists and belongs to teacher
+    const existingGame = await db.game.findUnique({
+      where: { id: gameId },
+      include: {
+        teacher: {
+          include: {
+            user: true,
+          },
+        },
+      },
+    });
+
+    if (!existingGame) {
+      return { success: false, error: 'Game not found' };
+    }
+
+    if (existingGame.teacher.userId !== session.user.id) {
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    // update the game
+    const updatedGame = await db.game.update({
+      where: { id: gameId },
+      data: updateData,
+    });
+
+    return { success: true, data: { game: updatedGame } };
+  } catch (error) {
+    console.error('Failed to update game:', error);
+    return {
+      success: false,
+      error: 'Failed to update game. Please try again.',
+    };
+  }
+}
