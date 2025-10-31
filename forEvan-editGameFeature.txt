@@ -1,0 +1,380 @@
+CHANGES MADE FOR GAME EDIT FUNCTIONALITY
+==========================================
+
+Overview:
+- Added ability for teachers to edit existing games
+- Editable fields: title, description, cover image, public/private status, and game mode
+- Image upload with validation (JPEG, PNG, WebP, GIF up to 5MB)
+- Game mode selection between Traditional quiz and Tower Defense
+
+==========================================
+FILE 1: prisma/schema.prisma
+==========================================
+
+CHANGE 1 - Added GameMode Enum (Lines 48-51):
+----------------------------------------------
+Added new enum after Subject enum:
+
+enum GameMode {
+  TRADITIONAL  // Standard quiz format
+  TOWER_DEFENSE // Phaser tower defense game
+}
+
+Location: After line 46 (after Subject enum definition)
+
+
+CHANGE 2 - Added new fields to Game model (Lines 176, 179-180, 194):
+---------------------------------------------------------------------
+Modified the Game model to include new editable fields:
+
+Before (Line 165-176):
+model Game {
+  id          String    @id @default(cuid())
+  quizId      String
+  teacherId   String
+  title       String
+  description String?   @db.Text
+  shareCode   String    @unique
+  qrCodeUrl   String?
+  active      Boolean   @default(true)
+  maxAttempts Int       @default(1)
+  timeLimit   Int?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+After (Lines 170-195):
+model Game {
+  id          String    @id @default(cuid())
+  quizId      String
+  teacherId   String
+  title       String
+  description String?   @db.Text
+  imageUrl    String?   // Custom game cover image (Vercel Blob URL)
+  shareCode   String    @unique
+  qrCodeUrl   String?
+  isPublic    Boolean   @default(false) // Whether game is publicly discoverable
+  gameMode    GameMode  @default(TRADITIONAL) // Quiz format (traditional or tower defense)
+  active      Boolean   @default(true)
+  maxAttempts Int       @default(1)
+  timeLimit   Int?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  ...
+
+  @@index([isPublic])
+}
+
+Added lines:
+- Line 176: imageUrl    String?   // Custom game cover image (Vercel Blob URL)
+- Line 179: isPublic    Boolean   @default(false) // Whether game is publicly discoverable
+- Line 180: gameMode    GameMode  @default(TRADITIONAL) // Quiz format (traditional or tower defense)
+- Line 194: @@index([isPublic])
+
+
+==========================================
+FILE 2: lib/blob.ts
+==========================================
+
+CHANGE 1 - Added uploadGameImage function (Lines 16-35):
+--------------------------------------------------------
+Added helper function to upload game cover images with validation:
+
+export async function uploadGameImage(file: File): Promise<string> {
+  // Validate file type
+  const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+  if (!validTypes.includes(file.type)) {
+    throw new Error('Invalid file type. Only JPEG, PNG, WebP, and GIF images are allowed.');
+  }
+
+  // Validate file size (max 5MB)
+  const maxSize = 5 * 1024 * 1024; // 5MB
+  if (file.size > maxSize) {
+    throw new Error('File too large. Maximum size is 5MB.');
+  }
+
+  const blob = await put(`game-images/${file.name}`, file, {
+    access: 'public',
+    addRandomSuffix: true,
+    contentType: file.type,
+  });
+  return blob.url;
+}
+
+Location: After deletePDF function
+
+
+CHANGE 2 - Added deleteGameImage function (Lines 37-39):
+---------------------------------------------------------
+Added helper function to delete game images from blob storage:
+
+export async function deleteGameImage(url: string): Promise<void> {
+  await del(url);
+}
+
+Location: After uploadGameImage function
+
+
+==========================================
+FILE 3: app/actions/game.ts
+==========================================
+
+CHANGE 1 - Updated imports (Lines 7-8):
+----------------------------------------
+Added new imports for image handling and GameMode type:
+
+Before:
+import { generateUniqueShareCode } from '@/lib/utils/share-code';
+import { generateGameQRCode } from '@/lib/utils/qr-code';
+import type { Game, Quiz, ProcessedContent } from '@prisma/client';
+
+After:
+import { generateUniqueShareCode } from '@/lib/utils/share-code';
+import { generateGameQRCode } from '@/lib/utils/qr-code';
+import { uploadGameImage, deleteGameImage } from '@/lib/blob';
+import type { Game, Quiz, ProcessedContent, GameMode } from '@prisma/client';
+
+Added line 7: import { uploadGameImage, deleteGameImage } from '@/lib/blob';
+Modified line 8: Added GameMode to type imports
+
+
+CHANGE 2 - Added updateGame function (Lines 179-276):
+------------------------------------------------------
+Added new server action to handle game updates:
+
+export async function updateGame(params: {
+  gameId: string;
+  title?: string;
+  description?: string;
+  imageFile?: File; // New image to upload
+  removeImage?: boolean; // Flag to remove existing image
+  isPublic?: boolean;
+  gameMode?: GameMode;
+}): Promise<ActionResult<{ game: Game }>> {
+  try {
+    const { gameId, title, description, imageFile, removeImage, isPublic, gameMode } = params;
+
+    // ensure user is a teacher
+    const session = await auth();
+    if (!session?.user || session.user.role !== 'TEACHER') {
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    // verify that the teacher has a profile in db
+    const teacher = await db.teacher.findUnique({
+      where: { userId: session.user.id },
+    });
+
+    if (!teacher) {
+      return { success: false, error: 'Teacher profile not found' };
+    }
+
+    // verify that the game exists and belongs to this teacher
+    const existingGame = await db.game.findUnique({
+      where: { id: gameId },
+    });
+
+    if (!existingGame) {
+      return { success: false, error: 'Game not found' };
+    }
+
+    if (existingGame.teacherId !== teacher.id) {
+      return { success: false, error: 'You do not have permission to edit this game' };
+    }
+
+    // handle image upload/removal
+    let newImageUrl = existingGame.imageUrl;
+
+    if (removeImage && existingGame.imageUrl) {
+      // delete old image from blob storage
+      try {
+        await deleteGameImage(existingGame.imageUrl);
+        newImageUrl = null;
+      } catch (error) {
+        console.error('Failed to delete old image:', error);
+        // continue anyway, just log the error
+      }
+    } else if (imageFile) {
+      // upload new image
+      try {
+        // delete old image if exists
+        if (existingGame.imageUrl) {
+          await deleteGameImage(existingGame.imageUrl);
+        }
+        newImageUrl = await uploadGameImage(imageFile);
+      } catch (error) {
+        console.error('Failed to upload new image:', error);
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Failed to upload image',
+        };
+      }
+    }
+
+    // build update data object (only include fields that were provided)
+    const updateData: any = {
+      updatedAt: new Date(),
+    };
+
+    if (title !== undefined) updateData.title = title;
+    if (description !== undefined) updateData.description = description;
+    if (newImageUrl !== existingGame.imageUrl) updateData.imageUrl = newImageUrl;
+    if (isPublic !== undefined) updateData.isPublic = isPublic;
+    if (gameMode !== undefined) updateData.gameMode = gameMode;
+
+    // update the game record in the database
+    const updatedGame = await db.game.update({
+      where: { id: gameId },
+      data: updateData,
+    });
+
+    console.log(`Game ${gameId} updated successfully`);
+
+    return { success: true, data: { game: updatedGame } };
+  } catch (error) {
+    console.error('Failed to update game:', error);
+    return {
+      success: false,
+      error: 'Failed to update game. Please try again.',
+    };
+  }
+}
+
+Location: Added at end of file after getGameWithQuiz function
+
+Key Features:
+- Validates teacher authentication and ownership
+- Handles image upload with automatic old image deletion
+- Supports removing images with removeImage flag
+- Only updates fields that are provided (partial updates)
+- Returns updated game object on success
+
+
+==========================================
+SUMMARY OF CHANGES
+==========================================
+
+3 files modified:
+1. prisma/schema.prisma - Added GameMode enum and new fields to Game model (imageUrl, isPublic, gameMode)
+2. lib/blob.ts - Added uploadGameImage and deleteGameImage helper functions
+3. app/actions/game.ts - Added updateGame server action with full validation and ownership checks
+
+NEW FUNCTIONALITY:
+- Teachers can edit game title, description, image, public/private status, and game mode
+- Image validation: JPEG, PNG, WebP, GIF only, max 5MB
+- Automatic cleanup: old images are deleted when new ones are uploaded
+- Ownership validation: only the teacher who created the game can edit it
+- Partial updates: only provided fields are updated
+
+DATABASE CHANGES:
+- Added GameMode enum: TRADITIONAL, TOWER_DEFENSE
+- Added imageUrl field (nullable String) to Game table
+- Added isPublic field (Boolean, default false) to Game table
+- Added gameMode field (GameMode enum, default TRADITIONAL) to Game table
+- Added index on isPublic for efficient public game queries
+- All existing games now have: isPublic = false, gameMode = TRADITIONAL, imageUrl = null
+
+NEXT STEPS FOR FRONTEND TEAM:
+
+1. Create Edit Game UI/Form with fields:
+   - Text input for title
+   - Textarea for description
+   - File upload for game image (accept: .jpg, .jpeg, .png, .webp, .gif)
+   - Toggle/checkbox for isPublic
+   - Dropdown/radio for gameMode (Traditional or Tower Defense)
+
+2. Call the updateGame action:
+
+Example TypeScript usage:
+```typescript
+import { updateGame } from '@/app/actions/game';
+
+// Example 1: Update text fields only
+const result = await updateGame({
+  gameId: 'game_123abc',
+  title: 'New Game Title',
+  description: 'Updated description',
+  isPublic: true,
+  gameMode: 'TOWER_DEFENSE'
+});
+
+// Example 2: Update with new image
+const formData = new FormData();
+const imageFile = formData.get('image') as File;
+
+const result = await updateGame({
+  gameId: 'game_123abc',
+  imageFile: imageFile,
+});
+
+// Example 3: Remove existing image
+const result = await updateGame({
+  gameId: 'game_123abc',
+  removeImage: true,
+});
+
+// Example 4: Update only public status
+const result = await updateGame({
+  gameId: 'game_123abc',
+  isPublic: false,
+});
+
+// Check result
+if (result.success) {
+  console.log('Game updated!', result.data.game);
+} else {
+  console.error('Error:', result.error);
+}
+```
+
+3. Important Notes:
+   - All fields are optional - only send what you want to update
+   - imageFile should be a File object (from file input)
+   - To remove an image without adding a new one, set removeImage: true
+   - gameMode values: 'TRADITIONAL' or 'TOWER_DEFENSE'
+   - The action validates ownership automatically
+   - Image validation happens server-side (type and size checks)
+
+4. Error Handling:
+   - Unauthorized: User is not a teacher or not logged in
+   - Teacher profile not found: Database issue
+   - Game not found: Invalid gameId
+   - No permission: User doesn't own this game
+   - Image upload errors: File too large or invalid type
+
+5. UI Considerations:
+   - Show current values when editing
+   - Display image preview if imageUrl exists
+   - Provide "Remove Image" button if image exists
+   - Show validation errors from server response
+   - Confirm before removing images
+   - Disable submit while uploading
+
+==========================================
+TESTING CHECKLIST
+==========================================
+
+Backend is complete. Frontend team should test:
+1. Edit game title and description
+2. Upload new game image (various formats)
+3. Try uploading invalid file type (should fail)
+4. Try uploading file > 5MB (should fail)
+5. Remove existing image
+6. Toggle public/private status
+7. Change game mode
+8. Try editing another teacher's game (should fail)
+9. Partial updates (only some fields)
+10. All fields at once
+
+==========================================
+CURRENT STATUS
+==========================================
+
+✓ Database schema updated (prisma db push completed)
+✓ Prisma Client regenerated with new types
+✓ Server action implemented and tested for logic
+✓ Image upload/validation implemented
+✓ Ownership and permission checks in place
+✓ All existing games have default values set
+
+Ready for frontend implementation!
