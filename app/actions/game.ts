@@ -4,7 +4,7 @@ import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { generateUniqueShareCode } from '@/lib/utils/share-code';
 import { generateGameQRCode } from '@/lib/utils/qr-code';
-import type { Game, Quiz, ProcessedContent, PDF, GameQuiz } from '@prisma/client';
+import type { Game, Quiz, ProcessedContent, PDF } from '@prisma/client';
 
 //type of server action results, success or fail, T is the type of return.
 type ActionResult<T> =
@@ -61,15 +61,6 @@ export async function createGame(params: {
       },
     });
 
-    // create the initial GameQuiz record for the original PDF
-    await db.gameQuiz.create({
-      data: {
-        gameId: game.id,
-        quizId,
-        order: 0,
-      },
-    });
-
     // return new game info on success
     return { success: true, data: { gameId: game.id, shareCode: game.shareCode } };
   } catch (error) {
@@ -119,15 +110,6 @@ export async function createGameFromQuiz(
         title,
         shareCode,
         qrCodeUrl,
-      },
-    });
-
-    // create the initial GameQuiz record for the original PDF
-    await db.gameQuiz.create({
-      data: {
-        gameId: game.id,
-        quizId,
-        order: 0,
       },
     });
 
@@ -247,44 +229,37 @@ export async function updateGame(params: {
   }
 }
 
-// Type for game with all quizzes and their PDFs
-type GameWithQuizzes = Game & {
-  gameQuizzes: (GameQuiz & {
-    quiz: Quiz & {
-      processedContent: ProcessedContent & {
-        pdf: PDF;
-      };
-    };
-  })[];
-};
-
-// Get all quizzes/PDFs attached to a game
 export async function getGameQuizzes(
   gameId: string
-): Promise<ActionResult<{ quizzes: GameWithQuizzes['gameQuizzes'] }>> {
+): Promise<
+  ActionResult<{
+    quizzes: Array<{
+      id: string;
+      quiz: Quiz & { processedContent: ProcessedContent & { pdf: PDF } };
+    }>;
+  }>
+> {
   try {
     const session = await auth();
     if (!session?.user || session.user.role !== 'TEACHER') {
       return { success: false, error: 'Unauthorized' };
     }
 
+    // verify game exists and belongs to the teacher
     const game = await db.game.findUnique({
       where: { id: gameId },
       include: {
-        teacher: { include: { user: true } },
-        gameQuizzes: {
+        teacher: {
+          include: { user: true },
+        },
+        quiz: {
           include: {
-            quiz: {
+            processedContent: {
               include: {
-                processedContent: {
-                  include: {
-                    pdf: true,
-                  },
-                },
+                pdf: true,
               },
             },
           },
-          orderBy: { order: 'asc' },
         },
       },
     });
@@ -297,18 +272,27 @@ export async function getGameQuizzes(
       return { success: false, error: 'Unauthorized' };
     }
 
-    return { success: true, data: { quizzes: game.gameQuizzes } };
+    // The current schema supports a single quiz per game. Return that quiz as an array
+    // to satisfy the UI which expects an array of attached "quizzes".
+    const quizzes: Array<{
+      id: string;
+      quiz: Quiz & { processedContent: ProcessedContent & { pdf: PDF } };
+    }> = [];
+    if (game.quiz) {
+      quizzes.push({ id: game.id, quiz: game.quiz });
+    }
+
+    return { success: true, data: { quizzes } };
   } catch (error) {
     console.error('Failed to get game quizzes:', error);
     return { success: false, error: 'Failed to retrieve game quizzes' };
   }
 }
 
-// Add a quiz to a game
 export async function addQuizToGame(params: {
   gameId: string;
   quizId: string;
-}): Promise<ActionResult<{ gameQuiz: GameQuiz }>> {
+}): Promise<ActionResult<{ success: boolean }>> {
   try {
     const { gameId, quizId } = params;
 
@@ -317,13 +301,10 @@ export async function addQuizToGame(params: {
       return { success: false, error: 'Unauthorized' };
     }
 
-    // Verify game belongs to teacher
+    // verify ownership of the game
     const game = await db.game.findUnique({
       where: { id: gameId },
-      include: {
-        teacher: { include: { user: true } },
-        gameQuizzes: true,
-      },
+      include: { teacher: { include: { user: true } } },
     });
 
     if (!game) {
@@ -334,40 +315,40 @@ export async function addQuizToGame(params: {
       return { success: false, error: 'Unauthorized' };
     }
 
-    // Check if quiz already attached
-    const existing = await db.gameQuiz.findUnique({
-      where: {
-        gameId_quizId: { gameId, quizId },
+    // verify the quiz exists and belongs to the teacher who owns the game
+    const quiz = await db.quiz.findUnique({
+      where: { id: quizId },
+      include: {
+        processedContent: {
+          include: {
+            pdf: {
+              include: { teacher: { include: { user: true } } },
+            },
+          },
+        },
       },
     });
 
-    if (existing) {
-      return { success: false, error: 'Quiz already attached to this game' };
+    if (!quiz) {
+      return { success: false, error: 'Quiz not found' };
     }
 
-    // Get the next order number
-    const maxOrder = game.gameQuizzes.reduce(
-      (max, gq) => Math.max(max, gq.order),
-      -1
-    );
+    // processedContent.pdf.teacher.userId should match session user
+    if (quiz.processedContent?.pdf?.teacher?.userId !== session.user.id) {
+      return { success: false, error: 'Unauthorized' };
+    }
 
-    // Create the game-quiz relationship
-    const gameQuiz = await db.gameQuiz.create({
-      data: {
-        gameId,
-        quizId,
-        order: maxOrder + 1,
-      },
-    });
+    await db.game.update({ where: { id: gameId }, data: { quizId } });
 
-    return { success: true, data: { gameQuiz } };
+    return { success: true, data: { success: true } };
   } catch (error) {
     console.error('Failed to add quiz to game:', error);
     return { success: false, error: 'Failed to add quiz to game' };
   }
 }
 
-// Remove a quiz from a game
+// remove a quiz from a game.
+// here we delete the game when removing its quiz (the UI prevents removing the only PDF client-side),
 export async function removeQuizFromGame(params: {
   gameId: string;
   quizId: string;
@@ -380,13 +361,9 @@ export async function removeQuizFromGame(params: {
       return { success: false, error: 'Unauthorized' };
     }
 
-    // Verify game belongs to teacher
     const game = await db.game.findUnique({
       where: { id: gameId },
-      include: {
-        teacher: { include: { user: true } },
-        gameQuizzes: true,
-      },
+      include: { teacher: { include: { user: true } } },
     });
 
     if (!game) {
@@ -397,17 +374,12 @@ export async function removeQuizFromGame(params: {
       return { success: false, error: 'Unauthorized' };
     }
 
-    // Don't allow removing if it's the only quiz
-    if (game.gameQuizzes.length === 1) {
-      return { success: false, error: 'Cannot remove the only quiz from a game' };
+    if (game.quizId !== quizId) {
+      return { success: false, error: 'Quiz is not attached to this game' };
     }
 
-    // Delete the game-quiz relationship
-    await db.gameQuiz.delete({
-      where: {
-        gameId_quizId: { gameId, quizId },
-      },
-    });
+    // delete the game record to remove the association, this follows current schema constraints.
+    await db.game.delete({ where: { id: gameId } });
 
     return { success: true, data: { success: true } };
   } catch (error) {

@@ -8,782 +8,642 @@ import Button from '@/components/ui/Button';
 import Navbar from '@/components/shared/Navbar';
 
 interface QuizQuestion {
-  question: string;
-  options: string[];
-  answer: string;
-  explanation?: string;
+    question: string;
+    options: string[];
+    answer: string;
+    explanation?: string;
 }
 
 interface Quiz {
-  questions: QuizQuestion[];
+    questions: QuizQuestion[];
 }
 
 interface AttachedPDF {
-  id: string;
-  quizId: string;
-  pdfFilename: string;
-  uploadedAt: string;
-  numQuestions: number;
+    id: string;
+    quizId: string;
+    pdfFilename: string;
+    uploadedAt: string;
+    numQuestions: number;
 }
 
 interface AvailableQuiz {
-  id: string;
-  title: string;
-  pdfFilename: string;
-  numQuestions: number;
+    id: string;
+    title: string;
+    pdfFilename: string;
+    numQuestions: number;
 }
 
 function GameEditContent() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const quizId = searchParams.get('quizId');
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const quizId = searchParams.get('quizId');
 
-  // Game info state
-  const [gameId, setGameId] = useState<string>('');
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [isPublic, setIsPublic] = useState(true);
+    const [gameId, setGameId] = useState<string>('');
+    const [title, setTitle] = useState('');
+    const [description, setDescription] = useState('');
+    const [isPublic, setIsPublic] = useState(true);
+    const [coverImage, setCoverImage] = useState<string>('');
+    const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
 
-  // PDF management state
-  const [attachedPDFs, setAttachedPDFs] = useState<AttachedPDF[]>([]);
-  const [availableQuizzes, setAvailableQuizzes] = useState<AvailableQuiz[]>([]);
-  const [showAddPDFModal, setShowAddPDFModal] = useState(false);
+    const [attachedPDFs, setAttachedPDFs] = useState<AttachedPDF[]>([]);
+    const [availableQuizzes, setAvailableQuizzes] = useState<AvailableQuiz[]>([]);
+    const [showAddPDFModal, setShowAddPDFModal] = useState(false);
 
-  // Quiz questions state
-  const [questions, setQuestions] = useState<QuizQuestion[]>([]);
-  const [editingQuestionIndex, setEditingQuestionIndex] = useState<number | null>(null);
+    const [questions, setQuestions] = useState<QuizQuestion[]>([]);
+    const [editingQuestionIndex, setEditingQuestionIndex] = useState<number | null>(null);
 
-  // UI state
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
+    const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  useEffect(() => {
-    if (!quizId) {
-      router.push('/teacher/dashboard');
-      return;
-    }
-
-    async function loadGameData() {
-      if (!quizId) return;
-
-      const result = await getQuizById(quizId);
-      if (result.success) {
-        const quiz = result.data.quiz;
-        const quizData = typeof quiz.quizJson === 'string'
-          ? JSON.parse(quiz.quizJson)
-          : quiz.quizJson as unknown as Quiz;
-
-        setTitle(quiz.title || 'Untitled Game');
-        setQuestions(quizData.questions);
-
-        // If there's a game associated, load game info
-        if (quiz.games && quiz.games.length > 0) {
-          const game = quiz.games[0];
-          setGameId(game.id);
-          setTitle(game.title);
-          setDescription(game.description || '');
-          setIsPublic(game.active);
-
-          // Load attached PDFs
-          await loadAttachedPDFs(game.id);
+    useEffect(() => {
+        if (!quizId) {
+            router.push('/teacher/dashboard');
+            return;
         }
-      }
-      setIsLoading(false);
-    }
+        async function loadGameData() {
+            if (!quizId) return;
+            const result = await getQuizById(quizId);
+            if (result.success) {
+                const quiz = result.data.quiz;
+                const quizData = typeof quiz.quizJson === 'string' ? JSON.parse(quiz.quizJson) : (quiz.quizJson as unknown as Quiz);
+                setTitle(quiz.title || 'Untitled Game');
+                setQuestions(quizData.questions || []);
+                if (quiz.games && quiz.games.length > 0) {
+                    const game = quiz.games[0];
+                    setGameId(game.id);
+                    setTitle(game.title);
+                    setDescription(game.description || '');
+                    setIsPublic(game.active);
+                    await loadAttachedPDFs(game.id);
+                }
+            }
+            setIsLoading(false);
+        }
+        loadGameData();
+    }, [quizId, router]);
 
-    loadGameData();
-  }, [quizId, router]);
-
-  const loadAttachedPDFs = async (gId: string) => {
-    const result = await getGameQuizzes(gId);
-    if (result.success) {
-      const pdfs = result.data.quizzes.map(gq => ({
-        id: gq.id,
-        quizId: gq.quiz.id,
-        pdfFilename: gq.quiz.processedContent.pdf.filename,
-        uploadedAt: new Date(gq.quiz.processedContent.pdf.uploadedAt).toISOString(),
-        numQuestions: gq.quiz.numQuestions,
-      }));
-      setAttachedPDFs(pdfs);
-    }
-  };
-
-  const loadAvailableQuizzes = async () => {
-    const result = await getTeacherQuizzes();
-    if (result.success) {
-      const quizzes = result.data.quizzes
-        .filter(q => !attachedPDFs.some(p => p.quizId === q.id))
-        .map(q => ({
-          id: q.id,
-          title: q.title || 'Untitled',
-          pdfFilename: q.pdfFilename || 'unknown.pdf',
-          numQuestions: q.numQuestions,
-        }));
-      setAvailableQuizzes(quizzes);
-    }
-  };
-
-  const handleSaveGameInfo = async () => {
-    if (!gameId || !title.trim()) {
-      setSaveMessage({ type: 'error', text: 'Title is required' });
-      return;
-    }
-
-    setIsSaving(true);
-    try {
-      const result = await updateGame({
-        gameId,
-        title,
-        description,
-        active: isPublic,
-      });
-
-      if (result.success) {
-        setSaveMessage({ type: 'success', text: 'Game updated successfully! Redirecting...' });
-        // Redirect back to dashboard to see updated game
-        setTimeout(() => {
-          router.push('/teacher/dashboard');
-        }, 1500);
-      } else {
-        setSaveMessage({ type: 'error', text: result.error });
-      }
-    } catch (error) {
-      console.error('Error saving game info:', error);
-      setSaveMessage({ type: 'error', text: 'Failed to save game info' });
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleSaveQuestions = async () => {
-    if (!quizId || questions.length === 0) {
-      setSaveMessage({ type: 'error', text: 'At least one question is required' });
-      return;
-    }
-
-    setIsSaving(true);
-    try {
-      const quizData: Quiz = { questions };
-      const result = await updateQuizQuestions(quizId, quizData);
-
-      if (result.success) {
-        setSaveMessage({ type: 'success', text: 'Questions saved successfully!' });
-        setTimeout(() => setSaveMessage(null), 3000);
-      } else {
-        setSaveMessage({ type: 'error', text: result.error });
-      }
-    } catch (error) {
-      console.error('Error saving questions:', error);
-      setSaveMessage({ type: 'error', text: 'Failed to save questions' });
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleRemovePDF = async (quizIdToRemove: string) => {
-    if (attachedPDFs.length === 1) {
-      setSaveMessage({ type: 'error', text: 'Cannot remove the only PDF from a game' });
-      return;
-    }
-
-    if (!confirm('Remove this PDF from the game? Questions from this PDF will no longer appear in the game.')) {
-      return;
-    }
-
-    setIsSaving(true);
-    try {
-      const result = await removeQuizFromGame({ gameId, quizId: quizIdToRemove });
-      if (result.success) {
-        setAttachedPDFs(attachedPDFs.filter(p => p.quizId !== quizIdToRemove));
-        setSaveMessage({ type: 'success', text: 'PDF removed successfully!' });
-        setTimeout(() => setSaveMessage(null), 3000);
-      } else {
-        setSaveMessage({ type: 'error', text: result.error });
-      }
-    } catch (error) {
-      console.error('Error removing PDF:', error);
-      setSaveMessage({ type: 'error', text: 'Failed to remove PDF' });
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleAddPDF = async (quizIdToAdd: string) => {
-    setIsSaving(true);
-    try {
-      const result = await addQuizToGame({ gameId, quizId: quizIdToAdd });
-      if (result.success) {
-        await loadAttachedPDFs(gameId);
-        setShowAddPDFModal(false);
-        setSaveMessage({ type: 'success', text: 'PDF added successfully!' });
-        setTimeout(() => setSaveMessage(null), 3000);
-      } else {
-        setSaveMessage({ type: 'error', text: result.error });
-      }
-    } catch (error) {
-      console.error('Error adding PDF:', error);
-      setSaveMessage({ type: 'error', text: 'Failed to add PDF' });
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleUpdateQuestion = (index: number, field: keyof QuizQuestion, value: string | string[]) => {
-    const newQuestions = [...questions];
-    newQuestions[index] = {
-      ...newQuestions[index],
-      [field]: value,
+    const loadAttachedPDFs = async (gId: string) => {
+        const result = await getGameQuizzes(gId);
+        if (result.success) {
+            const pdfs = result.data.quizzes.map((gq: any) => ({
+                id: gq.id,
+                quizId: gq.quiz.id,
+                pdfFilename: gq.quiz.processedContent?.pdf?.filename || 'unknown.pdf',
+                uploadedAt: new Date(gq.quiz.processedContent?.pdf?.uploadedAt || Date.now()).toISOString(),
+                numQuestions: gq.quiz.numQuestions || 0,
+            }));
+            setAttachedPDFs(pdfs);
+        }
     };
-    setQuestions(newQuestions);
-  };
 
-  const handleUpdateOption = (questionIndex: number, optionIndex: number, value: string) => {
-    const newQuestions = [...questions];
-    const newOptions = [...newQuestions[questionIndex].options];
-    newOptions[optionIndex] = value;
-    newQuestions[questionIndex] = {
-      ...newQuestions[questionIndex],
-      options: newOptions,
+    const loadAvailableQuizzes = async () => {
+        const result = await getTeacherQuizzes();
+        if (result.success) {
+            const quizzes = result.data.quizzes
+                .filter((q: any) => !attachedPDFs.some((p) => p.quizId === q.id))
+                .map((q: any) => ({
+                    id: q.id,
+                    title: q.title || 'Untitled',
+                    pdfFilename: q.pdfFilename || 'unknown.pdf',
+                    numQuestions: q.numQuestions,
+                }));
+            setAvailableQuizzes(quizzes);
+        }
     };
-    setQuestions(newQuestions);
-  };
 
-  const handleDeleteQuestion = (index: number) => {
-    if (questions.length === 1) {
-      setSaveMessage({ type: 'error', text: 'You must have at least one question' });
-      return;
+    const handleCoverImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setCoverImageFile(file);
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setCoverImage(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleSaveAll = async () => {
+        if (!quizId || questions.length === 0 || !title.trim()) {
+            setSaveMessage({
+                type: 'error',
+                text: !title.trim()
+                    ? 'Title is required'
+                    : 'At least one question is required'
+            });
+            return;
+        }
+        setIsSaving(true);
+        try {
+            const results: string[] = [];
+
+            const qRes = await updateQuizQuestions(quizId, { questions });
+            if (qRes.success) {
+                results.push('Questions saved');
+            }
+
+            if (gameId) {
+                const gRes = await updateGame({
+                    gameId,
+                    title,
+                    description,
+                    active: isPublic,
+                });
+                if (gRes.success) {
+                    results.push('Game updated');
+                }
+            }
+
+            setSaveMessage({ type: 'success', text: `${results.join(' & ')}! Redirecting...` });
+            setTimeout(() => {
+                router.push('/teacher/dashboard');
+            }, 1500);
+        } catch (e: any) {
+            setSaveMessage({ type: 'error', text: e?.message || 'Save failed' });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleRemovePDF = async (quizIdToRemove: string) => {
+        if (attachedPDFs.length === 1) {
+            setSaveMessage({ type: 'error', text: 'Cannot remove the only PDF from a game' });
+            return;
+        }
+        if (!confirm('Remove this PDF from the game? Questions from this PDF will no longer appear in the game.')) {
+            return;
+        }
+        setIsSaving(true);
+        try {
+            const result = await removeQuizFromGame({ gameId, quizId: quizIdToRemove });
+            if (result.success) {
+                setAttachedPDFs(attachedPDFs.filter(p => p.quizId !== quizIdToRemove));
+                setSaveMessage({ type: 'success', text: 'PDF removed successfully!' });
+                setTimeout(() => setSaveMessage(null), 3000);
+            } else {
+                setSaveMessage({ type: 'error', text: result.error });
+            }
+        } catch {
+            setSaveMessage({ type: 'error', text: 'Failed to remove PDF' });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleAddPDF = async (quizIdToAdd: string) => {
+        setIsSaving(true);
+        try {
+            const result = await addQuizToGame({ gameId, quizId: quizIdToAdd });
+            if (result.success) {
+                await loadAttachedPDFs(gameId);
+                setShowAddPDFModal(false);
+                setSaveMessage({ type: 'success', text: 'PDF added successfully!' });
+                setTimeout(() => setSaveMessage(null), 3000);
+            } else {
+                setSaveMessage({ type: 'error', text: result.error });
+            }
+        } catch {
+            setSaveMessage({ type: 'error', text: 'Failed to add PDF' });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleUpdateQuestion = (index: number, field: keyof QuizQuestion, value: string | string[]) => {
+        const newQuestions = [...questions];
+        newQuestions[index] = { ...newQuestions[index], [field]: value } as QuizQuestion;
+        setQuestions(newQuestions);
+    };
+
+    const handleUpdateOption = (questionIndex: number, optionIndex: number, value: string) => {
+        const newQuestions = [...questions];
+        const newOptions = [...newQuestions[questionIndex].options];
+        newOptions[optionIndex] = value;
+        newQuestions[questionIndex] = { ...newQuestions[questionIndex], options: newOptions };
+        setQuestions(newQuestions);
+    };
+
+    const handleDeleteQuestion = (index: number) => {
+        if (questions.length === 1) {
+            setSaveMessage({ type: 'error', text: 'You must have at least one question' });
+            return;
+        }
+        if (confirm('Are you sure you want to delete this question?')) {
+            setQuestions(questions.filter((_, i) => i !== index));
+            setEditingQuestionIndex(null);
+        }
+    };
+
+    const handleAddQuestion = () => {
+        const newQuestion: QuizQuestion = {
+            question: 'New Question',
+            options: ['Option A', 'Option B', 'Option C', 'Option D'],
+            answer: 'Option A',
+            explanation: '',
+        };
+        setQuestions([...questions, newQuestion]);
+        setEditingQuestionIndex(questions.length);
+    };
+
+    if (isLoading) {
+        return (
+            <div className="min-h-screen bg-[#fffaf2] flex items-center justify-center">
+                <div className="text-[#473025] font-quicksand font-bold text-xl">Loading...</div>
+            </div>
+        );
     }
 
-    if (confirm('Are you sure you want to delete this question?')) {
-      setQuestions(questions.filter((_, i) => i !== index));
-      setEditingQuestionIndex(null);
-    }
-  };
-
-  const handleAddQuestion = () => {
-    const newQuestion: QuizQuestion = {
-      question: 'New Question',
-      options: ['Option A', 'Option B', 'Option C', 'Option D'],
-      answer: 'Option A',
-      explanation: '',
-    };
-    setQuestions([...questions, newQuestion]);
-    setEditingQuestionIndex(questions.length);
-  };
-
-  if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#fffaf2] flex items-center justify-center">
-        <div className="text-[#473025] font-quicksand font-bold text-xl">Loading...</div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-[#fffaf2]">
-      <Navbar />
-
-      <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-6 md:py-10">
-        {/* Header Section */}
-        <div className="mb-8 md:mb-12">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-            <div className="flex-1">
-              <h1 className="font-quicksand font-bold text-[#473025] text-[32px] md:text-[48px] mb-2 leading-tight">
-                Edit Your Game
-              </h1>
-              <p className="font-quicksand text-[#a7613c] text-[14px] md:text-[16px] max-w-[600px]">
-                Customize your game settings, manage content, and perfect your quiz questions
-              </p>
-            </div>
-
-            <button
-              onClick={() => router.push('/teacher/dashboard')}
-              className="w-full md:w-auto bg-[#fd9227] border-[1.5px] border-[#730f11] rounded-[11px] h-[45px] md:h-[50px] px-6 flex items-center justify-center gap-2 hover:bg-[#e6832b] transition-all"
-            >
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12.5 15L7.5 10L12.5 5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-              <span className="font-quicksand font-bold text-white text-[16px] md:text-[18px]">
-                Back to Dashboard
-              </span>
-            </button>
-          </div>
-
-          {/* Save Message */}
-          {saveMessage && (
-            <div
-              className={`p-4 rounded-[11px] border-[3px] animate-slide-up ${
-                saveMessage.type === 'success'
-                  ? 'bg-[#96b902]/10 border-[#96b902] text-[#7a9700]'
-                  : 'bg-red-50 border-error text-error'
-              }`}
-            >
-              <p className="font-quicksand font-bold text-[14px]">{saveMessage.text}</p>
-            </div>
-          )}
-        </div>
-
-        {/* Main Content - Single Column Flow */}
-        <div className="space-y-8">
-          {/* Game Settings Card */}
-          <div className="bg-white border-[4px] border-[#473025] rounded-[24px] p-6 md:p-8 shadow-lg animate-fade-in">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-[48px] h-[48px] bg-[#ff9f22] rounded-[12px] flex items-center justify-center flex-shrink-0">
-                <span className="text-[28px]">⚙️</span>
-              </div>
-              <div>
-                <h2 className="font-quicksand font-bold text-[#473025] text-[24px] md:text-[28px] leading-tight">
-                  Game Settings
-                </h2>
-                <p className="font-quicksand text-[#a7613c] text-[12px] md:text-[14px]">
-                  Configure your game details
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-              {/* Title */}
-              <div>
-                <label htmlFor="title" className="font-quicksand font-bold text-[#473025] text-[14px] md:text-[16px] mb-2 block">
-                  Game Title *
-                </label>
-                <input
-                  type="text"
-                  id="title"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="e.g., World War II History Quiz"
-                  className="w-full bg-[#fff6e8] border-[3px] border-[#ffb554] rounded-[11px] h-[50px] md:h-[55px] px-4 font-quicksand font-semibold text-[#473025] text-[14px] placeholder:text-[#be9f91] focus:outline-none focus:ring-4 focus:ring-[#ff9f22]/30 focus:border-[#ff9f22] hover:border-[#ff9f22] transition-all"
-                  required
-                />
-              </div>
-
-              {/* Description */}
-              <div className="lg:col-span-2">
-                <label htmlFor="description" className="font-quicksand font-bold text-[#473025] text-[14px] md:text-[16px] mb-2 block">
-                  Description
-                  <span className="font-normal text-[#a7613c] text-[12px] ml-2">(Optional)</span>
-                </label>
-                <textarea
-                  id="description"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Tell your students what this game is about..."
-                  className="w-full bg-[#fff6e8] border-[3px] border-[#ffb554] rounded-[11px] h-[100px] px-4 py-3 font-quicksand text-[#473025] text-[14px] placeholder:text-[#be9f91] focus:outline-none focus:ring-4 focus:ring-[#ff9f22]/30 focus:border-[#ff9f22] hover:border-[#ff9f22] transition-all resize-none"
-                />
-              </div>
-
-              {/* Privacy Settings */}
-              <div className="lg:col-span-2">
-                <label className="font-quicksand font-bold text-[#473025] text-[14px] md:text-[16px] mb-3 block">
-                  Privacy Settings
-                </label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <label
-                    className={`flex items-start gap-3 cursor-pointer p-4 rounded-[11px] transition-all border-[3px] ${
-                      isPublic
-                        ? 'bg-[#96b902]/10 border-[#96b902] shadow-md'
-                        : 'bg-white border-[#ffb554] hover:border-[#ff9f22] hover:shadow-sm'
-                    }`}
-                    onClick={() => setIsPublic(true)}
-                  >
-                    <div className={`w-[24px] h-[24px] flex-shrink-0 rounded-full border-[3px] flex items-center justify-center transition-all mt-0.5 ${
-                      isPublic ? 'border-[#96b902] bg-[#96b902]' : 'border-[#a7613c]'
-                    }`}>
-                      {isPublic && (
-                        <div className="w-[10px] h-[10px] rounded-full bg-white"></div>
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <div className={`font-quicksand font-bold text-[15px] mb-1 ${
-                        isPublic ? 'text-[#96b902]' : 'text-[#473025]'
-                      }`}>
-                        🌐 Public (Active)
-                      </div>
-                      <div className="font-quicksand text-[#473025]/70 text-[12px]">
-                        Students can join and play this game
-                      </div>
-                    </div>
-                  </label>
-
-                  <label
-                    className={`flex items-start gap-3 cursor-pointer p-4 rounded-[11px] transition-all border-[3px] ${
-                      !isPublic
-                        ? 'bg-[#96b902]/10 border-[#96b902] shadow-md'
-                        : 'bg-white border-[#ffb554] hover:border-[#ff9f22] hover:shadow-sm'
-                    }`}
-                    onClick={() => setIsPublic(false)}
-                  >
-                    <div className={`w-[24px] h-[24px] flex-shrink-0 rounded-full border-[3px] flex items-center justify-center transition-all mt-0.5 ${
-                      !isPublic ? 'border-[#96b902] bg-[#96b902]' : 'border-[#a7613c]'
-                    }`}>
-                      {!isPublic && (
-                        <div className="w-[10px] h-[10px] rounded-full bg-white"></div>
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <div className={`font-quicksand font-bold text-[15px] mb-1 ${
-                        !isPublic ? 'text-[#96b902]' : 'text-[#473025]'
-                      }`}>
-                        🔒 Private (Inactive)
-                      </div>
-                      <div className="font-quicksand text-[#473025]/70 text-[12px]">
-                        Game is hidden from students
-                      </div>
-                    </div>
-                  </label>
-                </div>
-              </div>
-            </div>
-
-            {/* Save Button */}
-            <div className="mt-8 flex justify-end">
-              <Button
-                onClick={handleSaveGameInfo}
-                disabled={isSaving || !title.trim()}
-                variant="success"
-                size="lg"
-                className="w-full md:w-auto md:min-w-[200px]"
-                isLoading={isSaving}
-              >
-                Save Game Settings
-              </Button>
-            </div>
-          </div>
-
-          {/* PDFs Section */}
-          <div className="bg-white border-[4px] border-[#473025] rounded-[24px] p-6 md:p-8 shadow-lg animate-fade-in">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-[48px] h-[48px] bg-[#ff9f22] rounded-[12px] flex items-center justify-center flex-shrink-0">
-                <span className="text-[28px]">📚</span>
-              </div>
-              <div className="flex-1">
-                <h2 className="font-quicksand font-bold text-[#473025] text-[24px] md:text-[28px] leading-tight">
-                  Study Materials
-                  <span className="ml-2 text-[#ff9f22] text-[20px]">({attachedPDFs.length})</span>
-                </h2>
-                <p className="font-quicksand text-[#a7613c] text-[12px] md:text-[14px]">
-                  PDFs used to generate quiz questions
-                </p>
-              </div>
-              <Button
-                onClick={() => {
-                  loadAvailableQuizzes();
-                  setShowAddPDFModal(true);
-                }}
-                variant="success"
-                size="md"
-                className="hidden md:flex"
-              >
-                + Add PDF
-              </Button>
-            </div>
-
-            <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
-              {attachedPDFs.map((pdf, index) => (
-                <div
-                  key={pdf.id}
-                  className="flex items-center justify-between p-4 bg-[#fff6e8] border-[3px] border-[#ffb554] rounded-[11px] hover:border-[#ff9f22] hover:shadow-md transition-all group"
-                  style={{ animationDelay: `${index * 0.05}s` }}
-                >
-                  <div className="flex items-center gap-4 flex-1 min-w-0">
-                    <div className="w-[48px] h-[48px] bg-[#ff9f22] rounded-[11px] flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
-                      <span className="text-[24px]">📄</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-quicksand font-bold text-[#473025] text-[14px] md:text-[16px] truncate">
-                        {pdf.pdfFilename}
-                      </p>
-                      <p className="font-quicksand text-[#a7613c] text-[11px] md:text-[12px]">
-                        {pdf.numQuestions} questions • {new Date(pdf.uploadedAt).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => handleRemovePDF(pdf.quizId)}
-                    disabled={attachedPDFs.length === 1 || isSaving}
-                    className={`font-quicksand font-bold text-[12px] md:text-[13px] px-3 py-2 rounded-[8px] transition-all flex-shrink-0 ml-2 ${
-                      attachedPDFs.length === 1 || isSaving
-                        ? 'text-gray-400 cursor-not-allowed'
-                        : 'text-[#ff4880] hover:bg-[#ff4880] hover:text-white'
-                    }`}
-                  >
-                    Remove
-                  </button>
-                </div>
-              ))}
-
-              {attachedPDFs.length === 0 && (
-                <div className="text-center py-12 px-4">
-                  <div className="w-[80px] h-[80px] bg-[#fff6e8] rounded-full flex items-center justify-center mx-auto mb-4">
-                    <span className="text-[40px]">📁</span>
-                  </div>
-                  <p className="text-[#a7613c] font-quicksand font-semibold text-[14px] mb-2">
-                    No PDFs attached yet
-                  </p>
-                  <p className="text-[#be9f91] font-quicksand text-[12px]">
-                    Add PDFs to generate quiz content
-                  </p>
-                </div>
-              )}
-            </div>
-
-            <Button
-              onClick={() => {
-                loadAvailableQuizzes();
-                setShowAddPDFModal(true);
-              }}
-              variant="success"
-              size="md"
-              className="w-full md:hidden mt-4"
-            >
-              + Add PDF
-            </Button>
-          </div>
-
-          {/* Quiz Questions */}
-          <div className="bg-white border-[4px] border-[#473025] rounded-[24px] p-6 md:p-8 shadow-lg animate-fade-in">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-[48px] h-[48px] bg-[#ff9f22] rounded-[12px] flex items-center justify-center flex-shrink-0">
-                <span className="text-[28px]">❓</span>
-              </div>
-              <div className="flex-1">
-                <h2 className="font-quicksand font-bold text-[#473025] text-[24px] md:text-[28px] leading-tight">
-                  Quiz Questions
-                  <span className="ml-2 text-[#ff9f22] text-[20px]">({questions.length})</span>
-                </h2>
-                <p className="font-quicksand text-[#a7613c] text-[12px] md:text-[14px]">
-                  Edit and manage your quiz questions
-                </p>
-              </div>
-              <Button
-                onClick={handleAddQuestion}
-                variant="success"
-                size="md"
-                className="hidden md:flex"
-              >
-                + Add Question
-              </Button>
-            </div>
-
-            {/* Questions List */}
-            <div className="space-y-4 mb-6 max-h-[600px] overflow-y-auto pr-2">
-              {questions.map((question, index) => (
-                <div
-                  key={index}
-                  className={`border-[3px] rounded-[11px] p-4 transition-all ${
-                    editingQuestionIndex === index
-                      ? 'border-[#ff9f22] bg-[#fff5e8] shadow-md'
-                      : 'border-[#ffb554] bg-[#fff6e8] hover:border-[#ff9f22] hover:shadow-sm'
-                  }`}
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <span className="w-[28px] h-[28px] bg-[#ff9f22] rounded-full flex items-center justify-center text-white font-quicksand font-bold text-[13px]">
-                        {index + 1}
-                      </span>
-                      <span className="font-quicksand font-bold text-[#473025] text-[15px]">
-                        Question {index + 1}
-                      </span>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setEditingQuestionIndex(editingQuestionIndex === index ? null : index)}
-                        className="text-[#ff9f22] hover:text-[#e6832b] font-quicksand font-bold text-[12px] px-3 py-1 rounded-[8px] hover:bg-[#ff9f22]/10 transition-all"
-                      >
-                        {editingQuestionIndex === index ? '▲ Close' : '▼ Edit'}
-                      </button>
-                      <button
-                        onClick={() => handleDeleteQuestion(index)}
-                        className="text-[#ff4880] hover:text-white hover:bg-[#ff4880] font-quicksand font-bold text-[12px] px-3 py-1 rounded-[8px] transition-all"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-
-                  {editingQuestionIndex === index ? (
-                    <div className="space-y-4">
-                      {/* Question Text */}
-                      <div>
-                        <label className="font-quicksand font-bold text-[#473025] text-[13px] mb-2 block">
-                          Question Text
-                        </label>
-                        <textarea
-                          value={question.question}
-                          onChange={(e) => handleUpdateQuestion(index, 'question', e.target.value)}
-                          className="w-full bg-white border-[3px] border-[#ffb554] rounded-[11px] p-3 font-quicksand text-[#473025] text-[14px] focus:outline-none focus:ring-4 focus:ring-[#ff9f22]/30 focus:border-[#ff9f22] resize-none transition-all"
-                          rows={3}
-                        />
-                      </div>
-
-                      {/* Options */}
-                      <div>
-                        <label className="font-quicksand font-bold text-[#473025] text-[13px] mb-2 block">
-                          Answer Options
-                        </label>
-                        <div className="space-y-2">
-                          {question.options.map((option, optionIndex) => (
-                            <div key={optionIndex} className="flex items-center gap-3">
-                              <div className="w-[32px] h-[32px] bg-[#ff9f22] rounded-[8px] flex items-center justify-center flex-shrink-0">
-                                <span className="font-quicksand font-bold text-white text-[14px]">
-                                  {String.fromCharCode(65 + optionIndex)}
-                                </span>
-                              </div>
-                              <input
-                                type="text"
-                                value={option}
-                                onChange={(e) => handleUpdateOption(index, optionIndex, e.target.value)}
-                                className="flex-1 bg-white border-[3px] border-[#ffb554] rounded-[11px] px-4 py-2 font-quicksand text-[#473025] text-[14px] focus:outline-none focus:ring-4 focus:ring-[#ff9f22]/30 focus:border-[#ff9f22] transition-all"
-                                placeholder={`Option ${String.fromCharCode(65 + optionIndex)}`}
-                              />
-                            </div>
-                          ))}
+        <div className="min-h-screen bg-[#fffaf2]">
+            <Navbar />
+            <div className="max-w-[1200px] mx-auto px-4 md:px-6 py-4 md:py-6">
+                <div className="mb-4 md:mb-6">
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3">
+                        <div className="flex-1">
+                            <h1 className="font-quicksand font-bold text-[#473025] text-[24px] md:text-[32px] leading-tight">Edit Game</h1>
+                            <p className="font-quicksand text-[#a7613c] text-[13px] md:text-[14px] max-w-[600px]">Customize settings, content, and questions</p>
                         </div>
-                      </div>
-
-                      {/* Correct Answer */}
-                      <div>
-                        <label className="font-quicksand font-bold text-[#473025] text-[13px] mb-2 block">
-                          ✓ Correct Answer
-                        </label>
-                        <select
-                          value={question.answer}
-                          onChange={(e) => handleUpdateQuestion(index, 'answer', e.target.value)}
-                          className="w-full bg-white border-[3px] border-[#96b902] rounded-[11px] px-4 py-3 font-quicksand font-bold text-[#473025] text-[14px] focus:outline-none focus:ring-4 focus:ring-[#96b902]/30 transition-all"
+                        <button
+                            onClick={() => router.push('/teacher/dashboard')}
+                            className="w-full md:w-auto bg-[#fd9227] border-[1.5px] border-[#730f11] rounded-[8px] h-[38px] px-4 flex items-center justify-center gap-2 hover:bg-[#e6832b] transition-all"
                         >
-                          {question.options.map((option, optionIndex) => (
-                            <option key={optionIndex} value={option}>
-                              {String.fromCharCode(65 + optionIndex)}. {option}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      {/* Explanation (Optional) */}
-                      <div>
-                        <label className="font-quicksand font-bold text-[#473025] text-[13px] mb-2 block">
-                          Explanation
-                          <span className="font-normal text-[#a7613c] text-[11px] ml-2">(Optional)</span>
-                        </label>
-                        <textarea
-                          value={question.explanation || ''}
-                          onChange={(e) => handleUpdateQuestion(index, 'explanation', e.target.value)}
-                          placeholder="Help students understand why this is correct..."
-                          className="w-full bg-white border-[3px] border-[#ffb554] rounded-[11px] p-3 font-quicksand text-[#473025] text-[14px] placeholder:text-[#be9f91] focus:outline-none focus:ring-4 focus:ring-[#ff9f22]/30 focus:border-[#ff9f22] resize-none transition-all"
-                          rows={2}
-                        />
-                      </div>
+                            <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12.5 15L7.5 10L12.5 5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                            <span className="font-quicksand font-bold text-white text-[14px]">Back</span>
+                        </button>
                     </div>
-                  ) : (
-                    <div className="text-[#473025] font-quicksand text-[13px] line-clamp-2">
-                      {question.question}
+                    {saveMessage && (
+                        <div
+                            className={`p-3 rounded-[8px] border-2 ${
+                                saveMessage.type === 'success'
+                                    ? 'bg-[#96b902]/10 border-[#96b902] text-[#7a9700]'
+                                    : 'bg-red-50 border-red-500 text-red-700'
+                            }`}
+                        >
+                            <p className="font-quicksand font-semibold text-[13px]">{saveMessage.text}</p>
+                        </div>
+                    )}
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                    <div className="lg:col-span-1 space-y-4">
+                        <div className="bg-white border-[3px] border-[#473025] rounded-[16px] p-4 md:p-5 shadow-md">
+                            <div className="flex items-center gap-2 mb-4">
+                                <div className="w-[32px] h-[32px] bg-[#ff9f22] rounded-[8px] flex items-center justify-center">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M12 15a3 3 0 100-6 3 3 0 000 6z" fill="white"/>
+                                        <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                    </svg>
+                                </div>
+                                <h2 className="font-quicksand font-bold text-[#473025] text-[18px]">Game Settings</h2>
+                            </div>
+                            <div className="space-y-3">
+                                <div>
+                                    <label className="font-quicksand font-semibold text-[#473025] text-[12px] mb-1.5 block">Title</label>
+                                    <input
+                                        type="text"
+                                        value={title}
+                                        onChange={(e) => setTitle(e.target.value)}
+                                        className="w-full bg-[#fff6e8] border-2 border-[#ffb554] rounded-[8px] h-[36px] px-3 font-quicksand text-[#473025] text-[13px] focus:outline-none focus:border-[#ff9f22] transition-all"
+                                        placeholder="Game title..."
+                                    />
+                                </div>
+                                <div>
+                                    <label className="font-quicksand font-semibold text-[#473025] text-[12px] mb-1.5 block">Description</label>
+                                    <textarea
+                                        value={description}
+                                        onChange={(e) => setDescription(e.target.value)}
+                                        className="w-full bg-[#fff6e8] border-2 border-[#ffb554] rounded-[8px] h-[60px] px-3 py-2 font-quicksand text-[#473025] text-[13px] focus:outline-none focus:border-[#ff9f22] transition-all resize-none"
+                                        placeholder="Game description..."
+                                    />
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <span className="font-quicksand font-semibold text-[#473025] text-[12px]">Public</span>
+                                    <button
+                                        onClick={() => setIsPublic(!isPublic)}
+                                        className={`relative inline-flex h-[28px] w-[52px] items-center rounded-full transition-colors ${
+                                            isPublic ? 'bg-[#96b902]' : 'bg-gray-300'
+                                        }`}
+                                    >
+                                        <span
+                                            className={`inline-block h-[22px] w-[22px] transform rounded-full bg-white transition-transform ${
+                                                isPublic ? 'translate-x-6' : 'translate-x-1'
+                                            }`}
+                                        />
+                                    </button>
+                                </div>
+                                <div>
+                                    <label className="font-quicksand font-semibold text-[#473025] text-[12px] mb-1.5 block">Cover Image</label>
+                                    {coverImage && (
+                                        <div className="mb-2">
+                                            <img src={coverImage} alt="Cover" className="w-full h-[80px] object-cover rounded-[8px] border-2 border-[#ffb554]" />
+                                        </div>
+                                    )}
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handleCoverImageChange}
+                                        className="hidden"
+                                        id="cover-upload"
+                                    />
+                                    <label
+                                        htmlFor="cover-upload"
+                                        className="inline-flex items-center gap-2 cursor-pointer bg-[#fff6e8] border-2 border-[#ffb554] hover:border-[#ff9f22] text-[#473025] font-quicksand font-semibold text-[12px] px-3 py-2 rounded-[8px] transition-all"
+                                    >
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                        </svg>
+                                        Upload Image
+                                    </label>
+                                </div>
+                                {!gameId && <p className="text-[11px] font-quicksand text-[#a7613c] text-center">This quiz is not linked to a game yet.</p>}
+                            </div>
+                        </div>
+
+                        <div className="bg-white border-[3px] border-[#473025] rounded-[16px] p-4 md:p-5 shadow-md">
+                            <div className="flex items-center gap-2 mb-4">
+                                <div className="w-[32px] h-[32px] bg-[#ff9f22] rounded-[8px] flex items-center justify-center">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" fill="white"/>
+                                        <polyline points="14,2 14,8 20,8" fill="white"/>
+                                        <line x1="16" y1="13" x2="8" y2="13" stroke="#ff9f22" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                        <line x1="16" y1="17" x2="8" y2="17" stroke="#ff9f22" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                        <polyline points="10,9 9,9 8,9" stroke="#ff9f22" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                    </svg>
+                                </div>
+                                <h2 className="font-quicksand font-bold text-[#473025] text-[18px]">Study Materials</h2>
+                            </div>
+                            <div className="flex items-center justify-between mb-3">
+                                <span className="font-quicksand text-[#a7613c] text-[11px]">
+                                    {attachedPDFs.length} PDFs • {attachedPDFs.reduce((a, p) => a + (p.numQuestions || 0), 0)} total questions
+                                </span>
+                                <button
+                                    onClick={() => {
+                                        loadAvailableQuizzes();
+                                        setShowAddPDFModal(true);
+                                    }}
+                                    className="bg-[#96b902] text-white font-quicksand font-bold text-[11px] px-2.5 py-1.5 rounded-[6px] hover:bg-[#82a002] transition-all"
+                                >
+                                    + Add
+                                </button>
+                            </div>
+                            <div className="space-y-2 max-h-[280px] overflow-y-auto pr-1">
+                                {attachedPDFs.map((pdf) => (
+                                    <div
+                                        key={pdf.id}
+                                        className="flex items-center justify-between p-3 bg-[#fff6e8] border-2 border-[#ffb554] rounded-[8px] hover:border-[#ff9f22] transition-all"
+                                    >
+                                        <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                                            <div className="w-[32px] h-[32px] bg-[#ff9f22] rounded-[6px] flex items-center justify-center flex-shrink-0">
+                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" fill="white"/>
+                                                    <polyline points="14,2 14,8 20,8" fill="white"/>
+                                                </svg>
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="font-quicksand font-bold text-[#473025] text-[12px] truncate">{pdf.pdfFilename}</p>
+                                                <p className="font-quicksand text-[#a7613c] text-[10px]">{pdf.numQuestions} questions</p>
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={() => handleRemovePDF(pdf.quizId)}
+                                            disabled={attachedPDFs.length === 1 || isSaving}
+                                            className="font-quicksand font-bold text-[11px] text-[#ff4880] hover:text-red-600 disabled:text-gray-400 disabled:cursor-not-allowed px-2 py-1 transition-all"
+                                        >
+                                            Remove
+                                        </button>
+                                    </div>
+                                ))}
+                                {attachedPDFs.length === 0 && (
+                                    <div className="text-center py-6">
+                                        <div className="w-[48px] h-[48px] bg-[#fff6e8] rounded-full flex items-center justify-center mx-auto mb-2">
+                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" stroke="#a7613c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                            </svg>
+                                        </div>
+                                        <p className="text-[#a7613c] font-quicksand font-semibold text-[12px] mb-1">No PDFs attached</p>
+                                        <p className="text-[#be9f91] font-quicksand text-[10px]">Add PDFs to generate content</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                     </div>
-                  )}
+
+                    <div className="lg:col-span-2 space-y-4">
+                        <div className="bg-white border-[3px] border-[#473025] rounded-[16px] p-4 md:p-5 shadow-md">
+                            <div className="flex items-center justify-between mb-3">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-[32px] h-[32px] bg-[#ff9f22] rounded-[8px] flex items-center justify-center">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <circle cx="12" cy="12" r="3" fill="white"/>
+                                            <path d="M12 1v6m0 6v6m11-7h-6m-6 0H1" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+                                        </svg>
+                                    </div>
+                                    <h2 className="font-quicksand font-bold text-[#473025] text-[18px]">Questions ({questions.length})</h2>
+                                </div>
+                                <button
+                                    onClick={handleAddQuestion}
+                                    className="bg-[#96b902] text-white font-quicksand font-bold text-[11px] px-2.5 py-1.5 rounded-[6px] hover:bg-[#82a002] transition-all"
+                                >
+                                    + Add
+                                </button>
+                            </div>
+                            <div className="space-y-2 mb-3 max-h-[600px] overflow-y-auto pr-1">
+                                {questions.map((question, index) => (
+                                    <div
+                                        key={index}
+                                        className={`border-2 rounded-[8px] p-3 transition-all ${
+                                            editingQuestionIndex === index
+                                                ? 'border-[#ff9f22] bg-[#fff5e8]'
+                                                : 'border-[#ffb554] bg-[#fff6e8] hover:border-[#ff9f22]'
+                                        }`}
+                                    >
+                                        <div className="flex items-start justify-between mb-2">
+                                            <div className="flex items-center gap-2">
+                                                <span className="w-[22px] h-[22px] bg-[#ff9f22] rounded-full flex items-center justify-center text-white font-quicksand font-bold text-[11px]">
+                                                    {index + 1}
+                                                </span>
+                                                <span className="font-quicksand font-bold text-[#473025] text-[13px]">Question {index + 1}</span>
+                                            </div>
+                                            <div className="flex gap-1.5">
+                                                <button
+                                                    onClick={() => setEditingQuestionIndex(editingQuestionIndex === index ? null : index)}
+                                                    className="text-[#ff9f22] hover:text-[#e6832b] font-quicksand font-bold text-[10px] px-2 py-1 rounded-[4px] hover:bg-[#ff9f22]/10 transition-all"
+                                                >
+                                                    {editingQuestionIndex === index ? 'Close' : 'Edit'}
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeleteQuestion(index)}
+                                                    className="text-[#ff4880] hover:text-red-600 font-quicksand font-bold text-[10px] px-2 py-1 rounded-[4px] hover:bg-red-50 transition-all"
+                                                >
+                                                    Delete
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {editingQuestionIndex === index ? (
+                                            <div className="space-y-3">
+                                                <div>
+                                                    <label className="font-quicksand font-bold text-[#473025] text-[11px] mb-1 block">Question</label>
+                                                    <textarea
+                                                        value={question.question}
+                                                        onChange={(e) => handleUpdateQuestion(index, 'question', e.target.value)}
+                                                        className="w-full bg-white border-2 border-[#ffb554] rounded-[6px] p-2 font-quicksand text-[#473025] text-[12px] focus:outline-none focus:border-[#ff9f22] resize-none transition-all"
+                                                        rows={2}
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="font-quicksand font-bold text-[#473025] text-[11px] mb-1 block">Options</label>
+                                                    <div className="space-y-1.5">
+                                                        {question.options.map((option, optionIndex) => (
+                                                            <div key={optionIndex} className="flex items-center gap-2">
+                                                                <div className="w-[24px] h-[24px] bg-[#ff9f22] rounded-[4px] flex items-center justify-center flex-shrink-0">
+                                                                    <span className="font-quicksand font-bold text-white text-[11px]">
+                                                                        {String.fromCharCode(65 + optionIndex)}
+                                                                    </span>
+                                                                </div>
+                                                                <input
+                                                                    type="text"
+                                                                    value={option}
+                                                                    onChange={(e) => handleUpdateOption(index, optionIndex, e.target.value)}
+                                                                    className="flex-1 bg-white border-2 border-[#ffb554] rounded-[6px] px-2 py-1.5 font-quicksand text-[#473025] text-[12px] focus:outline-none focus:border-[#ff9f22] transition-all"
+                                                                />
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <label className="font-quicksand font-bold text-[#473025] text-[11px] mb-1 block">Correct Answer</label>
+                                                    <select
+                                                        value={question.answer}
+                                                        onChange={(e) => handleUpdateQuestion(index, 'answer', e.target.value)}
+                                                        className="w-full bg-white border-2 border-[#96b902] rounded-[6px] px-2 py-2 font-quicksand font-bold text-[#473025] text-[12px] focus:outline-none transition-all"
+                                                    >
+                                                        {question.options.map((option, optionIndex) => (
+                                                            <option key={optionIndex} value={option}>
+                                                                {String.fromCharCode(65 + optionIndex)}. {option}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label className="font-quicksand font-bold text-[#473025] text-[11px] mb-1 block">Explanation (optional)</label>
+                                                    <textarea
+                                                        value={question.explanation || ''}
+                                                        onChange={(e) => handleUpdateQuestion(index, 'explanation', e.target.value)}
+                                                        placeholder="Explain why this is correct..."
+                                                        className="w-full bg-white border-2 border-[#ffb554] rounded-[6px] p-2 font-quicksand text-[#473025] text-[12px] placeholder:text-[#be9f91] focus:outline-none focus:border-[#ff9f22] resize-none transition-all"
+                                                        rows={2}
+                                                    />
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="text-[#473025] font-quicksand text-[12px] line-clamp-2">
+                                                {question.question}
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                                {questions.length === 0 && (
+                                    <div className="text-center py-8">
+                                        <div className="w-[48px] h-[48px] bg-[#fff6e8] rounded-full flex items-center justify-center mx-auto mb-2">
+                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <circle cx="12" cy="12" r="3" stroke="#a7613c" strokeWidth="2"/>
+                                                <path d="M12 1v6m0 6v6m11-7h-6m-6 0H1" stroke="#a7613c" strokeWidth="2" strokeLinecap="round"/>
+                                            </svg>
+                                        </div>
+                                        <p className="text-[#a7613c] font-quicksand font-semibold text-[12px] mb-1">No questions yet</p>
+                                        <p className="text-[#be9f91] font-quicksand text-[10px]">Add questions to get started</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
                 </div>
-              ))}
-            </div>
 
-            <Button
-              onClick={handleAddQuestion}
-              variant="success"
-              size="md"
-              className="w-full md:hidden mb-4"
-            >
-              + Add Question
-            </Button>
-
-            {/* Save Questions Button */}
-            <div className="flex justify-end">
-              <Button
-                onClick={handleSaveQuestions}
-                disabled={isSaving || questions.length === 0}
-                variant="success"
-                size="lg"
-                className="w-full md:w-auto md:min-w-[200px]"
-                isLoading={isSaving}
-              >
-                Save All Questions
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Add PDF Modal */}
-      {showAddPDFModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-          <div className="bg-white rounded-[24px] border-[4px] border-[#473025] p-6 md:p-8 max-w-lg w-full max-h-[80vh] overflow-y-auto shadow-2xl animate-slide-up">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-[48px] h-[48px] bg-[#ff9f22] rounded-[12px] flex items-center justify-center">
-                <span className="text-[28px]">📄</span>
-              </div>
-              <h3 className="font-quicksand font-bold text-[#473025] text-[24px] md:text-[28px]">
-                Add Study Material
-              </h3>
-            </div>
-
-            <div className="space-y-3 mb-6">
-              {availableQuizzes.map((quiz, index) => (
-                <button
-                  key={quiz.id}
-                  onClick={() => handleAddPDF(quiz.id)}
-                  disabled={isSaving}
-                  className={`w-full text-left p-4 bg-[#fff6e8] border-[3px] border-[#ffb554] rounded-[11px] transition-all ${
-                    isSaving ? 'opacity-50 cursor-not-allowed' : 'hover:border-[#ff9f22] hover:shadow-md hover:scale-[1.02]'
-                  }`}
-                  style={{ animationDelay: `${index * 0.05}s` }}
-                >
-                  <p className="font-quicksand font-bold text-[#473025] text-[15px] mb-1">
-                    {quiz.title}
-                  </p>
-                  <p className="font-quicksand text-[#a7613c] text-[12px]">
-                    {quiz.pdfFilename} • {quiz.numQuestions} questions
-                  </p>
-                </button>
-              ))}
-
-              {availableQuizzes.length === 0 && (
-                <div className="text-center py-12">
-                  <div className="w-[80px] h-[80px] bg-[#fff6e8] rounded-full flex items-center justify-center mx-auto mb-4">
-                    <span className="text-[40px]">📭</span>
-                  </div>
-                  <p className="text-[#a7613c] font-quicksand font-semibold text-[14px] mb-2">
-                    No PDFs Available
-                  </p>
-                  <p className="text-[#be9f91] font-quicksand text-[12px] max-w-[300px] mx-auto">
-                    All your quizzes are already attached or you need to upload new PDFs from the dashboard.
-                  </p>
+                <div className="mt-6 flex justify-end">
+                    <button
+                        onClick={handleSaveAll}
+                        disabled={isSaving || questions.length === 0 || !title.trim()}
+                        className="bg-[#96b902] text-white font-quicksand font-bold text-[14px] px-6 py-3 rounded-[10px] hover:bg-[#82a002] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                    >
+                        {isSaving ? 'Saving...' : 'Save Game'}
+                    </button>
                 </div>
-              )}
             </div>
 
-            <Button
-              onClick={() => setShowAddPDFModal(false)}
-              disabled={isSaving}
-              variant="outline"
-              size="md"
-              className="w-full"
-            >
-              Close
-            </Button>
-          </div>
+            {showAddPDFModal && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-[16px] border-[3px] border-[#473025] p-5 max-w-md w-full max-h-[70vh] overflow-y-auto shadow-2xl">
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-2">
+                                <div className="w-[32px] h-[32px] bg-[#ff9f22] rounded-[8px] flex items-center justify-center">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" fill="white"/>
+                                        <polyline points="14,2 14,8 20,8" fill="white"/>
+                                    </svg>
+                                </div>
+                                <h3 className="font-quicksand font-bold text-[#473025] text-[18px]">Add Study Material</h3>
+                            </div>
+                            <button onClick={() => setShowAddPDFModal(false)} className="text-[#a7613c] hover:text-[#473025]">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div className="space-y-2 mb-4">
+                            {availableQuizzes.map((quiz) => (
+                                <button
+                                    key={quiz.id}
+                                    onClick={() => handleAddPDF(quiz.id)}
+                                    disabled={isSaving}
+                                    className="w-full text-left p-3 bg-[#fff6e8] border-2 border-[#ffb554] rounded-[8px] hover:border-[#ff9f22] hover:shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                >
+                                    <p className="font-quicksand font-bold text-[#473025] text-[13px] mb-0.5">{quiz.title}</p>
+                                    <p className="font-quicksand text-[#a7613c] text-[11px]">
+                                        {quiz.pdfFilename} • {quiz.numQuestions} questions
+                                    </p>
+                                </button>
+                            ))}
+                            {availableQuizzes.length === 0 && (
+                                <div className="text-center py-8">
+                                    <div className="w-[48px] h-[48px] bg-[#fff6e8] rounded-full flex items-center justify-center mx-auto mb-2">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="#a7613c" strokeWidth="2"/>
+                                            <polyline points="22,6 12,13 2,6" stroke="#a7613c" strokeWidth="2"/>
+                                        </svg>
+                                    </div>
+                                    <p className="text-[#a7613c] font-quicksand font-semibold text-[12px] mb-1">No PDFs Available</p>
+                                    <p className="text-[#be9f91] font-quicksand text-[10px] max-w-[250px] mx-auto">All quizzes are attached or upload new PDFs</p>
+                                </div>
+                            )}
+                        </div>
+                        <button
+                            onClick={() => setShowAddPDFModal(false)}
+                            disabled={isSaving}
+                            className="w-full bg-[#fff6e8] border-2 border-[#ffb554] text-[#473025] font-quicksand font-semibold text-[13px] py-2.5 rounded-[8px] hover:bg-[#fff0d8] hover:border-[#ff9f22] transition-all"
+                        >
+                            Close
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
-      )}
-    </div>
-  );
+    );
 }
 
 export default function GameEditPage() {
-  return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-[#fffaf2] flex items-center justify-center">
-        <div className="text-[#473025] font-quicksand font-bold text-xl">Loading...</div>
-      </div>
-    }>
-      <GameEditContent />
-    </Suspense>
-  );
+    return (
+        <Suspense
+            fallback={
+                <div className="min-h-screen bg-[#fffaf2] flex items-center justify-center">
+                    <div className="text-[#473025] font-quicksand font-bold text-xl">Loading...</div>
+                </div>
+            }
+        >
+            <GameEditContent />
+        </Suspense>
+    );
 }

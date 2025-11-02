@@ -16,7 +16,7 @@ interface Game {
   gameId?: string;
   shareCode?: string;
   hasGame: boolean;
-  imageUrl?: string | null;
+  qrCodeUrl?: string | null;
 }
 
 interface GamesViewProps {
@@ -56,7 +56,7 @@ export default function GamesView({ onCreateGame }: GamesViewProps) {
           gameId: quiz.gameId,
           shareCode: quiz.shareCode,
           hasGame: quiz.hasGame,
-          imageUrl: quiz.imageUrl || null,
+          qrCodeUrl: quiz.qrCodeUrl || null,
         }));
         setGames(formattedGames);
       }

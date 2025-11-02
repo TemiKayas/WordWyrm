@@ -27,7 +27,7 @@ export async function getTeacherQuizzes(): Promise<
       gameId?: string;
       shareCode?: string;
       pdfFilename?: string;
-      imageUrl?: string | null;
+      qrCodeUrl?: string | null;
     }>;
   }>
 > {
@@ -50,7 +50,7 @@ export async function getTeacherQuizzes(): Promise<
                       select: {
                         id: true,
                         shareCode: true,
-                        imageUrl: true,
+                        qrCodeUrl: true,
                         title: true,
                       },
                       take: 1,
@@ -87,7 +87,7 @@ export async function getTeacherQuizzes(): Promise<
         hasGame: quiz.games.length > 0,
         gameId: quiz.games[0]?.id,
         shareCode: quiz.games[0]?.shareCode,
-        imageUrl: quiz.games[0]?.imageUrl || null,
+        qrCodeUrl: quiz.games[0]?.qrCodeUrl || null,
         pdfFilename: pdf.filename,
       })) || []
     );

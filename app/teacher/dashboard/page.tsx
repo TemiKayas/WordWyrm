@@ -13,7 +13,7 @@ import { getTeacherStats } from '@/app/actions/quiz';
 export default function TeacherDashboard() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('My Games');
+  const [activeTab, setActiveTab] = useState('Games');
 
   // real data from backend
   const [teacherData, setTeacherData] = useState({
@@ -109,7 +109,10 @@ export default function TeacherDashboard() {
           <ClassTabs onClassChange={setActiveTab} selectedClass={activeTab} />
 
           {/* Content based on active tab */}
-          {activeTab === 'My Classes' ? (
+          {activeTab === 'Games' ? (
+            /* Games View */
+            <GamesView onCreateGame={handleCreateClick} />
+          ) : (
             <>
               {/* Class Statistics Section */}
               <ClassStatistics
@@ -120,9 +123,6 @@ export default function TeacherDashboard() {
               {/* Students Table */}
               <StudentsTable />
             </>
-          ) : (
-            /* Games View */
-            <GamesView onCreateGame={handleCreateClick} />
           )}
         </div>
       </div>
