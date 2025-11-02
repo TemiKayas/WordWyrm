@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Navbar from '@/components/shared/Navbar';
+import TeacherPageLayout from '@/components/shared/TeacherPageLayout';
 import { getTeacherQuizzes } from '@/app/actions/quiz';
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
@@ -80,9 +80,8 @@ export default function TeacherGamesPage() {
 
   if (games.length === 0) {
     return (
-      <div className="min-h-screen bg-[#fffaf2]">
-        <Navbar showSignOut={true} />
-        <main className="max-w-4xl mx-auto px-4 py-12 text-center">
+      <TeacherPageLayout>
+        <div className="max-w-4xl mx-auto px-4 py-12 text-center">
           <h1 className="font-quicksand font-bold text-[#473025] text-[36px] mb-4">
             No Published Games Yet
           </h1>
@@ -95,16 +94,14 @@ export default function TeacherGamesPage() {
           >
             Create Your First Game
           </button>
-        </main>
-      </div>
+        </div>
+      </TeacherPageLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-r from-[#fffaf2] to-[#fff5e9] flex flex-col">
-      <Navbar showSignOut={true} />
-
-      <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 w-full">
+    <TeacherPageLayout>
+      <div className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 w-full">
         <div className="flex items-center justify-between mb-4">
           <h1 className="font-quicksand font-bold text-[#473025] text-[24px] sm:text-[28px] lg:text-[32px]">
             Share Your Game
@@ -250,7 +247,7 @@ export default function TeacherGamesPage() {
             </div>
           )}
         </div>
-      </main>
-    </div>
+      </div>
+    </TeacherPageLayout>
   );
 }

@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { updateGame, getGameQuizzes, addQuizToGame, removeQuizFromGame } from '@/app/actions/game';
 import { getQuizById, updateQuizQuestions, getTeacherQuizzes } from '@/app/actions/quiz';
 import Button from '@/components/ui/Button';
-import Navbar from '@/components/shared/Navbar';
+import TeacherPageLayout from '@/components/shared/TeacherPageLayout';
 
 interface QuizQuestion {
     question: string;
@@ -255,9 +255,7 @@ function GameEditContent() {
     }
 
     return (
-        <div className="min-h-screen bg-[#fffaf2]">
-            <Navbar />
-            <div className="max-w-[1200px] mx-auto px-4 md:px-6 py-4 md:py-6">
+        <div className="max-w-[1200px] mx-auto px-4 md:px-6 py-4 md:py-6">
                 <div className="mb-4 md:mb-6">
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3">
                         <div className="flex-1">
@@ -435,12 +433,6 @@ function GameEditContent() {
                         <div className="bg-white border-[3px] border-[#473025] rounded-[16px] p-4 md:p-5 shadow-md">
                             <div className="flex items-center justify-between mb-3">
                                 <div className="flex items-center gap-2">
-                                    <div className="w-[32px] h-[32px] bg-[#ff9f22] rounded-[8px] flex items-center justify-center">
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                            <circle cx="12" cy="12" r="3" fill="white"/>
-                                            <path d="M12 1v6m0 6v6m11-7h-6m-6 0H1" stroke="white" strokeWidth="2" strokeLinecap="round"/>
-                                        </svg>
-                                    </div>
                                     <h2 className="font-quicksand font-bold text-[#473025] text-[18px]">Questions ({questions.length})</h2>
                                 </div>
                                 <button
@@ -572,7 +564,6 @@ function GameEditContent() {
                         {isSaving ? 'Saving...' : 'Save Game'}
                     </button>
                 </div>
-            </div>
 
             {showAddPDFModal && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -630,7 +621,7 @@ function GameEditContent() {
                     </div>
                 </div>
             )}
-        </div>
+    </div>
     );
 }
 
@@ -643,7 +634,9 @@ export default function GameEditPage() {
                 </div>
             }
         >
-            <GameEditContent />
+            <TeacherPageLayout>
+                <GameEditContent />
+            </TeacherPageLayout>
         </Suspense>
     );
 }
