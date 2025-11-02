@@ -9,6 +9,7 @@ interface GameCardProps {
   pdfFilename: string;
   createdAt: string;
   isDraft?: boolean;
+  imageUrl?: string | null;
   onPlay?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
@@ -20,6 +21,7 @@ export default function GameCard({
   pdfFilename,
   createdAt,
   isDraft = false,
+  imageUrl,
   onPlay,
   onEdit,
   onDelete,
@@ -96,15 +98,23 @@ export default function GameCard({
         </div>
       </div>
 
-      {/* tower defense icon */}
+      {/* game image or tower defense icon */}
       <div className="flex justify-center mb-3 md:mb-4">
-        <div className="relative w-[140px] h-[80px] md:w-[165px] md:h-[95px]">
-          <Image
-            src="/assets/dashboard/tower-defense-game-icon.png"
-            alt="Tower Defense Game"
-            fill
-            className="object-cover"
-          />
+        <div className="relative w-[140px] h-[80px] md:w-[165px] md:h-[95px] rounded-[11px] overflow-hidden bg-[#fff6e8]">
+          {imageUrl ? (
+            <img
+              src={imageUrl}
+              alt={title}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <Image
+              src="/assets/dashboard/tower-defense-game-icon.png"
+              alt="Tower Defense Game"
+              fill
+              className="object-cover"
+            />
+          )}
         </div>
       </div>
 

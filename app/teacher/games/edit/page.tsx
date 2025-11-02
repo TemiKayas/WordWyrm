@@ -140,8 +140,11 @@ function GameEditContent() {
       });
 
       if (result.success) {
-        setSaveMessage({ type: 'success', text: 'Game info saved successfully!' });
-        setTimeout(() => setSaveMessage(null), 3000);
+        setSaveMessage({ type: 'success', text: 'Game updated successfully! Redirecting...' });
+        // Redirect back to dashboard to see updated game
+        setTimeout(() => {
+          router.push('/teacher/dashboard');
+        }, 1500);
       } else {
         setSaveMessage({ type: 'error', text: result.error });
       }
@@ -281,223 +284,288 @@ function GameEditContent() {
     <div className="min-h-screen bg-[#fffaf2]">
       <Navbar />
 
-      <div className="max-w-[1400px] mx-auto p-8">
-        {/* Header */}
-        <div className="mb-8">
-          <button
-            onClick={() => router.push('/teacher/dashboard')}
-            className="flex items-center gap-2 text-[#473025] hover:text-[#ff9f22] transition-colors mb-4"
-          >
-            <span className="text-xl">←</span>
-            <span className="font-quicksand font-semibold">Back to Dashboard</span>
-          </button>
+      <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-6 md:py-10">
+        {/* Header Section */}
+        <div className="mb-8 md:mb-12">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+            <div className="flex-1">
+              <h1 className="font-quicksand font-bold text-[#473025] text-[32px] md:text-[48px] mb-2 leading-tight">
+                Edit Your Game
+              </h1>
+              <p className="font-quicksand text-[#a7613c] text-[14px] md:text-[16px] max-w-[600px]">
+                Customize your game settings, manage content, and perfect your quiz questions
+              </p>
+            </div>
 
-          <h1 className="font-quicksand font-bold text-[#473025] text-[42px]">
-            Edit Game
-          </h1>
-          <p className="font-quicksand text-[#be9f91] text-[18px]">
-            Update your game settings, manage PDFs, and edit quiz questions
-          </p>
+            <button
+              onClick={() => router.push('/teacher/dashboard')}
+              className="w-full md:w-auto bg-[#fd9227] border-[1.5px] border-[#730f11] rounded-[11px] h-[45px] md:h-[50px] px-6 flex items-center justify-center gap-2 hover:bg-[#e6832b] transition-all"
+            >
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12.5 15L7.5 10L12.5 5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              <span className="font-quicksand font-bold text-white text-[16px] md:text-[18px]">
+                Back to Dashboard
+              </span>
+            </button>
+          </div>
+
+          {/* Save Message */}
+          {saveMessage && (
+            <div
+              className={`p-4 rounded-[11px] border-[3px] animate-slide-up ${
+                saveMessage.type === 'success'
+                  ? 'bg-[#96b902]/10 border-[#96b902] text-[#7a9700]'
+                  : 'bg-red-50 border-error text-error'
+              }`}
+            >
+              <p className="font-quicksand font-bold text-[14px]">{saveMessage.text}</p>
+            </div>
+          )}
         </div>
 
-        {/* Save Message */}
-        {saveMessage && (
-          <div
-            className={`mb-6 p-4 rounded-lg border-2 ${
-              saveMessage.type === 'success'
-                ? 'bg-green-50 border-green-500 text-green-700'
-                : 'bg-red-50 border-red-500 text-red-700'
-            }`}
-          >
-            <p className="font-quicksand font-semibold">{saveMessage.text}</p>
-          </div>
-        )}
+        {/* Main Content - Single Column Flow */}
+        <div className="space-y-8">
+          {/* Game Settings Card */}
+          <div className="bg-white border-[4px] border-[#473025] rounded-[24px] p-6 md:p-8 shadow-lg animate-fade-in">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-[48px] h-[48px] bg-[#ff9f22] rounded-[12px] flex items-center justify-center flex-shrink-0">
+                <span className="text-[28px]">⚙️</span>
+              </div>
+              <div>
+                <h2 className="font-quicksand font-bold text-[#473025] text-[24px] md:text-[28px] leading-tight">
+                  Game Settings
+                </h2>
+                <p className="font-quicksand text-[#a7613c] text-[12px] md:text-[14px]">
+                  Configure your game details
+                </p>
+              </div>
+            </div>
 
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Left Side - Game Info & PDFs */}
-          <div className="space-y-8">
-            {/* Game Settings */}
-            <div className="bg-white border-[3px] border-[#473025] rounded-[18px] p-6">
-              <h2 className="font-quicksand font-bold text-[#473025] text-[28px] mb-6">
-                Game Settings
-              </h2>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
               {/* Title */}
-              <div className="mb-6">
-                <label htmlFor="title" className="font-quicksand font-bold text-[#473025] text-[16px] mb-2 block">
-                  Title *
+              <div>
+                <label htmlFor="title" className="font-quicksand font-bold text-[#473025] text-[14px] md:text-[16px] mb-2 block">
+                  Game Title *
                 </label>
                 <input
                   type="text"
                   id="title"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Enter game title..."
-                  className="w-full bg-[#fff6e8] border-[3px] border-[#ffb554] rounded-[11px] h-[50px] px-4 font-quicksand text-[#473025] placeholder:text-[#a7613c] focus:outline-none focus:ring-2 focus:ring-[#ff9f22] hover:border-[#ff9f22] transition-all"
+                  placeholder="e.g., World War II History Quiz"
+                  className="w-full bg-[#fff6e8] border-[3px] border-[#ffb554] rounded-[11px] h-[50px] md:h-[55px] px-4 font-quicksand font-semibold text-[#473025] text-[14px] placeholder:text-[#be9f91] focus:outline-none focus:ring-4 focus:ring-[#ff9f22]/30 focus:border-[#ff9f22] hover:border-[#ff9f22] transition-all"
                   required
                 />
               </div>
 
               {/* Description */}
-              <div className="mb-6">
-                <label htmlFor="description" className="font-quicksand font-bold text-[#473025] text-[16px] mb-2 block">
+              <div className="lg:col-span-2">
+                <label htmlFor="description" className="font-quicksand font-bold text-[#473025] text-[14px] md:text-[16px] mb-2 block">
                   Description
+                  <span className="font-normal text-[#a7613c] text-[12px] ml-2">(Optional)</span>
                 </label>
                 <textarea
                   id="description"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Add a description for your game..."
-                  className="w-full bg-[#fff6e8] border-[3px] border-[#ffb554] rounded-[11px] h-[122px] px-4 py-3 font-quicksand text-[#473025] placeholder:text-[#a7613c] focus:outline-none focus:ring-2 focus:ring-[#ff9f22] hover:border-[#ff9f22] transition-all resize-none"
+                  placeholder="Tell your students what this game is about..."
+                  className="w-full bg-[#fff6e8] border-[3px] border-[#ffb554] rounded-[11px] h-[100px] px-4 py-3 font-quicksand text-[#473025] text-[14px] placeholder:text-[#be9f91] focus:outline-none focus:ring-4 focus:ring-[#ff9f22]/30 focus:border-[#ff9f22] hover:border-[#ff9f22] transition-all resize-none"
                 />
               </div>
 
               {/* Privacy Settings */}
-              <div className="mb-6">
-                <label className="font-quicksand font-bold text-[#473025] text-[16px] mb-3 block">
+              <div className="lg:col-span-2">
+                <label className="font-quicksand font-bold text-[#473025] text-[14px] md:text-[16px] mb-3 block">
                   Privacy Settings
                 </label>
-                <div className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <label
-                    className={`flex items-center gap-3 cursor-pointer p-3 rounded-lg transition-all border-2 ${
+                    className={`flex items-start gap-3 cursor-pointer p-4 rounded-[11px] transition-all border-[3px] ${
                       isPublic
-                        ? 'bg-[#96b902]/10 border-[#96b902]'
-                        : 'bg-white border-[#473025]/20 hover:bg-[#fff6e8]'
+                        ? 'bg-[#96b902]/10 border-[#96b902] shadow-md'
+                        : 'bg-white border-[#ffb554] hover:border-[#ff9f22] hover:shadow-sm'
                     }`}
                     onClick={() => setIsPublic(true)}
                   >
-                    <div className={`w-[20px] h-[20px] flex-shrink-0 rounded-full border-2 flex items-center justify-center transition-all ${
-                      isPublic ? 'border-[#96b902] bg-[#96b902]' : 'border-[#473025]/40'
+                    <div className={`w-[24px] h-[24px] flex-shrink-0 rounded-full border-[3px] flex items-center justify-center transition-all mt-0.5 ${
+                      isPublic ? 'border-[#96b902] bg-[#96b902]' : 'border-[#a7613c]'
                     }`}>
                       {isPublic && (
-                        <div className="w-[8px] h-[8px] rounded-full bg-white"></div>
+                        <div className="w-[10px] h-[10px] rounded-full bg-white"></div>
                       )}
                     </div>
-                    <div>
-                      <div className={`font-quicksand font-bold text-[14px] ${
+                    <div className="flex-1">
+                      <div className={`font-quicksand font-bold text-[15px] mb-1 ${
                         isPublic ? 'text-[#96b902]' : 'text-[#473025]'
                       }`}>
-                        Public (Active)
+                        🌐 Public (Active)
                       </div>
-                      <div className="font-quicksand font-medium text-[#473025]/70 text-[11px]">
+                      <div className="font-quicksand text-[#473025]/70 text-[12px]">
                         Students can join and play this game
                       </div>
                     </div>
                   </label>
 
                   <label
-                    className={`flex items-center gap-3 cursor-pointer p-3 rounded-lg transition-all border-2 ${
+                    className={`flex items-start gap-3 cursor-pointer p-4 rounded-[11px] transition-all border-[3px] ${
                       !isPublic
-                        ? 'bg-[#96b902]/10 border-[#96b902]'
-                        : 'bg-white border-[#473025]/20 hover:bg-[#fff6e8]'
+                        ? 'bg-[#96b902]/10 border-[#96b902] shadow-md'
+                        : 'bg-white border-[#ffb554] hover:border-[#ff9f22] hover:shadow-sm'
                     }`}
                     onClick={() => setIsPublic(false)}
                   >
-                    <div className={`w-[20px] h-[20px] flex-shrink-0 rounded-full border-2 flex items-center justify-center transition-all ${
-                      !isPublic ? 'border-[#96b902] bg-[#96b902]' : 'border-[#473025]/40'
+                    <div className={`w-[24px] h-[24px] flex-shrink-0 rounded-full border-[3px] flex items-center justify-center transition-all mt-0.5 ${
+                      !isPublic ? 'border-[#96b902] bg-[#96b902]' : 'border-[#a7613c]'
                     }`}>
                       {!isPublic && (
-                        <div className="w-[8px] h-[8px] rounded-full bg-white"></div>
+                        <div className="w-[10px] h-[10px] rounded-full bg-white"></div>
                       )}
                     </div>
-                    <div className={`font-quicksand font-bold text-[14px] ${
-                      !isPublic ? 'text-[#96b902]' : 'text-[#473025]'
-                    }`}>
-                      Private (Inactive)
+                    <div className="flex-1">
+                      <div className={`font-quicksand font-bold text-[15px] mb-1 ${
+                        !isPublic ? 'text-[#96b902]' : 'text-[#473025]'
+                      }`}>
+                        🔒 Private (Inactive)
+                      </div>
+                      <div className="font-quicksand text-[#473025]/70 text-[12px]">
+                        Game is hidden from students
+                      </div>
                     </div>
                   </label>
                 </div>
               </div>
+            </div>
 
-              {/* Save Button */}
+            {/* Save Button */}
+            <div className="mt-8 flex justify-end">
               <Button
                 onClick={handleSaveGameInfo}
                 disabled={isSaving || !title.trim()}
                 variant="success"
-                size="md"
-                className="w-full"
+                size="lg"
+                className="w-full md:w-auto md:min-w-[200px]"
                 isLoading={isSaving}
               >
                 Save Game Settings
               </Button>
             </div>
-
-            {/* PDFs Section */}
-            <div className="bg-white border-[3px] border-[#473025] rounded-[18px] p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="font-quicksand font-bold text-[#473025] text-[28px]">
-                  Attached PDFs ({attachedPDFs.length})
-                </h2>
-                <button
-                  onClick={() => {
-                    loadAvailableQuizzes();
-                    setShowAddPDFModal(true);
-                  }}
-                  className="flex items-center gap-2 bg-[#96b902] hover:bg-[#7a9602] text-white font-quicksand font-bold px-4 py-2 rounded-[11px] transition-all"
-                >
-                  <span className="text-xl">+</span>
-                  <span>Add PDF</span>
-                </button>
-              </div>
-
-              <div className="space-y-3 max-h-[400px] overflow-y-auto">
-                {attachedPDFs.map((pdf) => (
-                  <div
-                    key={pdf.id}
-                    className="flex items-center justify-between p-4 bg-[#fff6e8] border-[2px] border-[#ffb554] rounded-[11px]"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-[40px] h-[40px] bg-[#ff9f22] rounded-lg flex items-center justify-center">
-                        <span className="text-white font-quicksand font-bold text-[18px]">
-                          📄
-                        </span>
-                      </div>
-                      <div>
-                        <p className="font-quicksand font-bold text-[#473025] text-[16px]">
-                          {pdf.pdfFilename}
-                        </p>
-                        <p className="font-quicksand text-[#a7613c] text-[12px]">
-                          {pdf.numQuestions} questions • Added {new Date(pdf.uploadedAt).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => handleRemovePDF(pdf.quizId)}
-                      disabled={attachedPDFs.length === 1 || isSaving}
-                      className={`font-quicksand font-semibold text-[14px] px-3 py-1 rounded-lg transition-all ${
-                        attachedPDFs.length === 1 || isSaving
-                          ? 'text-gray-400 cursor-not-allowed'
-                          : 'text-[#ff4880] hover:bg-[#ff4880]/10'
-                      }`}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ))}
-
-                {attachedPDFs.length === 0 && (
-                  <div className="text-center py-8 text-[#a7613c] font-quicksand">
-                    No PDFs attached. Click "Add PDF" to attach a PDF.
-                  </div>
-                )}
-              </div>
-            </div>
           </div>
 
-          {/* Right Side - Quiz Questions */}
-          <div className="bg-white border-[3px] border-[#473025] rounded-[18px] p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="font-quicksand font-bold text-[#473025] text-[28px]">
-                Quiz Questions ({questions.length})
-              </h2>
-              <button
-                onClick={handleAddQuestion}
-                className="flex items-center gap-2 bg-[#96b902] hover:bg-[#7a9602] text-white font-quicksand font-bold px-4 py-2 rounded-[11px] transition-all"
+          {/* PDFs Section */}
+          <div className="bg-white border-[4px] border-[#473025] rounded-[24px] p-6 md:p-8 shadow-lg animate-fade-in">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-[48px] h-[48px] bg-[#ff9f22] rounded-[12px] flex items-center justify-center flex-shrink-0">
+                <span className="text-[28px]">📚</span>
+              </div>
+              <div className="flex-1">
+                <h2 className="font-quicksand font-bold text-[#473025] text-[24px] md:text-[28px] leading-tight">
+                  Study Materials
+                  <span className="ml-2 text-[#ff9f22] text-[20px]">({attachedPDFs.length})</span>
+                </h2>
+                <p className="font-quicksand text-[#a7613c] text-[12px] md:text-[14px]">
+                  PDFs used to generate quiz questions
+                </p>
+              </div>
+              <Button
+                onClick={() => {
+                  loadAvailableQuizzes();
+                  setShowAddPDFModal(true);
+                }}
+                variant="success"
+                size="md"
+                className="hidden md:flex"
               >
-                <span className="text-xl">+</span>
-                <span>Add Question</span>
-              </button>
+                + Add PDF
+              </Button>
+            </div>
+
+            <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
+              {attachedPDFs.map((pdf, index) => (
+                <div
+                  key={pdf.id}
+                  className="flex items-center justify-between p-4 bg-[#fff6e8] border-[3px] border-[#ffb554] rounded-[11px] hover:border-[#ff9f22] hover:shadow-md transition-all group"
+                  style={{ animationDelay: `${index * 0.05}s` }}
+                >
+                  <div className="flex items-center gap-4 flex-1 min-w-0">
+                    <div className="w-[48px] h-[48px] bg-[#ff9f22] rounded-[11px] flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                      <span className="text-[24px]">📄</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-quicksand font-bold text-[#473025] text-[14px] md:text-[16px] truncate">
+                        {pdf.pdfFilename}
+                      </p>
+                      <p className="font-quicksand text-[#a7613c] text-[11px] md:text-[12px]">
+                        {pdf.numQuestions} questions • {new Date(pdf.uploadedAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleRemovePDF(pdf.quizId)}
+                    disabled={attachedPDFs.length === 1 || isSaving}
+                    className={`font-quicksand font-bold text-[12px] md:text-[13px] px-3 py-2 rounded-[8px] transition-all flex-shrink-0 ml-2 ${
+                      attachedPDFs.length === 1 || isSaving
+                        ? 'text-gray-400 cursor-not-allowed'
+                        : 'text-[#ff4880] hover:bg-[#ff4880] hover:text-white'
+                    }`}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+
+              {attachedPDFs.length === 0 && (
+                <div className="text-center py-12 px-4">
+                  <div className="w-[80px] h-[80px] bg-[#fff6e8] rounded-full flex items-center justify-center mx-auto mb-4">
+                    <span className="text-[40px]">📁</span>
+                  </div>
+                  <p className="text-[#a7613c] font-quicksand font-semibold text-[14px] mb-2">
+                    No PDFs attached yet
+                  </p>
+                  <p className="text-[#be9f91] font-quicksand text-[12px]">
+                    Add PDFs to generate quiz content
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <Button
+              onClick={() => {
+                loadAvailableQuizzes();
+                setShowAddPDFModal(true);
+              }}
+              variant="success"
+              size="md"
+              className="w-full md:hidden mt-4"
+            >
+              + Add PDF
+            </Button>
+          </div>
+
+          {/* Quiz Questions */}
+          <div className="bg-white border-[4px] border-[#473025] rounded-[24px] p-6 md:p-8 shadow-lg animate-fade-in">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-[48px] h-[48px] bg-[#ff9f22] rounded-[12px] flex items-center justify-center flex-shrink-0">
+                <span className="text-[28px]">❓</span>
+              </div>
+              <div className="flex-1">
+                <h2 className="font-quicksand font-bold text-[#473025] text-[24px] md:text-[28px] leading-tight">
+                  Quiz Questions
+                  <span className="ml-2 text-[#ff9f22] text-[20px]">({questions.length})</span>
+                </h2>
+                <p className="font-quicksand text-[#a7613c] text-[12px] md:text-[14px]">
+                  Edit and manage your quiz questions
+                </p>
+              </div>
+              <Button
+                onClick={handleAddQuestion}
+                variant="success"
+                size="md"
+                className="hidden md:flex"
+              >
+                + Add Question
+              </Button>
             </div>
 
             {/* Questions List */}
@@ -505,26 +573,31 @@ function GameEditContent() {
               {questions.map((question, index) => (
                 <div
                   key={index}
-                  className={`border-[2px] rounded-[11px] p-4 transition-all ${
+                  className={`border-[3px] rounded-[11px] p-4 transition-all ${
                     editingQuestionIndex === index
-                      ? 'border-[#ff9f22] bg-[#fff5e8]'
-                      : 'border-[#ffb554] bg-[#fff6e8] hover:border-[#ff9f22]'
+                      ? 'border-[#ff9f22] bg-[#fff5e8] shadow-md'
+                      : 'border-[#ffb554] bg-[#fff6e8] hover:border-[#ff9f22] hover:shadow-sm'
                   }`}
                 >
                   <div className="flex items-start justify-between mb-3">
-                    <span className="font-quicksand font-bold text-[#473025] text-[16px]">
-                      Question {index + 1}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="w-[28px] h-[28px] bg-[#ff9f22] rounded-full flex items-center justify-center text-white font-quicksand font-bold text-[13px]">
+                        {index + 1}
+                      </span>
+                      <span className="font-quicksand font-bold text-[#473025] text-[15px]">
+                        Question {index + 1}
+                      </span>
+                    </div>
                     <div className="flex gap-2">
                       <button
                         onClick={() => setEditingQuestionIndex(editingQuestionIndex === index ? null : index)}
-                        className="text-[#ff9f22] hover:text-[#e6832b] font-quicksand font-semibold text-[14px]"
+                        className="text-[#ff9f22] hover:text-[#e6832b] font-quicksand font-bold text-[12px] px-3 py-1 rounded-[8px] hover:bg-[#ff9f22]/10 transition-all"
                       >
-                        {editingQuestionIndex === index ? 'Collapse' : 'Expand'}
+                        {editingQuestionIndex === index ? '▲ Close' : '▼ Edit'}
                       </button>
                       <button
                         onClick={() => handleDeleteQuestion(index)}
-                        className="text-[#ff4880] hover:text-[#e03d6f] font-quicksand font-semibold text-[14px]"
+                        className="text-[#ff4880] hover:text-white hover:bg-[#ff4880] font-quicksand font-bold text-[12px] px-3 py-1 rounded-[8px] transition-all"
                       >
                         Delete
                       </button>
@@ -532,36 +605,39 @@ function GameEditContent() {
                   </div>
 
                   {editingQuestionIndex === index ? (
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                       {/* Question Text */}
                       <div>
-                        <label className="font-quicksand font-semibold text-[#473025] text-[14px] mb-1 block">
-                          Question
+                        <label className="font-quicksand font-bold text-[#473025] text-[13px] mb-2 block">
+                          Question Text
                         </label>
                         <textarea
                           value={question.question}
                           onChange={(e) => handleUpdateQuestion(index, 'question', e.target.value)}
-                          className="w-full bg-white border-[2px] border-[#ffb554] rounded-[8px] p-3 font-quicksand text-[#473025] focus:outline-none focus:ring-2 focus:ring-[#ff9f22] resize-none"
+                          className="w-full bg-white border-[3px] border-[#ffb554] rounded-[11px] p-3 font-quicksand text-[#473025] text-[14px] focus:outline-none focus:ring-4 focus:ring-[#ff9f22]/30 focus:border-[#ff9f22] resize-none transition-all"
                           rows={3}
                         />
                       </div>
 
                       {/* Options */}
                       <div>
-                        <label className="font-quicksand font-semibold text-[#473025] text-[14px] mb-2 block">
-                          Options
+                        <label className="font-quicksand font-bold text-[#473025] text-[13px] mb-2 block">
+                          Answer Options
                         </label>
                         <div className="space-y-2">
                           {question.options.map((option, optionIndex) => (
-                            <div key={optionIndex} className="flex items-center gap-2">
-                              <span className="font-quicksand font-bold text-[#473025] text-[14px] w-[24px]">
-                                {String.fromCharCode(65 + optionIndex)}.
-                              </span>
+                            <div key={optionIndex} className="flex items-center gap-3">
+                              <div className="w-[32px] h-[32px] bg-[#ff9f22] rounded-[8px] flex items-center justify-center flex-shrink-0">
+                                <span className="font-quicksand font-bold text-white text-[14px]">
+                                  {String.fromCharCode(65 + optionIndex)}
+                                </span>
+                              </div>
                               <input
                                 type="text"
                                 value={option}
                                 onChange={(e) => handleUpdateOption(index, optionIndex, e.target.value)}
-                                className="flex-1 bg-white border-[2px] border-[#ffb554] rounded-[8px] px-3 py-2 font-quicksand text-[#473025] focus:outline-none focus:ring-2 focus:ring-[#ff9f22]"
+                                className="flex-1 bg-white border-[3px] border-[#ffb554] rounded-[11px] px-4 py-2 font-quicksand text-[#473025] text-[14px] focus:outline-none focus:ring-4 focus:ring-[#ff9f22]/30 focus:border-[#ff9f22] transition-all"
+                                placeholder={`Option ${String.fromCharCode(65 + optionIndex)}`}
                               />
                             </div>
                           ))}
@@ -570,13 +646,13 @@ function GameEditContent() {
 
                       {/* Correct Answer */}
                       <div>
-                        <label className="font-quicksand font-semibold text-[#473025] text-[14px] mb-1 block">
-                          Correct Answer
+                        <label className="font-quicksand font-bold text-[#473025] text-[13px] mb-2 block">
+                          ✓ Correct Answer
                         </label>
                         <select
                           value={question.answer}
                           onChange={(e) => handleUpdateQuestion(index, 'answer', e.target.value)}
-                          className="w-full bg-white border-[2px] border-[#ffb554] rounded-[8px] px-3 py-2 font-quicksand text-[#473025] focus:outline-none focus:ring-2 focus:ring-[#ff9f22]"
+                          className="w-full bg-white border-[3px] border-[#96b902] rounded-[11px] px-4 py-3 font-quicksand font-bold text-[#473025] text-[14px] focus:outline-none focus:ring-4 focus:ring-[#96b902]/30 transition-all"
                         >
                           {question.options.map((option, optionIndex) => (
                             <option key={optionIndex} value={option}>
@@ -588,62 +664,79 @@ function GameEditContent() {
 
                       {/* Explanation (Optional) */}
                       <div>
-                        <label className="font-quicksand font-semibold text-[#473025] text-[14px] mb-1 block">
-                          Explanation (Optional)
+                        <label className="font-quicksand font-bold text-[#473025] text-[13px] mb-2 block">
+                          Explanation
+                          <span className="font-normal text-[#a7613c] text-[11px] ml-2">(Optional)</span>
                         </label>
                         <textarea
                           value={question.explanation || ''}
                           onChange={(e) => handleUpdateQuestion(index, 'explanation', e.target.value)}
-                          placeholder="Explain why this is the correct answer..."
-                          className="w-full bg-white border-[2px] border-[#ffb554] rounded-[8px] p-3 font-quicksand text-[#473025] placeholder:text-[#a7613c]/50 focus:outline-none focus:ring-2 focus:ring-[#ff9f22] resize-none"
+                          placeholder="Help students understand why this is correct..."
+                          className="w-full bg-white border-[3px] border-[#ffb554] rounded-[11px] p-3 font-quicksand text-[#473025] text-[14px] placeholder:text-[#be9f91] focus:outline-none focus:ring-4 focus:ring-[#ff9f22]/30 focus:border-[#ff9f22] resize-none transition-all"
                           rows={2}
                         />
                       </div>
                     </div>
                   ) : (
-                    <div className="text-[#473025]/70 font-quicksand text-[14px]">
-                      {question.question.substring(0, 100)}
-                      {question.question.length > 100 ? '...' : ''}
+                    <div className="text-[#473025] font-quicksand text-[13px] line-clamp-2">
+                      {question.question}
                     </div>
                   )}
                 </div>
               ))}
             </div>
 
-            {/* Save Questions Button */}
             <Button
-              onClick={handleSaveQuestions}
-              disabled={isSaving || questions.length === 0}
+              onClick={handleAddQuestion}
               variant="success"
               size="md"
-              className="w-full"
-              isLoading={isSaving}
+              className="w-full md:hidden mb-4"
             >
-              Save All Questions
+              + Add Question
             </Button>
+
+            {/* Save Questions Button */}
+            <div className="flex justify-end">
+              <Button
+                onClick={handleSaveQuestions}
+                disabled={isSaving || questions.length === 0}
+                variant="success"
+                size="lg"
+                className="w-full md:w-auto md:min-w-[200px]"
+                isLoading={isSaving}
+              >
+                Save All Questions
+              </Button>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Add PDF Modal */}
       {showAddPDFModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-[18px] p-6 max-w-md w-full max-h-[80vh] overflow-y-auto">
-            <h3 className="font-quicksand font-bold text-[#473025] text-[24px] mb-4">
-              Select PDF to Add
-            </h3>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="bg-white rounded-[24px] border-[4px] border-[#473025] p-6 md:p-8 max-w-lg w-full max-h-[80vh] overflow-y-auto shadow-2xl animate-slide-up">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-[48px] h-[48px] bg-[#ff9f22] rounded-[12px] flex items-center justify-center">
+                <span className="text-[28px]">📄</span>
+              </div>
+              <h3 className="font-quicksand font-bold text-[#473025] text-[24px] md:text-[28px]">
+                Add Study Material
+              </h3>
+            </div>
 
-            <div className="space-y-2 mb-6">
-              {availableQuizzes.map(quiz => (
+            <div className="space-y-3 mb-6">
+              {availableQuizzes.map((quiz, index) => (
                 <button
                   key={quiz.id}
                   onClick={() => handleAddPDF(quiz.id)}
                   disabled={isSaving}
-                  className={`w-full text-left p-3 bg-[#fff6e8] border-[2px] border-[#ffb554] rounded-[11px] transition-all ${
-                    isSaving ? 'opacity-50 cursor-not-allowed' : 'hover:border-[#ff9f22]'
+                  className={`w-full text-left p-4 bg-[#fff6e8] border-[3px] border-[#ffb554] rounded-[11px] transition-all ${
+                    isSaving ? 'opacity-50 cursor-not-allowed' : 'hover:border-[#ff9f22] hover:shadow-md hover:scale-[1.02]'
                   }`}
+                  style={{ animationDelay: `${index * 0.05}s` }}
                 >
-                  <p className="font-quicksand font-bold text-[#473025]">
+                  <p className="font-quicksand font-bold text-[#473025] text-[15px] mb-1">
                     {quiz.title}
                   </p>
                   <p className="font-quicksand text-[#a7613c] text-[12px]">
@@ -653,19 +746,29 @@ function GameEditContent() {
               ))}
 
               {availableQuizzes.length === 0 && (
-                <p className="text-center py-4 text-[#a7613c] font-quicksand">
-                  No more PDFs available. All your quizzes are already attached or you need to upload new PDFs from the dashboard.
-                </p>
+                <div className="text-center py-12">
+                  <div className="w-[80px] h-[80px] bg-[#fff6e8] rounded-full flex items-center justify-center mx-auto mb-4">
+                    <span className="text-[40px]">📭</span>
+                  </div>
+                  <p className="text-[#a7613c] font-quicksand font-semibold text-[14px] mb-2">
+                    No PDFs Available
+                  </p>
+                  <p className="text-[#be9f91] font-quicksand text-[12px] max-w-[300px] mx-auto">
+                    All your quizzes are already attached or you need to upload new PDFs from the dashboard.
+                  </p>
+                </div>
               )}
             </div>
 
-            <button
+            <Button
               onClick={() => setShowAddPDFModal(false)}
               disabled={isSaving}
-              className="w-full bg-[#473025] text-white font-quicksand font-bold py-2 rounded-[11px] hover:bg-[#5a3d2e] transition-all disabled:opacity-50"
+              variant="outline"
+              size="md"
+              className="w-full"
             >
               Close
-            </button>
+            </Button>
           </div>
         </div>
       )}

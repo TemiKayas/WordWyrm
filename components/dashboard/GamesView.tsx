@@ -16,6 +16,7 @@ interface Game {
   gameId?: string;
   shareCode?: string;
   hasGame: boolean;
+  imageUrl?: string | null;
 }
 
 interface GamesViewProps {
@@ -55,12 +56,21 @@ export default function GamesView({ onCreateGame }: GamesViewProps) {
           gameId: quiz.gameId,
           shareCode: quiz.shareCode,
           hasGame: quiz.hasGame,
+          imageUrl: quiz.imageUrl || null,
         }));
         setGames(formattedGames);
       }
       setLoading(false);
     }
     loadGames();
+
+    // Refresh data when window gains focus (user returns from another page)
+    const handleFocus = () => {
+      loadGames();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
   }, []);
 
   const recentGames = games.filter(g => g.hasGame);

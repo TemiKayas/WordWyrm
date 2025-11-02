@@ -18,6 +18,7 @@ export default function PDFUploadForm({ onFileSelect }: PDFUploadFormProps) {
   const [progress, setProgress] = useState<string>('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [numQuestions, setNumQuestions] = useState<number>(5);
+  const [subject, setSubject] = useState<string>('');
 
   async function handleFileSelect(file: File) {
     setSelectedFile(file);
@@ -37,6 +38,9 @@ export default function PDFUploadForm({ onFileSelect }: PDFUploadFormProps) {
     const formData = new FormData();
     formData.append('pdf', selectedFile);
     formData.append('numQuestions', numQuestions.toString());
+    if (subject) {
+      formData.append('subject', subject);
+    }
 
     startTransition(async () => {
       try {
@@ -98,8 +102,32 @@ export default function PDFUploadForm({ onFileSelect }: PDFUploadFormProps) {
         </div>
       )}
 
-      {/* Number of Questions */}
+      {/* Subject Selection */}
       <div className="mb-4 animate-slide-up" style={{ animationDelay: '0.2s' }}>
+        <label
+          htmlFor="subject"
+          className="block text-[#473025] font-bold text-base mb-2"
+        >
+          Subject
+        </label>
+        <select
+          id="subject"
+          value={subject}
+          onChange={(e) => setSubject(e.target.value)}
+          disabled={isPending}
+          className="w-full px-3 py-2 bg-[#fff6e8] border-2 border-[#473025] rounded-lg font-semibold text-[#473025] text-sm focus:ring-4 focus:ring-[#96b902]/30 focus:border-[#96b902] transition-all disabled:opacity-50"
+        >
+          <option value="">General / No specific subject</option>
+          <option value="ENGLISH">English</option>
+          <option value="MATH">Math</option>
+          <option value="SCIENCE">Science</option>
+          <option value="HISTORY">History</option>
+          <option value="LANGUAGE">Language</option>
+        </select>
+      </div>
+
+      {/* Number of Questions */}
+      <div className="mb-4 animate-slide-up" style={{ animationDelay: '0.3s' }}>
         <label
           htmlFor="numQuestions"
           className="block text-[#473025] font-bold text-base mb-2"
@@ -128,7 +156,7 @@ export default function PDFUploadForm({ onFileSelect }: PDFUploadFormProps) {
         variant="success"
         size="md"
         className="w-full animate-slide-up shadow-lg hover:shadow-xl"
-        style={{ animationDelay: '0.3s' } as React.CSSProperties}
+        style={{ animationDelay: '0.4s' } as React.CSSProperties}
         isLoading={isPending}
       >
         Generate Quiz

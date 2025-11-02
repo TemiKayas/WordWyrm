@@ -13,7 +13,7 @@ import { getTeacherStats } from '@/app/actions/quiz';
 export default function TeacherDashboard() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('My Classes');
+  const [activeTab, setActiveTab] = useState('My Games');
 
   // real data from backend
   const [teacherData, setTeacherData] = useState({
