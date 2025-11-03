@@ -47,17 +47,9 @@ export default function SlidingSidebar({ isOpen, onClose }: SlidingSidebarProps)
 
   return (
     <>
-      {/* Backdrop */}
-      {isOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-40 animate-in fade-in duration-200"
-          onClick={onClose}
-        />
-      )}
-
-      {/* Sliding Sidebar */}
+      {/* Sliding Sidebar - No backdrop overlay */}
       <div
-        className={`fixed left-0 top-0 h-screen w-[200px] md:w-[240px] lg:w-[278px] bg-gradient-to-b from-[#fffaf2] to-[#fff5e9] shadow-[0px_1.625px_1.625px_0px_rgba(0,0,0,0.25)] flex flex-col z-50 transition-transform duration-200 ease-in-out ${
+        className={`fixed left-0 top-0 h-screen w-[200px] md:w-[240px] lg:w-[278px] bg-gradient-to-b from-[#fffaf2] to-[#fff5e9] shadow-[4px_0px_12px_rgba(0,0,0,0.15)] flex flex-col z-50 transition-transform duration-300 ease-in-out ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >

@@ -3,6 +3,7 @@
 import { signOut } from 'next-auth/react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 /**
  * DaisyUI navigation bar with dropdown menu, logo, and sign out
@@ -15,19 +16,14 @@ interface NavbarProps {
 }
 
 export default function Navbar({ showSignOut = true, onMenuClick, logoHref = '/teacher/dashboard' }: NavbarProps) {
+  const router = useRouter();
+
   const handleMenuClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (onMenuClick) {
       onMenuClick();
     }
-  };
-
-  const handleSignOut = async () => {
-    // Use redirect: false to handle the redirect manually
-    await signOut({ redirect: false });
-    // Manually redirect to login page
-    window.location.href = '/login';
   };
 
   return (
@@ -75,7 +71,7 @@ export default function Navbar({ showSignOut = true, onMenuClick, logoHref = '/t
       <div className="navbar-end gap-2">
         {showSignOut && (
           <button
-            onClick={handleSignOut}
+            onClick={() => signOut({ callbackUrl: '/login' })}
             className="btn btn-ghost btn-sm font-quicksand font-semibold text-[#473025] hover:text-[#ff9f22]"
           >
             Sign Out

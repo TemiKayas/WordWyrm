@@ -141,11 +141,12 @@ export default function FileUploadDropZone({
       <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 z-10">
         <img
           key={gifKey}
-          src={`/assets/fileupload/eating.gif?t=${gifKey}`}
+          src={`/assets/fileupload/eating.gif?autoplay=1&loop=1&t=${gifKey}`}
           alt="WordWyrm eating"
           width={150}
           height={150}
           className="object-contain"
+          loading="eager"
         />
       </div>
 
