@@ -12,9 +12,10 @@ import { useRouter } from 'next/navigation';
 interface NavbarProps {
   showSignOut?: boolean;
   onMenuClick?: () => void;
+  logoHref?: string;
 }
 
-export default function Navbar({ showSignOut = true, onMenuClick }: NavbarProps) {
+export default function Navbar({ showSignOut = true, onMenuClick, logoHref = '/teacher/dashboard' }: NavbarProps) {
   const router = useRouter();
 
   const handleMenuClick = (e: React.MouseEvent) => {
@@ -31,21 +32,21 @@ export default function Navbar({ showSignOut = true, onMenuClick }: NavbarProps)
         {onMenuClick ? (
           <button
             onClick={handleMenuClick}
-            className="btn btn-ghost btn-circle"
+            className="btn btn-ghost btn-circle hover:bg-[#473025]/10 ml-2"
             aria-label="Open menu"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              className="h-6 w-6 text-[#473025]"
+              className="h-7 w-7 text-[#473025]"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
+              strokeWidth={2.5}
             >
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                strokeWidth="2"
-                d="M4 6h16M4 12h16M4 18h7"
+                d="M4 6h16M4 12h16M4 18h16"
               />
             </svg>
           </button>
@@ -55,7 +56,7 @@ export default function Navbar({ showSignOut = true, onMenuClick }: NavbarProps)
       </div>
 
       <div className="navbar-center">
-        <Link href="/teacher/dashboard" className="cursor-pointer">
+        <Link href={logoHref} className="cursor-pointer">
           <div className="w-32 h-32 relative">
             <Image
               src="/assets/game-preview/wordwyrm-icon.png"

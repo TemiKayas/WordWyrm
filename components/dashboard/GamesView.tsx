@@ -114,15 +114,15 @@ export default function GamesView({ onCreateGame }: GamesViewProps) {
   return (
     <div>
       {/* Title and Create Button */}
-      <div className="flex flex-col md:flex-row items-center justify-center md:justify-between mb-6 md:mb-8 gap-4 md:gap-0">
-        <h2 className="font-quicksand font-bold text-[#473025] text-[24px] md:text-[28px] lg:text-[32px] text-center md:text-left">
+      <div className="flex flex-col md:flex-row items-center justify-between mb-8 md:mb-10 gap-4 md:gap-0">
+        <h2 className="font-quicksand font-bold text-[#473025] text-[26px] md:text-[30px] lg:text-[34px] text-center md:text-left">
           Your Quizzes and Games
         </h2>
         <button
           onClick={onCreateGame}
-          className="justify-center btn-primary bg-[#fd9227] border-[1.5px] border-[#730f11] rounded-[15px] h-[40px] md:h-[44px] px-4 md:px-6 flex items-center gap-2 hover:bg-[#e6832b] cursor-pointer"
+          className="justify-center btn-primary bg-[#fd9227] border-[2px] border-[#730f11] rounded-[15px] h-[46px] md:h-[50px] px-5 md:px-7 flex items-center gap-2.5 hover:bg-[#e6832b] hover:shadow-md active:scale-[0.98] transition-all cursor-pointer"
         >
-          <div className="w-[16px] h-[16px] md:w-[18px] md:h-[18px] relative flex-shrink-0">
+          <div className="w-[18px] h-[18px] md:w-[20px] md:h-[20px] relative flex-shrink-0">
             <Image
               src="/assets/dashboard/create-icon.svg"
               alt="Create"
@@ -138,19 +138,19 @@ export default function GamesView({ onCreateGame }: GamesViewProps) {
 
       {/* Recently Played Section */}
       {recentGames.length > 0 && (
-        <div className="mb-8 md:mb-12">
-          <div className="flex items-center justify-between mb-4 md:mb-6">
-            <h3 className="font-quicksand font-bold text-[#473025] text-[20px] md:text-[24px] leading-[95.85%]">
+        <div className="mb-10 md:mb-14">
+          <div className="flex items-center justify-between mb-5 md:mb-7">
+            <h3 className="font-quicksand font-bold text-[#473025] text-[22px] md:text-[26px]">
               Recently Played
             </h3>
             {recentGames.length > 4 && (
-              <button className="font-quicksand font-bold text-[#473025] text-[13px] md:text-[15px] underline hover:opacity-70 transition-opacity cursor-pointer">
+              <button className="font-quicksand font-bold text-[#473025] text-[14px] md:text-[16px] underline hover:text-[#ff9f22] transition-colors cursor-pointer">
                 View more
               </button>
             )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 md:gap-6">
             {recentGames.slice(0, 4).map((game) => (
               <GameCard
                 key={game.id}
@@ -167,11 +167,11 @@ export default function GamesView({ onCreateGame }: GamesViewProps) {
       {/* Drafts Section */}
       {drafts.length > 0 && (
         <div>
-          <h3 className="font-quicksand font-bold text-[#473025] text-[20px] md:text-[24px] leading-[95.85%] mb-4 md:mb-6">
+          <h3 className="font-quicksand font-bold text-[#473025] text-[22px] md:text-[26px] mb-5 md:mb-7">
             Drafts
           </h3>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 md:gap-6">
             {drafts.map((draft) => (
               <GameCard
                 key={draft.id}

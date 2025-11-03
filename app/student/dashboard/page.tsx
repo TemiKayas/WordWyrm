@@ -1,41 +1,36 @@
-import { auth } from '@/lib/auth';
-import { signOut } from '@/lib/auth';
-import { redirect } from 'next/navigation';
+'use client';
 
-export default async function StudentDashboard() {
-  const session = await auth();
+import { useEffect, useState } from 'react';
+import Navbar from '@/components/shared/Navbar';
+import SlidingSidebar from '@/components/shared/SlidingSidebar';
 
-  if (!session?.user) {
-    redirect('/login');
-  }
+export default function StudentDashboard() {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [userName, setUserName] = useState('');
+
+  useEffect(() => {
+    async function fetchUser() {
+      const response = await fetch('/api/auth/session');
+      const session = await response.json();
+      if (session?.user) {
+        setUserName(session.user.name || 'Student');
+      }
+    }
+    fetchUser();
+  }, []);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <h1 className="text-2xl font-bold text-blue-600">WordWyrm</h1>
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-gray-600">
-                {session.user.name} (Student)
-              </span>
-              <form
-                action={async () => {
-                  'use server';
-                  await signOut({ redirectTo: '/login' });
-                }}
-              >
-                <button
-                  type="submit"
-                  className="px-4 py-2 text-sm text-gray-700 hover:text-gray-900"
-                >
-                  Sign Out
-                </button>
-              </form>
-            </div>
-          </div>
-        </div>
-      </nav>
+    <div className="min-h-screen bg-gradient-to-r from-[#fffaf2] to-[#fff5e9]">
+      <Navbar
+        showSignOut={true}
+        onMenuClick={() => setIsSidebarOpen(true)}
+        logoHref="/student/dashboard"
+      />
+
+      <SlidingSidebar
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+      />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-white rounded-lg shadow p-6">
