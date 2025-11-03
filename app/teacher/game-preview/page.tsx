@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import Navbar from '@/components/shared/Navbar';
+import TeacherPageLayout from '@/components/shared/TeacherPageLayout';
 import { getGameWithQuiz } from '@/app/actions/game';
 
 function GamePreviewContent() {
@@ -121,10 +121,7 @@ function GamePreviewContent() {
   }
 
   return (
-    <div className="min-h-screen bg-[#fffaf2]">
-      <Navbar showSignOut={true} />
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* title */}
         <h1 className="font-quicksand font-bold text-brown text-[36px] sm:text-[48px] text-center mb-12">
           Your Game is Ready!
@@ -266,7 +263,7 @@ function GamePreviewContent() {
                 {/* copied feedback */}
                 {showCopiedFeedback && (
                   <div className="mt-3 bg-[#96b902] text-white font-quicksand font-bold text-sm py-2 px-4 rounded-lg text-center transition-opacity">
-                    ✓ Link copied to clipboard!
+                    Link copied to clipboard!
                   </div>
                 )}
               </div>
@@ -282,7 +279,6 @@ function GamePreviewContent() {
             </div>
           </div>
         </div>
-      </main>
     </div>
   );
 }
@@ -296,7 +292,9 @@ export default function GamePreview() {
         </div>
       </div>
     }>
-      <GamePreviewContent />
+      <TeacherPageLayout>
+        <GamePreviewContent />
+      </TeacherPageLayout>
     </Suspense>
   );
 }

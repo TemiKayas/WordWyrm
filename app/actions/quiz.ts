@@ -27,6 +27,7 @@ export async function getTeacherQuizzes(): Promise<
       gameId?: string;
       shareCode?: string;
       pdfFilename?: string;
+      qrCodeUrl?: string | null;
     }>;
   }>
 > {
@@ -49,6 +50,8 @@ export async function getTeacherQuizzes(): Promise<
                       select: {
                         id: true,
                         shareCode: true,
+                        qrCodeUrl: true,
+                        title: true,
                       },
                       take: 1,
                     },
@@ -75,7 +78,7 @@ export async function getTeacherQuizzes(): Promise<
     const quizzes = teacher.pdfs.flatMap((pdf) =>
       pdf.processedContent?.quizzes.map((quiz) => ({
         id: quiz.id,
-        title: quiz.title,
+        title: quiz.games[0]?.title || quiz.title,
         numQuestions: quiz.numQuestions,
         createdAt: quiz.createdAt,
         quizJson: typeof quiz.quizJson === 'string'
@@ -84,6 +87,7 @@ export async function getTeacherQuizzes(): Promise<
         hasGame: quiz.games.length > 0,
         gameId: quiz.games[0]?.id,
         shareCode: quiz.games[0]?.shareCode,
+        qrCodeUrl: quiz.games[0]?.qrCodeUrl || null,
         pdfFilename: pdf.filename,
       })) || []
     );

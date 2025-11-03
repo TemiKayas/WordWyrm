@@ -10,7 +10,7 @@ interface ClassTabsProps {
 }
 
 export default function ClassTabs({
-  classes = ['My Classes', 'Games'],
+  classes = ['Games', 'My Classes'],
   selectedClass,
   onClassChange,
 }: ClassTabsProps) {

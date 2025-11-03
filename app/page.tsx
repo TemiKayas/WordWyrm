@@ -53,7 +53,7 @@ export default function Home() {
                 </Button>
               </Link>
 
-              <Link href="/login" className="w-full">
+              <Link href="/join" className="w-full">
                 <Button variant="primary" size="lg" className="w-full border-[5px] text-base sm:text-lg">
                   I have a Game Code
                 </Button>
