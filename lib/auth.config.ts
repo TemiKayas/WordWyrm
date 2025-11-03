@@ -31,10 +31,15 @@ export const authConfig = {
       if (url.startsWith('/')) return `${baseUrl}${url}`;
 
       // Handle URLs on the same origin
-      if (new URL(url).origin === baseUrl) return url;
+      try {
+        const urlObj = new URL(url);
+        if (urlObj.origin === baseUrl) return url;
+      } catch {
+        // If URL parsing fails, continue to default
+      }
 
-      // Default: redirect to base URL (will be handled by middleware)
-      return baseUrl;
+      // Default: redirect to login page
+      return `${baseUrl}/login`;
     },
   },
   providers: [], // Providers will be added in auth.ts

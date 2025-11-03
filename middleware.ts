@@ -55,7 +55,9 @@ export default auth((req) => {
 });
 
 export const config = {
-  // Exclude: api routes, Next.js internals, static files, public files, and play pages
+  // Exclude: api routes (including NextAuth callbacks), Next.js internals, static files, public files, and play pages
   // NOTE: We DO include login/signup so we can redirect authenticated users away from them
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|play|.*\\..*).*)'],
+  matcher: [
+    '/((?!api|_next/static|_next/image|favicon.ico|play|.*\\..*).*)',
+  ],
 };

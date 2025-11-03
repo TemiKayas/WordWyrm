@@ -19,7 +19,10 @@ export default function DashboardHeader({
   const [showDropdown, setShowDropdown] = useState(false);
 
   const handleSignOut = async () => {
-    await signOut({ callbackUrl: '/login' });
+    // Use redirect: false to handle the redirect manually
+    await signOut({ redirect: false });
+    // Manually redirect to login page
+    window.location.href = '/login';
   };
   return (
     <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 md:mb-8 gap-4 md:gap-0">
