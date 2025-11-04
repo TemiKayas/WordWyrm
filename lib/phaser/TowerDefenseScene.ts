@@ -173,11 +173,6 @@ export default class TowerDefenseScene extends Phaser.Scene {
     // Setup keyboard controls
     this.spaceKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
     this.escKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
-    const enterKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER);
-    const key1 = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.ONE);
-    const key2 = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.TWO);
-    const key3 = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.THREE);
-    const key4 = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.FOUR);
 
     // Clean grass background
     const grass = this.add.graphics();
@@ -221,23 +216,23 @@ export default class TowerDefenseScene extends Phaser.Scene {
     const sidebar = this.add.rectangle(width - sidebarWidth/2, height/2, sidebarWidth, height, 0xFFFAF2, 1);
     sidebar.setStrokeStyle(0); // No border for clean look
 
-    // Modern Back button (top left)
+    // Back button with WordWyrm 3D styling
     const backButtonStyle = {
-      'background': 'rgba(255, 255, 255, 0.95)',
+      'background': '#fffcf8',
       'color': '#473025',
       'font-family': 'Quicksand, sans-serif',
       'font-weight': '700',
       'font-size': '15px',
       'padding': '10px 20px',
-      'border-radius': '8px',
-      'border': '2px solid #c4a46f',
+      'border-radius': '13px',
+      'border': '2px solid #473025',
       'cursor': 'pointer',
-      'box-shadow': '0 2px 8px rgba(0,0,0,0.15)',
       'display': 'flex',
       'align-items': 'center',
       'gap': '6px',
       'position': 'relative',
-      'z-index': '1000'
+      'z-index': '1000',
+      'transition': 'all 0.2s ease'
     };
 
     this.backButton = this.add.dom(25, 25, 'button', backButtonStyle, '← Back');
@@ -251,16 +246,18 @@ export default class TowerDefenseScene extends Phaser.Scene {
 
     this.backButton.addListener('mouseenter');
     this.backButton.on('mouseenter', () => {
-      (this.backButton.node as HTMLElement).style.transform = 'scale(1.05)';
-      (this.backButton.node as HTMLElement).style.boxShadow = '0 4px 12px rgba(0,0,0,0.25)';
-      (this.backButton.node as HTMLElement).style.background = '#ffffff';
+      const el = this.backButton.node as HTMLElement;
+      el.style.transform = 'scale(0.98)';
+      el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.25)';
+      el.style.background = '#fff5e8';
     });
 
     this.backButton.addListener('mouseleave');
     this.backButton.on('mouseleave', () => {
-      (this.backButton.node as HTMLElement).style.transform = 'scale(1)';
-      (this.backButton.node as HTMLElement).style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)';
-      (this.backButton.node as HTMLElement).style.background = 'rgba(255, 255, 255, 0.9)';
+      const el = this.backButton.node as HTMLElement;
+      el.style.transform = 'scale(1)';
+      el.style.boxShadow = 'none';
+      el.style.background = '#fffcf8';
     });
 
     // lives display (top left) - aligned with back button
@@ -298,19 +295,18 @@ export default class TowerDefenseScene extends Phaser.Scene {
       resolution: 2
     }).setOrigin(0.5);
 
-    // Clean modern wave button using DOM - full width, no emoji
+    // Wave button with WordWyrm 3D styling (no gradient, solid color with border)
     const waveButtonStyle = {
-      'background': 'linear-gradient(135deg, #96b902 0%, #7a9700 100%)',
+      'background': '#95b607',
       'color': 'white',
       'font-family': 'Quicksand, sans-serif',
       'font-weight': 'bold',
       'font-size': '18px',
       'padding': '12px 20px',
-      'border-radius': '8px',
-      'border': 'none',
+      'border-radius': '13px',
+      'border': '2px solid #006029',
       'cursor': 'pointer',
       'transition': 'all 0.2s ease',
-      'box-shadow': '0 2px 8px rgba(0,0,0,0.15)',
       'width': '180px',
       'text-align': 'center'
     };
@@ -328,14 +324,21 @@ export default class TowerDefenseScene extends Phaser.Scene {
 
     this.waveButton.addListener('mouseenter');
     this.waveButton.on('mouseenter', () => {
-      (this.waveButton.node as HTMLElement).style.transform = 'scale(1.05)';
-      (this.waveButton.node as HTMLElement).style.boxShadow = '0 4px 12px rgba(0,0,0,0.25)';
+      const el = this.waveButton.node as HTMLElement;
+      el.style.transform = 'scale(0.98)';
+      el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.25)';
+      el.style.background = '#7a9700';
     });
 
     this.waveButton.addListener('mouseleave');
     this.waveButton.on('mouseleave', () => {
-      (this.waveButton.node as HTMLElement).style.transform = 'scale(1)';
-      (this.waveButton.node as HTMLElement).style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)';
+      const el = this.waveButton.node as HTMLElement;
+      el.style.transform = 'scale(1)';
+      el.style.boxShadow = 'none';
+      // Reset to current state's color
+      if (!this.waveActive) {
+        el.style.background = '#95b607';
+      }
     });
 
     // tower selector title - clean and minimal
@@ -347,8 +350,8 @@ export default class TowerDefenseScene extends Phaser.Scene {
       resolution: 2
     }).setOrigin(0.5);
 
-    // Clean tower buttons using simple DOM buttons (no complex HTML)
-    const createTowerButton = (y: number, text: string, subtitle: string, bgColor: string, shadowColor: string) => {
+    // Tower buttons with WordWyrm 3D styling (no gradients, solid colors with borders)
+    const createTowerButton = (y: number, text: string, subtitle: string, bgColor: string, borderColor: string) => {
       const container = document.createElement('div');
       container.style.cssText = `
         background: ${bgColor};
@@ -357,13 +360,12 @@ export default class TowerDefenseScene extends Phaser.Scene {
         font-weight: 700;
         font-size: 15px;
         padding: 16px 12px;
-        border-radius: 12px;
-        border: none;
+        border-radius: 13px;
+        border: 2px solid ${borderColor};
         cursor: pointer;
-        box-shadow: 0 3px 10px ${shadowColor};
         width: 180px;
         text-align: center;
-        transform: translateY(0) scale(1);
+        transition: all 0.2s ease;
       `;
 
       const title = document.createElement('div');
@@ -380,10 +382,9 @@ export default class TowerDefenseScene extends Phaser.Scene {
       return this.add.dom(width - sidebarWidth/2, y, container);
     };
 
-    // Ballista (Purple)
+    // Ballista (Purple with dark border)
     this.basicTowerBtn = createTowerButton(220, 'Ballista', 'Fast Fire • 50g',
-      'linear-gradient(135deg, #A8277F 0%, #8B1F68 100%)',
-      'rgba(168, 39, 127, 0.3)');
+      '#A8277F', '#730f11');
 
     this.basicTowerBtn.addListener('click');
     this.basicTowerBtn.on('click', () => {
@@ -393,20 +394,23 @@ export default class TowerDefenseScene extends Phaser.Scene {
 
     this.basicTowerBtn.addListener('mouseenter');
     this.basicTowerBtn.on('mouseenter', () => {
-      (this.basicTowerBtn.node as HTMLElement).style.transform = 'translateY(-2px) scale(1.02)';
-      (this.basicTowerBtn.node as HTMLElement).style.boxShadow = '0 6px 16px rgba(168, 39, 127, 0.4)';
+      const el = this.basicTowerBtn.node as HTMLElement;
+      el.style.transform = 'scale(0.98)';
+      el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.25)';
+      el.style.background = '#8B1F68';
     });
 
     this.basicTowerBtn.addListener('mouseleave');
     this.basicTowerBtn.on('mouseleave', () => {
-      (this.basicTowerBtn.node as HTMLElement).style.transform = 'translateY(0) scale(1)';
-      (this.basicTowerBtn.node as HTMLElement).style.boxShadow = '0 3px 10px rgba(168, 39, 127, 0.3)';
+      const el = this.basicTowerBtn.node as HTMLElement;
+      el.style.transform = 'scale(1)';
+      el.style.boxShadow = 'none';
+      el.style.background = '#A8277F';
     });
 
-    // Trebuchet (Green)
+    // Trebuchet (Green with dark border)
     this.sniperTowerBtn = createTowerButton(320, 'Trebuchet', 'Slow Fire • 75g',
-      'linear-gradient(135deg, #399A66 0%, #2D7A52 100%)',
-      'rgba(57, 154, 102, 0.3)');
+      '#95b607', '#006029');
 
     this.sniperTowerBtn.addListener('click');
     this.sniperTowerBtn.on('click', () => {
@@ -416,20 +420,23 @@ export default class TowerDefenseScene extends Phaser.Scene {
 
     this.sniperTowerBtn.addListener('mouseenter');
     this.sniperTowerBtn.on('mouseenter', () => {
-      (this.sniperTowerBtn.node as HTMLElement).style.transform = 'translateY(-2px) scale(1.02)';
-      (this.sniperTowerBtn.node as HTMLElement).style.boxShadow = '0 6px 16px rgba(57, 154, 102, 0.4)';
+      const el = this.sniperTowerBtn.node as HTMLElement;
+      el.style.transform = 'scale(0.98)';
+      el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.25)';
+      el.style.background = '#7a9700';
     });
 
     this.sniperTowerBtn.addListener('mouseleave');
     this.sniperTowerBtn.on('mouseleave', () => {
-      (this.sniperTowerBtn.node as HTMLElement).style.transform = 'translateY(0) scale(1)';
-      (this.sniperTowerBtn.node as HTMLElement).style.boxShadow = '0 3px 10px rgba(57, 154, 102, 0.3)';
+      const el = this.sniperTowerBtn.node as HTMLElement;
+      el.style.transform = 'scale(1)';
+      el.style.boxShadow = 'none';
+      el.style.background = '#95b607';
     });
 
-    // Melee Tower (Coral)
+    // Melee Tower (Orange with dark border)
     this.meleeTowerBtn = createTowerButton(420, 'Melee Tower', 'Rapid Fire • 25g',
-      'linear-gradient(135deg, #FF8A58 0%, #FF6F3D 100%)',
-      'rgba(255, 138, 88, 0.3)');
+      '#fd9227', '#730f11');
 
     this.meleeTowerBtn.addListener('click');
     this.meleeTowerBtn.on('click', () => {
@@ -439,14 +446,18 @@ export default class TowerDefenseScene extends Phaser.Scene {
 
     this.meleeTowerBtn.addListener('mouseenter');
     this.meleeTowerBtn.on('mouseenter', () => {
-      (this.meleeTowerBtn.node as HTMLElement).style.transform = 'translateY(-2px) scale(1.02)';
-      (this.meleeTowerBtn.node as HTMLElement).style.boxShadow = '0 6px 16px rgba(141, 110, 99, 0.4)';
+      const el = this.meleeTowerBtn.node as HTMLElement;
+      el.style.transform = 'scale(0.98)';
+      el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.25)';
+      el.style.background = '#e6832b';
     });
 
     this.meleeTowerBtn.addListener('mouseleave');
     this.meleeTowerBtn.on('mouseleave', () => {
-      (this.meleeTowerBtn.node as HTMLElement).style.transform = 'translateY(0) scale(1)';
-      (this.meleeTowerBtn.node as HTMLElement).style.boxShadow = '0 3px 10px rgba(141, 110, 99, 0.3)';
+      const el = this.meleeTowerBtn.node as HTMLElement;
+      el.style.transform = 'scale(1)';
+      el.style.boxShadow = 'none';
+      el.style.background = '#fd9227';
     });
 
     this.updateTowerSelection();
@@ -503,28 +514,26 @@ export default class TowerDefenseScene extends Phaser.Scene {
     const centerX = gameWidth / 2;
     const centerY = height / 2;
 
-    const buttonShadow = this.add.rectangle(centerX + 4, centerY + 4, 360, 100, 0x000000, 0.3);
-    const buttonBg = this.add.rectangle(centerX, centerY, 360, 100, 0x96b902);
+    // WordWyrm 3D button styling - solid color with border
+    const buttonBg = this.add.rectangle(centerX, centerY, 360, 100, 0x95b607);
     buttonBg.setInteractive({ useHandCursor: true });
-    buttonBg.setStrokeStyle(4, 0xc4a46f);
+    buttonBg.setStrokeStyle(2, 0x006029);
 
     const buttonText = this.add.text(centerX, centerY, 'START GAME', {
       fontSize: '40px',
       color: '#ffffff',
       fontFamily: 'Quicksand, sans-serif',
       fontStyle: 'bold',
-      resolution: 2,
-      stroke: '#473025',
-      strokeThickness: 4
+      resolution: 2
     }).setOrigin(0.5);
 
-    this.startGameButton = this.add.container(0, 0, [buttonShadow, buttonBg, buttonText]);
+    this.startGameButton = this.add.container(0, 0, [buttonBg, buttonText]);
 
     buttonBg.on('pointerdown', () => {
       this.tweens.add({
-        targets: [buttonBg, buttonText, buttonShadow],
-        scaleX: 0.95,
-        scaleY: 0.95,
+        targets: [buttonBg, buttonText],
+        scaleX: 0.98,
+        scaleY: 0.98,
         duration: 100,
         ease: 'Power2',
         onComplete: () => {
@@ -535,19 +544,15 @@ export default class TowerDefenseScene extends Phaser.Scene {
     });
 
     buttonBg.on('pointerover', () => {
-      buttonBg.setFillStyle(0xadd633);
-      buttonBg.setStrokeStyle(5, 0xff9f22);
-      buttonBg.setScale(1.05);
-      buttonText.setScale(1.05);
-      buttonShadow.setScale(1.05);
+      buttonBg.setFillStyle(0x7a9700);
+      buttonBg.setScale(1.02);
+      buttonText.setScale(1.02);
     });
 
     buttonBg.on('pointerout', () => {
-      buttonBg.setFillStyle(0x96b902);
-      buttonBg.setStrokeStyle(4, 0xc4a46f);
+      buttonBg.setFillStyle(0x95b607);
       buttonBg.setScale(1);
       buttonText.setScale(1);
-      buttonShadow.setScale(1);
     });
   }
 
@@ -819,8 +824,8 @@ export default class TowerDefenseScene extends Phaser.Scene {
     if (this.waveActive) return;
     this.waveActive = true;
     this.waveNumber++;
-    // formula: 5 + (1.25 * wave) rounded to integer
-    this.enemiesToSpawn = Math.floor(5 + (1.25 * this.waveNumber));
+    // INCREASED DIFFICULTY: More enemies per wave (8 + 3 per wave, max 40)
+    this.enemiesToSpawn = Math.min(40, Math.floor(8 + (3 * this.waveNumber)));
     this.enemySpawnTimer = 0;
     this.updateWaveButton();
     this.waveCounterText.setText(`Round ${this.waveNumber}`);
@@ -841,21 +846,25 @@ export default class TowerDefenseScene extends Phaser.Scene {
   updateWaveButton() {
     const buttonElement = this.waveButton.node as HTMLButtonElement;
     if (this.waveActive) {
-      // During wave, show speed control with clear indicator
+      // During wave, show speed control with clear indicator and solid colors
       if (this.gameSpeed === 1) {
         buttonElement.textContent = 'Speed: 1x';
-        buttonElement.style.background = 'linear-gradient(135deg, #96b902 0%, #7a9700 100%)';
+        buttonElement.style.background = '#95b607';
+        buttonElement.style.borderColor = '#006029';
       } else if (this.gameSpeed === 2) {
         buttonElement.textContent = 'Speed: 2x';
-        buttonElement.style.background = 'linear-gradient(135deg, #ff9f22 0%, #ff8800 100%)';
+        buttonElement.style.background = '#ff9f22';
+        buttonElement.style.borderColor = '#730f11';
       } else {
         buttonElement.textContent = 'Speed: 3x';
-        buttonElement.style.background = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
+        buttonElement.style.background = '#ef4444';
+        buttonElement.style.borderColor = '#730f11';
       }
     } else {
       // Between waves, show start wave button
       buttonElement.textContent = `Start Wave ${this.waveNumber + 1}`;
-      buttonElement.style.background = 'linear-gradient(135deg, #96b902 0%, #7a9700 100%)';
+      buttonElement.style.background = '#95b607';
+      buttonElement.style.borderColor = '#006029';
     }
   }
 
@@ -1022,7 +1031,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
 
     // Boss spawn logic: every 5 waves, spawn as 5th enemy
     const isBossWave = this.waveNumber % 5 === 0;
-    const enemiesSpawned = Math.floor(5 + (1.25 * this.waveNumber)) - this.enemiesToSpawn;
+    const enemiesSpawned = Math.min(40, Math.floor(8 + (3 * this.waveNumber))) - this.enemiesToSpawn;
     const shouldSpawnBoss = isBossWave && enemiesSpawned === 4; // 5th enemy (0-indexed)
 
     let type: EnemyType;
@@ -1042,23 +1051,23 @@ export default class TowerDefenseScene extends Phaser.Scene {
       this.bossActive = true;
       this.showBossQuestion(health); // Triggers quiz popup
     } else {
-      // Regular enemy spawn - probability based on wave number
+      // Regular enemy spawn - HARDER SCALING
       const rand = Math.random();
 
       if (this.waveNumber < 3) {
         // Waves 1-2: Only red
         type = EnemyType.RED;
       } else if (this.waveNumber < 6) {
-        // Waves 3-5: 70% red, 30% blue
-        type = rand < 0.7 ? EnemyType.RED : EnemyType.BLUE;
+        // Waves 3-5: 60% red, 40% blue (more blues)
+        type = rand < 0.6 ? EnemyType.RED : EnemyType.BLUE;
       } else {
-        // Wave 6+: 50% red, 30% blue, 20% yellow
-        if (rand < 0.5) type = EnemyType.RED;
+        // Wave 6+: 40% red, 40% blue, 20% yellow (balanced difficulty)
+        if (rand < 0.4) type = EnemyType.RED;
         else if (rand < 0.8) type = EnemyType.BLUE;
         else type = EnemyType.YELLOW;
       }
 
-      // Set stats based on enemy type
+      // Set stats based on enemy type - balanced for early game
       if (type === EnemyType.RED) {
         health = 25;
         speed = 50;
@@ -1200,10 +1209,12 @@ export default class TowerDefenseScene extends Phaser.Scene {
       }
     }
 
-    // Enemy spawning (one every 800ms while wave active)
+    // FASTER SPAWNING: Decreases with wave number for more challenge
     if (this.waveActive && this.enemiesToSpawn > 0) {
       this.enemySpawnTimer += scaledDelta;
-      if (this.enemySpawnTimer > 800) {
+      // Spawn interval: 700ms base, decreases by 30ms per wave, min 300ms
+      const spawnInterval = Math.max(300, 700 - (this.waveNumber * 30));
+      if (this.enemySpawnTimer > spawnInterval) {
         this.spawnEnemy();
         this.enemiesToSpawn--;
         this.enemySpawnTimer = 0;
@@ -1511,8 +1522,9 @@ export default class TowerDefenseScene extends Phaser.Scene {
   gameOver() {
     this.scene.pause();
 
-    const overlay = this.add.rectangle(640, 360, 1280, 720, 0x000000, 0.7);
-    const text = this.add.text(640, 360, 'GAME OVER!', {
+    // Game over overlay and text (variables unused but objects are rendered)
+    this.add.rectangle(640, 360, 1280, 720, 0x000000, 0.7);
+    this.add.text(640, 360, 'GAME OVER!', {
       fontSize: '64px',
       color: '#ff0000',
       fontFamily: 'Quicksand, sans-serif',
@@ -1521,7 +1533,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
       strokeThickness: 8,
     }).setOrigin(0.5);
 
-    const waveText = this.add.text(640, 440, `You survived ${this.waveNumber} waves!`, {
+    this.add.text(640, 440, `You survived ${this.waveNumber} waves!`, {
       fontSize: '32px',
       color: '#ffffff',
       fontFamily: 'Quicksand, sans-serif',
