@@ -100,7 +100,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
   private lives: number = 10;
   private gold: number = 0;
   private gameStarted: boolean = false;
-  private gameSpeed: number = 1; // 1x or 2x speed toggle
+  private gameSpeed: number = 1; // 1x, 2x, or 3x speed toggle
   private spaceKey!: Phaser.Input.Keyboard.Key; // Spacebar for speed toggle
   private escKey!: Phaser.Input.Keyboard.Key; // ESC for pause
   private gamePaused: boolean = false;
@@ -520,21 +520,9 @@ export default class TowerDefenseScene extends Phaser.Scene {
 
     this.startGameButton = this.add.container(0, 0, [buttonShadow, buttonBg, buttonText]);
 
-    // Simple gentle pulse animation
-    this.tweens.add({
-      targets: [buttonBg, buttonText],
-      scaleX: 1.03,
-      scaleY: 1.03,
-      duration: 1200,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut'
-    });
-
     buttonBg.on('pointerdown', () => {
-      this.tweens.killTweensOf([buttonBg, buttonText]);
       this.tweens.add({
-        targets: [buttonBg, buttonText],
+        targets: [buttonBg, buttonText, buttonShadow],
         scaleX: 0.95,
         scaleY: 0.95,
         duration: 100,
@@ -547,11 +535,11 @@ export default class TowerDefenseScene extends Phaser.Scene {
     });
 
     buttonBg.on('pointerover', () => {
-      this.tweens.killTweensOf([buttonBg, buttonText]);
       buttonBg.setFillStyle(0xadd633);
       buttonBg.setStrokeStyle(5, 0xff9f22);
       buttonBg.setScale(1.05);
       buttonText.setScale(1.05);
+      buttonShadow.setScale(1.05);
     });
 
     buttonBg.on('pointerout', () => {
@@ -559,16 +547,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
       buttonBg.setStrokeStyle(4, 0xc4a46f);
       buttonBg.setScale(1);
       buttonText.setScale(1);
-      // Restart pulse animation
-      this.tweens.add({
-        targets: [buttonBg, buttonText],
-        scaleX: 1.03,
-        scaleY: 1.03,
-        duration: 1200,
-        yoyo: true,
-        repeat: -1,
-        ease: 'Sine.easeInOut'
-      });
+      buttonShadow.setScale(1);
     });
   }
 
@@ -848,8 +827,11 @@ export default class TowerDefenseScene extends Phaser.Scene {
   }
 
   toggleGameSpeed() {
+    // Cycle through 1x -> 2x -> 3x -> 1x
     if (this.gameSpeed === 1) {
       this.gameSpeed = 2;
+    } else if (this.gameSpeed === 2) {
+      this.gameSpeed = 3;
     } else {
       this.gameSpeed = 1;
     }
@@ -859,13 +841,16 @@ export default class TowerDefenseScene extends Phaser.Scene {
   updateWaveButton() {
     const buttonElement = this.waveButton.node as HTMLButtonElement;
     if (this.waveActive) {
-      // During wave, show speed control
+      // During wave, show speed control with clear indicator
       if (this.gameSpeed === 1) {
-        buttonElement.textContent = 'Speed Up (2x)';
+        buttonElement.textContent = 'Speed: 1x';
+        buttonElement.style.background = 'linear-gradient(135deg, #96b902 0%, #7a9700 100%)';
+      } else if (this.gameSpeed === 2) {
+        buttonElement.textContent = 'Speed: 2x';
         buttonElement.style.background = 'linear-gradient(135deg, #ff9f22 0%, #ff8800 100%)';
       } else {
-        buttonElement.textContent = 'Slow Down (1x)';
-        buttonElement.style.background = 'linear-gradient(135deg, #ff6600 0%, #cc5500 100%)';
+        buttonElement.textContent = 'Speed: 3x';
+        buttonElement.style.background = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
       }
     } else {
       // Between waves, show start wave button
