@@ -494,3 +494,175 @@ export async function joinClass(
     };
   }
 }
+
+/**
+ * Get all classes for the current student
+ */
+export async function getStudentClasses(): Promise<
+  ActionResult<
+    Array<{
+      id: string;
+      name: string;
+      description: string | null;
+      joinedAt: Date;
+      teacher: {
+        name: string;
+        school: string | null;
+      };
+      _count: {
+        games: number;
+      };
+    }>
+  >
+> {
+  try {
+    const session = await auth();
+    if (!session?.user) {
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    // Get all class memberships for the student
+    const memberships = await db.classMembership.findMany({
+      where: { userId: session.user.id },
+      include: {
+        class: {
+          include: {
+            teacher: {
+              select: {
+                school: true,
+                user: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
+            _count: {
+              select: {
+                games: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { joinedAt: 'desc' },
+    });
+
+    const classes = memberships.map((membership) => ({
+      id: membership.class.id,
+      name: membership.class.name,
+      description: membership.class.description,
+      joinedAt: membership.joinedAt,
+      teacher: {
+        name: membership.class.teacher.user.name,
+        school: membership.class.teacher.school,
+      },
+      _count: {
+        games: membership.class._count.games,
+      },
+    }));
+
+    return { success: true, data: classes };
+  } catch (error) {
+    console.error('Get student classes error:', error);
+    return {
+      success: false,
+      error: 'Failed to fetch classes',
+    };
+  }
+}
+
+/**
+ * Get a specific class details for a student
+ */
+export async function getStudentClassDetails(classId: string): Promise<
+  ActionResult<{
+    id: string;
+    name: string;
+    description: string | null;
+    teacher: {
+      name: string;
+      school: string | null;
+    };
+    games: Array<{
+      id: string;
+      title: string;
+      shareCode: string;
+      gameMode: string;
+      createdAt: Date;
+    }>;
+  }>
+> {
+  try {
+    const session = await auth();
+    if (!session?.user) {
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    // Check if student is a member of this class
+    const membership = await db.classMembership.findUnique({
+      where: {
+        classId_userId: {
+          classId,
+          userId: session.user.id,
+        },
+      },
+    });
+
+    if (!membership) {
+      return { success: false, error: 'You are not a member of this class' };
+    }
+
+    // Get class details
+    const classDetails = await db.class.findUnique({
+      where: { id: classId },
+      include: {
+        teacher: {
+          select: {
+            school: true,
+            user: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+        games: {
+          where: { active: true },
+          select: {
+            id: true,
+            title: true,
+            shareCode: true,
+            gameMode: true,
+            createdAt: true,
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    });
+
+    if (!classDetails) {
+      return { success: false, error: 'Class not found' };
+    }
+
+    return {
+      success: true,
+      data: {
+        id: classDetails.id,
+        name: classDetails.name,
+        description: classDetails.description,
+        teacher: {
+          name: classDetails.teacher.user.name,
+          school: classDetails.teacher.school,
+        },
+        games: classDetails.games,
+      },
+    };
+  } catch (error) {
+    console.error('Get student class details error:', error);
+    return {
+      success: false,
+      error: 'Failed to fetch class details',
+    };
+  }
+}
