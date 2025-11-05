@@ -27,12 +27,27 @@ const TowerDefenseGame = ({ quiz }: TowerDefenseGameProps) => {
         const TowerDefenseSceneModule = await import('@/lib/phaser/TowerDefenseScene');
         const TowerDefenseScene = TowerDefenseSceneModule.default;
 
-        // phaser game config
+        // phaser game config - fullscreen responsive
         const config: Phaser.Types.Core.GameConfig = {
           type: Phaser.AUTO, // auto choose WebGL/Canvas
-          width: 1280,
-          height: 720,
+          width: window.innerWidth,
+          height: window.innerHeight,
           parent: gameRef.current, // DOM element to render in
+          backgroundColor: '#8bc34a',
+          antialias: true, // Enable antialiasing for smooth text
+          pixelArt: false, // Disable pixel art mode for crisp text
+          scale: {
+            mode: Phaser.Scale.RESIZE,
+            autoCenter: Phaser.Scale.CENTER_BOTH
+          },
+          dom: {
+            createContainer: true // Enable DOM element support
+          },
+          render: {
+            antialias: true,
+            antialiasGL: true,
+            roundPixels: false, // Keep false for crisp text
+          },
           physics: {
             default: 'arcade',
             arcade: {

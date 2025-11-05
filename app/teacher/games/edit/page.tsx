@@ -86,7 +86,7 @@ function GameEditContent() {
     const loadAttachedPDFs = async (gId: string) => {
         const result = await getGameQuizzes(gId);
         if (result.success) {
-            const pdfs = result.data.quizzes.map((gq: any) => ({
+            const pdfs = result.data.quizzes.map((gq: {id: string; quiz: {id: string; numQuestions?: number; processedContent?: {pdf?: {filename?: string; uploadedAt?: Date}}}}) => ({
                 id: gq.id,
                 quizId: gq.quiz.id,
                 pdfFilename: gq.quiz.processedContent?.pdf?.filename || 'unknown.pdf',
@@ -101,8 +101,8 @@ function GameEditContent() {
         const result = await getTeacherQuizzes();
         if (result.success) {
             const quizzes = result.data.quizzes
-                .filter((q: any) => !attachedPDFs.some((p) => p.quizId === q.id))
-                .map((q: any) => ({
+                .filter((q: {id: string}) => !attachedPDFs.some((p) => p.quizId === q.id))
+                .map((q: {id: string; title: string | null; pdfFilename?: string; numQuestions: number}) => ({
                     id: q.id,
                     title: q.title || 'Untitled',
                     pdfFilename: q.pdfFilename || 'unknown.pdf',
@@ -159,8 +159,8 @@ function GameEditContent() {
             setTimeout(() => {
                 router.push('/teacher/dashboard');
             }, 1500);
-        } catch (e: any) {
-            setSaveMessage({ type: 'error', text: e?.message || 'Save failed' });
+        } catch (e) {
+            setSaveMessage({ type: 'error', text: (e as Error)?.message || 'Save failed' });
         } finally {
             setIsSaving(false);
         }

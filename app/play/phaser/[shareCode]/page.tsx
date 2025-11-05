@@ -71,16 +71,6 @@ export default function TowerDefenseGamePage() {
   // render TowerDefenseGame with quiz data
   return (
     <div id="tower-defense-container" className="relative w-full h-screen flex items-center justify-center bg-[#8bc34a]">
-      {/* back button */}
-      <button
-        onClick={() => router.back()}
-        className="absolute top-3 left-3 z-50 bg-[#473025] hover:bg-[#5a3d2e] text-white font-quicksand font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer shadow-lg text-sm"
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M15 18L9 12L15 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-        Back
-      </button>
       <TowerDefenseGame quiz={quiz} />
     </div>
   );

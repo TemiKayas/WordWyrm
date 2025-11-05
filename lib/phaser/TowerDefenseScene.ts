@@ -24,6 +24,8 @@ interface Enemy {
   pathIndex: number; // current target waypoint
   graphics: Phaser.GameObjects.Graphics; // visual representation
   size: number; // scale multiplier for visual size
+  healthBarBg?: Phaser.GameObjects.Graphics; // health bar background
+  healthBarFill?: Phaser.GameObjects.Graphics; // health bar fill
 }
 
 // Tower entity - attacks enemies in range
@@ -98,7 +100,11 @@ export default class TowerDefenseScene extends Phaser.Scene {
   private lives: number = 10;
   private gold: number = 0;
   private gameStarted: boolean = false;
-  private gameSpeed: number = 1; // 1x or 2x speed toggle
+  private gameSpeed: number = 1; // 1x, 2x, or 3x speed toggle
+  private spaceKey!: Phaser.Input.Keyboard.Key; // Spacebar for speed toggle
+  private escKey!: Phaser.Input.Keyboard.Key; // ESC for pause
+  private gamePaused: boolean = false;
+  private pauseOverlay?: Phaser.GameObjects.Container;
 
   // Tower placement/selection
   private selectedTowerType: 'basic' | 'sniper' | 'melee' | null = 'basic';
@@ -127,13 +133,20 @@ export default class TowerDefenseScene extends Phaser.Scene {
   private waveCounterText!: Phaser.GameObjects.Text;
   private livesText!: Phaser.GameObjects.Text;
   private goldText!: Phaser.GameObjects.Text;
-  private basicTowerBtn!: Phaser.GameObjects.Rectangle;
-  private sniperTowerBtn!: Phaser.GameObjects.Rectangle;
-  private meleeTowerBtn!: Phaser.GameObjects.Rectangle;
+  private basicTowerBtn!: Phaser.GameObjects.DOMElement;
+  private sniperTowerBtn!: Phaser.GameObjects.DOMElement;
+  private meleeTowerBtn!: Phaser.GameObjects.DOMElement;
+  private waveButton!: Phaser.GameObjects.DOMElement;
+  private backButton!: Phaser.GameObjects.DOMElement;
   private upgradeContainer?: Phaser.GameObjects.Container;
   private upgradeButtons: Phaser.GameObjects.Rectangle[] = [];
   private startGameButton?: Phaser.GameObjects.Container;
   private questionPopup?: Phaser.GameObjects.Container;
+  private currentQuizAnswerButtons?: Phaser.GameObjects.Container[];
+  private currentQuizQuestion?: QuizQuestion;
+  private currentQuizOverlay?: Phaser.GameObjects.Rectangle;
+  private currentQuizPanel?: Phaser.GameObjects.Rectangle;
+  private currentQuizTextObj?: Phaser.GameObjects.Text;
   private errorMessage?: Phaser.GameObjects.Text;
 
   constructor() {
@@ -151,32 +164,47 @@ export default class TowerDefenseScene extends Phaser.Scene {
   }
 
   create() {
-    // grass background
-    const grass = this.add.graphics();
-    grass.fillStyle(0x27ae60);
-    grass.fillRect(0, 0, 1280, 720);
+    // Get screen dimensions
+    const width = this.scale.width;
+    const height = this.scale.height;
+    const sidebarWidth = Math.min(220, width * 0.15);
+    const gameWidth = width - sidebarWidth;
 
-    // grass texture pattern
-    for (let i = 0; i < 300; i++) {
-      const x = Math.random() * 1280;
-      const y = Math.random() * 720;
-      const shade = 0x229954 + Math.floor(Math.random() * 0x102010);
-      grass.fillStyle(shade, 0.3);
-      grass.fillRect(x, y, 2, 4);
+    // Setup keyboard controls
+    this.spaceKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    this.escKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
+
+    // Clean grass background
+    const grass = this.add.graphics();
+    grass.fillStyle(0x8bc34a);
+    grass.fillRect(0, 0, width, height);
+
+    // Subtle grass texture
+    for (let i = 0; i < 400; i++) {
+      const x = Math.random() * width;
+      const y = Math.random() * height;
+      const shade = 0x7cb342 + Math.floor(Math.random() * 0x102010);
+      grass.fillStyle(shade, 0.25);
+      grass.fillRect(x, y, 3, 5);
     }
 
-    // path with right angles (grey gravel)
+    // Dynamic path based on screen size
+    const pathY1 = height * 0.65;
+    const pathY2 = height * 0.25;
+    const pathY3 = height * 0.72;
+
     this.pathPoints = [
-      { x: 0, y: 450 },
-      { x: 300, y: 450 },
-      { x: 300, y: 150 },
-      { x: 700, y: 150 },
-      { x: 700, y: 500 },
-      { x: 1080, y: 500 }
+      { x: 0, y: pathY1 },
+      { x: gameWidth * 0.3, y: pathY1 },
+      { x: gameWidth * 0.3, y: pathY2 },
+      { x: gameWidth * 0.7, y: pathY2 },
+      { x: gameWidth * 0.7, y: pathY3 },
+      { x: gameWidth - 20, y: pathY3 }
     ];
 
+    // Modern path styling
     const path = this.add.graphics();
-    path.lineStyle(60, 0x7f8c8d);
+    path.lineStyle(70, 0x8d6e63, 1);
     path.beginPath();
     path.moveTo(this.pathPoints[0].x, this.pathPoints[0].y);
     for (let i = 1; i < this.pathPoints.length; i++) {
@@ -184,171 +212,255 @@ export default class TowerDefenseScene extends Phaser.Scene {
     }
     path.strokePath();
 
-    // title
-    this.add.text(540, 30, 'Tower Defense', {
-      fontSize: '32px',
-      color: '#ecf0f1',
-      fontFamily: 'Quicksand, sans-serif',
-      fontStyle: 'bold'
-    }).setOrigin(0.5);
+    // Clean modern sidebar - cream background matching site
+    const sidebar = this.add.rectangle(width - sidebarWidth/2, height/2, sidebarWidth, height, 0xFFFAF2, 1);
+    sidebar.setStrokeStyle(0); // No border for clean look
 
-    // UI panel background
-    const uiPanel = this.add.rectangle(1180, 360, 200, 720, 0x2c3e50);
+    // Back button with WordWyrm 3D styling
+    const backButtonStyle = {
+      'background': '#fffcf8',
+      'color': '#473025',
+      'font-family': 'Quicksand, sans-serif',
+      'font-weight': '700',
+      'font-size': '15px',
+      'padding': '10px 20px',
+      'border-radius': '13px',
+      'border': '2px solid #473025',
+      'cursor': 'pointer',
+      'display': 'flex',
+      'align-items': 'center',
+      'gap': '6px',
+      'position': 'relative',
+      'z-index': '1000',
+      'transition': 'all 0.2s ease'
+    };
 
-    // lives display (top left)
-    this.livesText = this.add.text(20, 20, `Lives: ${this.lives}`, {
-      fontSize: '24px',
-      color: '#ffffff',
-      fontFamily: 'Quicksand, sans-serif',
-      fontStyle: 'bold',
-      stroke: '#000000',
-      strokeThickness: 4,
+    this.backButton = this.add.dom(25, 25, 'button', backButtonStyle, '← Back');
+    this.backButton.setDepth(1000);
+    this.backButton.setOrigin(0, 0);
+
+    this.backButton.addListener('click');
+    this.backButton.on('click', () => {
+      window.location.href = '/teacher/dashboard';
     });
 
-    // gold display (bottom right)
-    this.goldText = this.add.text(1260, 700, `Gold: ${this.gold}`, {
-      fontSize: '24px',
-      color: '#f39c12',
-      fontFamily: 'Quicksand, sans-serif',
-      fontStyle: 'bold',
-      stroke: '#000000',
-      strokeThickness: 4,
-    }).setOrigin(1, 1);
+    this.backButton.addListener('mouseenter');
+    this.backButton.on('mouseenter', () => {
+      const el = this.backButton.node as HTMLElement;
+      el.style.transform = 'scale(0.98)';
+      el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.25)';
+      el.style.background = '#fff5e8';
+    });
 
-    // wave counter (above wave button)
-    this.waveCounterText = this.add.text(1180, 35, 'Round 0', {
-      fontSize: '20px',
-      color: '#ecf0f1',
-      fontFamily: 'Quicksand, sans-serif',
-      fontStyle: 'bold',
-      stroke: '#000000',
-      strokeThickness: 3,
-    }).setOrigin(0.5);
+    this.backButton.addListener('mouseleave');
+    this.backButton.on('mouseleave', () => {
+      const el = this.backButton.node as HTMLElement;
+      el.style.transform = 'scale(1)';
+      el.style.boxShadow = 'none';
+      el.style.background = '#fffcf8';
+    });
 
-    // start wave button (top right)
-    const waveButton = this.add.rectangle(1180, 80, 160, 50, 0x27ae60);
-    waveButton.setInteractive({ useHandCursor: true });
-    this.waveButtonText = this.add.text(1180, 80, 'Start Wave 1', {
+    // lives display (top left) - aligned with back button
+    const livesBg = this.add.rectangle(25, 75, 120, 40, 0xffffff, 0.9);
+    livesBg.setOrigin(0, 0);
+    livesBg.setStrokeStyle(2, 0xc4a46f);
+
+    this.livesText = this.add.text(85, 95, `Lives: ${this.lives}`, {
       fontSize: '18px',
-      color: '#fff',
+      color: '#473025',
       fontFamily: 'Quicksand, sans-serif',
-      fontStyle: 'bold'
+      fontStyle: '600',
+      resolution: 2
     }).setOrigin(0.5);
 
-    waveButton.on('pointerdown', () => {
+    // gold display in sidebar - clean minimal design
+    const goldBg = this.add.rectangle(width - sidebarWidth/2, 495, sidebarWidth - 20, 40, 0xffffff, 0.95);
+    goldBg.setOrigin(0.5);
+    goldBg.setStrokeStyle(2, 0xc4a46f);
+
+    this.goldText = this.add.text(width - sidebarWidth/2, 495, `Gold: ${this.gold}`, {
+      fontSize: '18px',
+      color: '#ff9f22',
+      fontFamily: 'Quicksand, sans-serif',
+      fontStyle: '600',
+      resolution: 2
+    }).setOrigin(0.5);
+
+    // wave counter (above wave button) - clean and minimal
+    this.waveCounterText = this.add.text(width - sidebarWidth/2, 35, 'Round 0', {
+      fontSize: '18px',
+      color: '#473025',
+      fontFamily: 'Quicksand, sans-serif',
+      fontStyle: '600',
+      resolution: 2
+    }).setOrigin(0.5);
+
+    // Wave button with WordWyrm 3D styling (no gradient, solid color with border)
+    const waveButtonStyle = {
+      'background': '#95b607',
+      'color': 'white',
+      'font-family': 'Quicksand, sans-serif',
+      'font-weight': 'bold',
+      'font-size': '18px',
+      'padding': '12px 20px',
+      'border-radius': '13px',
+      'border': '2px solid #006029',
+      'cursor': 'pointer',
+      'transition': 'all 0.2s ease',
+      'width': '180px',
+      'text-align': 'center'
+    };
+
+    this.waveButton = this.add.dom(width - sidebarWidth/2, 85, 'button', waveButtonStyle, 'Start Wave 1');
+
+    this.waveButton.addListener('click');
+    this.waveButton.on('click', () => {
       if (!this.waveActive && this.gameStarted && !this.waitingForQuestion) {
-        // Start new wave
         this.startWave();
       } else if (this.waveActive) {
-        // Toggle game speed during active wave
         this.toggleGameSpeed();
       }
     });
 
-    waveButton.on('pointerover', () => waveButton.setFillStyle(0x229954));
-    waveButton.on('pointerout', () => waveButton.setFillStyle(0x27ae60));
+    this.waveButton.addListener('mouseenter');
+    this.waveButton.on('mouseenter', () => {
+      const el = this.waveButton.node as HTMLElement;
+      el.style.transform = 'scale(0.98)';
+      el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.25)';
+      el.style.background = '#7a9700';
+    });
 
-    // tower selector title
-    this.add.text(1180, 150, 'Select Tower:', {
-      fontSize: '20px',
-      color: '#ecf0f1',
-      fontFamily: 'Quicksand, sans-serif'
-    }).setOrigin(0.5);
-
-    // basic tower button (50 gold) - now Ballista
-    this.basicTowerBtn = this.add.rectangle(1180, 230, 160, 100, 0x3498db);
-    this.basicTowerBtn.setInteractive({ useHandCursor: true });
-    this.basicTowerBtn.setStrokeStyle(4, 0xffffff);
-
-    this.add.text(1180, 188, 'Ballista', {
-      fontSize: '16px',
-      color: '#fff',
-      fontFamily: 'Quicksand, sans-serif',
-      fontStyle: 'bold'
-    }).setOrigin(0.5);
-    this.add.text(1180, 210, 'Fast Fire - 50g', {
-      fontSize: '11px',
-      color: '#ecf0f1',
-      fontFamily: 'Quicksand, sans-serif'
-    }).setOrigin(0.5);
-
-    this.basicTowerBtn.on('pointerdown', () => {
-      if (this.selectedTowerType === 'basic') {
-        // Deselect if already selected
-        this.selectedTowerType = null;
-      } else {
-        this.selectedTowerType = 'basic';
+    this.waveButton.addListener('mouseleave');
+    this.waveButton.on('mouseleave', () => {
+      const el = this.waveButton.node as HTMLElement;
+      el.style.transform = 'scale(1)';
+      el.style.boxShadow = 'none';
+      // Reset to current state's color
+      if (!this.waveActive) {
+        el.style.background = '#95b607';
       }
+    });
+
+    // tower selector title - clean and minimal
+    this.add.text(width - sidebarWidth/2, 150, 'Select Tower:', {
+      fontSize: '16px',
+      color: '#473025',
+      fontFamily: 'Quicksand, sans-serif',
+      fontStyle: '600',
+      resolution: 2
+    }).setOrigin(0.5);
+
+    // Tower buttons with WordWyrm 3D styling (no gradients, solid colors with borders)
+    const createTowerButton = (y: number, text: string, subtitle: string, bgColor: string, borderColor: string) => {
+      const container = document.createElement('div');
+      container.style.cssText = `
+        background: ${bgColor};
+        color: white;
+        font-family: Quicksand, sans-serif;
+        font-weight: 700;
+        font-size: 15px;
+        padding: 16px 12px;
+        border-radius: 13px;
+        border: 2px solid ${borderColor};
+        cursor: pointer;
+        width: 180px;
+        text-align: center;
+        transition: all 0.2s ease;
+      `;
+
+      const title = document.createElement('div');
+      title.textContent = text;
+      title.style.cssText = 'font-size: 16px; font-weight: 700; margin-bottom: 4px;';
+
+      const desc = document.createElement('div');
+      desc.textContent = subtitle;
+      desc.style.cssText = 'font-size: 12px; opacity: 0.9;';
+
+      container.appendChild(title);
+      container.appendChild(desc);
+
+      return this.add.dom(width - sidebarWidth/2, y, container);
+    };
+
+    // Ballista (Purple with dark border)
+    this.basicTowerBtn = createTowerButton(220, 'Ballista', 'Fast Fire • 50g',
+      '#A8277F', '#730f11');
+
+    this.basicTowerBtn.addListener('click');
+    this.basicTowerBtn.on('click', () => {
+      this.selectedTowerType = this.selectedTowerType === 'basic' ? null : 'basic';
       this.updateTowerSelection();
     });
 
-    // sniper/long range tower button (75 gold) - now Trebuchet
-    this.sniperTowerBtn = this.add.rectangle(1180, 360, 160, 100, 0xff9800);
-    this.sniperTowerBtn.setInteractive({ useHandCursor: true });
+    this.basicTowerBtn.addListener('mouseenter');
+    this.basicTowerBtn.on('mouseenter', () => {
+      const el = this.basicTowerBtn.node as HTMLElement;
+      el.style.transform = 'scale(0.98)';
+      el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.25)';
+      el.style.background = '#8B1F68';
+    });
 
-    this.add.text(1180, 318, 'Trebuchet', {
-      fontSize: '16px',
-      color: '#fff',
-      fontFamily: 'Quicksand, sans-serif',
-      fontStyle: 'bold'
-    }).setOrigin(0.5);
-    this.add.text(1180, 340, 'Slow Fire - 75g', {
-      fontSize: '11px',
-      color: '#ecf0f1',
-      fontFamily: 'Quicksand, sans-serif'
-    }).setOrigin(0.5);
+    this.basicTowerBtn.addListener('mouseleave');
+    this.basicTowerBtn.on('mouseleave', () => {
+      const el = this.basicTowerBtn.node as HTMLElement;
+      el.style.transform = 'scale(1)';
+      el.style.boxShadow = 'none';
+      el.style.background = '#A8277F';
+    });
 
-    this.sniperTowerBtn.on('pointerdown', () => {
-      if (this.selectedTowerType === 'sniper') {
-        // Deselect if already selected
-        this.selectedTowerType = null;
-      } else {
-        this.selectedTowerType = 'sniper';
-      }
+    // Trebuchet (Green with dark border)
+    this.sniperTowerBtn = createTowerButton(320, 'Trebuchet', 'Slow Fire • 75g',
+      '#95b607', '#006029');
+
+    this.sniperTowerBtn.addListener('click');
+    this.sniperTowerBtn.on('click', () => {
+      this.selectedTowerType = this.selectedTowerType === 'sniper' ? null : 'sniper';
       this.updateTowerSelection();
     });
 
-    // melee tower button (25 gold)
-    this.meleeTowerBtn = this.add.rectangle(1180, 490, 160, 100, 0xf44336);
-    this.meleeTowerBtn.setInteractive({ useHandCursor: true });
+    this.sniperTowerBtn.addListener('mouseenter');
+    this.sniperTowerBtn.on('mouseenter', () => {
+      const el = this.sniperTowerBtn.node as HTMLElement;
+      el.style.transform = 'scale(0.98)';
+      el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.25)';
+      el.style.background = '#7a9700';
+    });
 
-    this.add.text(1180, 448, 'Melee Tower', {
-      fontSize: '16px',
-      color: '#fff',
-      fontFamily: 'Quicksand, sans-serif',
-      fontStyle: 'bold'
-    }).setOrigin(0.5);
-    this.add.text(1180, 470, 'Rapid Fire - 25g', {
-      fontSize: '11px',
-      color: '#ecf0f1',
-      fontFamily: 'Quicksand, sans-serif'
-    }).setOrigin(0.5);
+    this.sniperTowerBtn.addListener('mouseleave');
+    this.sniperTowerBtn.on('mouseleave', () => {
+      const el = this.sniperTowerBtn.node as HTMLElement;
+      el.style.transform = 'scale(1)';
+      el.style.boxShadow = 'none';
+      el.style.background = '#95b607';
+    });
 
-    this.meleeTowerBtn.on('pointerdown', () => {
-      if (this.selectedTowerType === 'melee') {
-        // Deselect if already selected
-        this.selectedTowerType = null;
-      } else {
-        this.selectedTowerType = 'melee';
-      }
+    // Melee Tower (Orange with dark border)
+    this.meleeTowerBtn = createTowerButton(420, 'Melee Tower', 'Rapid Fire • 25g',
+      '#fd9227', '#730f11');
+
+    this.meleeTowerBtn.addListener('click');
+    this.meleeTowerBtn.on('click', () => {
+      this.selectedTowerType = this.selectedTowerType === 'melee' ? null : 'melee';
       this.updateTowerSelection();
+    });
+
+    this.meleeTowerBtn.addListener('mouseenter');
+    this.meleeTowerBtn.on('mouseenter', () => {
+      const el = this.meleeTowerBtn.node as HTMLElement;
+      el.style.transform = 'scale(0.98)';
+      el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.25)';
+      el.style.background = '#e6832b';
+    });
+
+    this.meleeTowerBtn.addListener('mouseleave');
+    this.meleeTowerBtn.on('mouseleave', () => {
+      const el = this.meleeTowerBtn.node as HTMLElement;
+      el.style.transform = 'scale(1)';
+      el.style.boxShadow = 'none';
+      el.style.background = '#fd9227';
     });
 
     this.updateTowerSelection();
-
-    // Upgrade panel title (below tower buttons)
-    this.add.text(1180, 560, 'Upgrades:', {
-      fontSize: '18px',
-      color: '#ecf0f1',
-      fontFamily: 'Quicksand, sans-serif'
-    }).setOrigin(0.5);
-
-    this.add.text(1180, 585, 'Click a tower to upgrade', {
-      fontSize: '11px',
-      color: '#95a5a6',
-      fontFamily: 'Quicksand, sans-serif',
-      align: 'center'
-    }).setOrigin(0.5);
 
     // enable click to place towers
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
@@ -394,25 +506,54 @@ export default class TowerDefenseScene extends Phaser.Scene {
   }
 
   showStartGameButton() {
-    const buttonBg = this.add.rectangle(640, 360, 300, 80, 0x27ae60);
-    buttonBg.setInteractive({ useHandCursor: true });
+    // Responsive centering
+    const width = this.scale.width;
+    const height = this.scale.height;
+    const sidebarWidth = Math.min(220, width * 0.15);
+    const gameWidth = width - sidebarWidth;
+    const centerX = gameWidth / 2;
+    const centerY = height / 2;
 
-    const buttonText = this.add.text(640, 360, 'START GAME', {
-      fontSize: '32px',
+    // WordWyrm 3D button styling - solid color with border
+    const buttonBg = this.add.rectangle(centerX, centerY, 360, 100, 0x95b607);
+    buttonBg.setInteractive({ useHandCursor: true });
+    buttonBg.setStrokeStyle(2, 0x006029);
+
+    const buttonText = this.add.text(centerX, centerY, 'START GAME', {
+      fontSize: '40px',
       color: '#ffffff',
       fontFamily: 'Quicksand, sans-serif',
-      fontStyle: 'bold'
+      fontStyle: 'bold',
+      resolution: 2
     }).setOrigin(0.5);
 
     this.startGameButton = this.add.container(0, 0, [buttonBg, buttonText]);
 
     buttonBg.on('pointerdown', () => {
-      this.startGameButton?.destroy();
-      this.showQuestion();
+      this.tweens.add({
+        targets: [buttonBg, buttonText],
+        scaleX: 0.98,
+        scaleY: 0.98,
+        duration: 100,
+        ease: 'Power2',
+        onComplete: () => {
+          this.startGameButton?.destroy();
+          this.showQuestion();
+        }
+      });
     });
 
-    buttonBg.on('pointerover', () => buttonBg.setFillStyle(0x229954));
-    buttonBg.on('pointerout', () => buttonBg.setFillStyle(0x27ae60));
+    buttonBg.on('pointerover', () => {
+      buttonBg.setFillStyle(0x7a9700);
+      buttonBg.setScale(1.02);
+      buttonText.setScale(1.02);
+    });
+
+    buttonBg.on('pointerout', () => {
+      buttonBg.setFillStyle(0x95b607);
+      buttonBg.setScale(1);
+      buttonText.setScale(1);
+    });
   }
 
   showQuestion() {
@@ -431,64 +572,138 @@ export default class TowerDefenseScene extends Phaser.Scene {
 
       this.waitingForQuestion = false;
       this.gameStarted = true;
+
       return;
     }
 
     const question = this.quizData.questions[this.currentQuestionIndex];
+    this.currentQuizQuestion = question; // Store for keyboard handling
 
-    // popup background overlay
-    const overlay = this.add.rectangle(640, 360, 1280, 720, 0x000000, 0.7);
+    // Responsive dimensions - center in game area (excluding sidebar)
+    const width = this.scale.width;
+    const height = this.scale.height;
+    const sidebarWidth = Math.min(220, width * 0.15);
+    const gameWidth = width - sidebarWidth;
+    const centerX = gameWidth / 2;
+    const centerY = height / 2;
+    const panelWidth = Math.min(700, gameWidth * 0.85);
+    const panelHeight = Math.min(540, height * 0.75);
 
-    // popup panel
-    const panel = this.add.rectangle(640, 360, 700, 500, 0x2c3e50);
-    panel.setStrokeStyle(4, 0xecf0f1);
+    // popup background overlay - simple fade in
+    const overlay = this.add.rectangle(centerX, centerY, gameWidth, height, 0x000000, 0);
+    this.currentQuizOverlay = overlay;
+    this.tweens.add({
+      targets: overlay,
+      alpha: 0.85,
+      duration: 200,
+      ease: 'Power1'
+    });
 
-    // question text
-    const questionText = this.add.text(640, 200, question.question, {
+    // popup panel with shadow - cream background matching site
+    const shadow = this.add.rectangle(centerX + 4, centerY + 4, panelWidth, panelHeight, 0x000000, 0.3);
+    const panel = this.add.rectangle(centerX, centerY, panelWidth, panelHeight, 0xfffaf2);
+    this.currentQuizPanel = panel;
+    panel.setStrokeStyle(4, 0xc4a46f);
+
+    // Simple scale animation
+    panel.setScale(0.9);
+    shadow.setScale(0.9);
+    this.tweens.add({
+      targets: [panel, shadow],
+      scaleX: 1,
+      scaleY: 1,
+      duration: 200,
+      ease: 'Power2'
+    });
+
+    // Header background - lime green matching site
+    const headerY = centerY - panelHeight/2 + 60;
+    const headerBg = this.add.rectangle(centerX, headerY, panelWidth, 90, 0x96b902);
+    const headerLine = this.add.rectangle(centerX, headerY + 45, panelWidth - 40, 4, 0xc4a46f);
+
+    // Question number indicator
+    const questionNum = this.add.text(centerX, headerY - 20, `Question ${this.currentQuestionIndex + 1}/${this.quizData.questions.length}`, {
+      fontSize: '16px',
+      color: '#ffffff',
+      fontFamily: 'Quicksand, sans-serif',
+      fontStyle: 'bold',
+      resolution: 2
+    }).setOrigin(0.5);
+
+    // question text with better styling - brown text
+    const questionText = this.add.text(centerX, headerY + 15, question.question, {
       fontSize: '20px',
-      color: '#ecf0f1',
+      color: '#ffffff',
       fontFamily: 'Quicksand, sans-serif',
       fontStyle: 'bold',
       align: 'center',
-      wordWrap: { width: 650 }
+      wordWrap: { width: panelWidth - 60 },
+      resolution: 2
     }).setOrigin(0.5);
+    this.currentQuizTextObj = questionText;
 
     const answerButtons: Phaser.GameObjects.Container[] = [];
+    this.currentQuizAnswerButtons = answerButtons;
 
-    // create answer buttons
+    // create answer buttons with site styling - cream with borders
+    const buttonWidth = panelWidth - 50;
+    const buttonHeight = 60;
+    const startY = centerY - panelHeight/2 + 170;
+
     question.options.forEach((option, index) => {
-      const yPos = 300 + (index * 60);
+      const yPos = startY + (index * 68);
       const isCorrect = option === question.answer;
 
-      const btnBg = this.add.rectangle(640, yPos, 650, 50, 0x34495e);
+      // Drop shadow for depth
+      const btnShadow = this.add.rectangle(centerX + 4, yPos + 4, buttonWidth, buttonHeight, 0x000000, 0.15);
+      // Main button background - cream with gold border
+      const btnBg = this.add.rectangle(centerX, yPos, buttonWidth, buttonHeight, 0xfff6e8);
       btnBg.setInteractive({ useHandCursor: true });
+      btnBg.setStrokeStyle(3, 0xc4a46f);
 
-      const btnText = this.add.text(640, yPos, option, {
-        fontSize: '16px',
-        color: '#ffffff',
+      const btnText = this.add.text(centerX, yPos, option, {
+        fontSize: '17px',
+        color: '#473025', // Brown text
         fontFamily: 'Quicksand, sans-serif',
+        fontStyle: 'bold',
         align: 'center',
-        wordWrap: { width: 600 }
+        wordWrap: { width: buttonWidth - 40 },
+        resolution: 2
       }).setOrigin(0.5);
 
-      const button = this.add.container(0, 0, [btnBg, btnText]);
+      const button = this.add.container(0, 0, [btnShadow, btnBg, btnText]);
       answerButtons.push(button);
 
-      btnBg.on('pointerover', () => btnBg.setFillStyle(0x475569));
-      btnBg.on('pointerout', () => btnBg.setFillStyle(0x34495e));
+      btnBg.on('pointerover', () => {
+        btnBg.setFillStyle(0x96b902);
+        btnBg.setStrokeStyle(4, 0x7a9700);
+        btnText.setColor('#ffffff');
+        btnBg.setScale(1.02);
+        btnText.setScale(1.02);
+      });
+
+      btnBg.on('pointerout', () => {
+        btnBg.setFillStyle(0xfff6e8);
+        btnBg.setStrokeStyle(3, 0xc4a46f);
+        btnText.setColor('#473025');
+        btnBg.setScale(1);
+        btnText.setScale(1);
+      });
 
       btnBg.on('pointerdown', () => {
+        btnBg.setScale(0.98);
+        btnText.setScale(0.98);
         this.handleAnswer(isCorrect, overlay, panel, questionText, answerButtons);
       });
     });
 
-    this.questionPopup = this.add.container(0, 0, [overlay, panel, questionText, ...answerButtons]);
+    this.questionPopup = this.add.container(0, 0, [overlay, shadow, panel, headerBg, headerLine, questionNum, questionText, ...answerButtons]);
   }
 
   handleAnswer(isCorrect: boolean, overlay: Phaser.GameObjects.Rectangle, panel: Phaser.GameObjects.Rectangle, questionText: Phaser.GameObjects.Text, answerButtons: Phaser.GameObjects.Container[]) {
     // disable all buttons
     answerButtons.forEach(btn => {
-      const bg = btn.list[0] as Phaser.GameObjects.Rectangle;
+      const bg = btn.list[1] as Phaser.GameObjects.Rectangle; // Index 1 because shadow is 0
       bg.removeInteractive();
     });
 
@@ -502,63 +717,126 @@ export default class TowerDefenseScene extends Phaser.Scene {
       this.updateUpgradeColors();
     }
 
-    const feedbackColor = isCorrect ? '#27ae60' : '#e74c3c';
     const feedbackText = isCorrect ? 'Correct!' : 'Incorrect';
 
-    panel.setFillStyle(isCorrect ? 0x27ae60 : 0xe74c3c);
+    // Add feedback animation - inside the quiz panel
+    const width = this.scale.width;
+    const height = this.scale.height;
+    const sidebarWidth = Math.min(220, width * 0.15);
+    const gameWidth = width - sidebarWidth;
+    const centerX = gameWidth / 2;
+    const centerY = height / 2;
 
-    const feedback = this.add.text(640, 520, `${feedbackText} +${goldEarned} Gold`, {
-      fontSize: '24px',
-      color: '#ffffff',
+    // Calculate position inside the panel - below the answer buttons
+    const panelHeight = Math.min(540, height * 0.75);
+    const panelBottom = centerY + panelHeight / 2;
+    const feedbackY = panelBottom - 80; // Position near bottom of panel, but inside it
+
+    const feedback = this.add.text(centerX, feedbackY, `${feedbackText} +${goldEarned} Gold`, {
+      fontSize: '28px',
+      color: isCorrect ? '#96b902' : '#ef4444',
       fontFamily: 'Quicksand, sans-serif',
-      fontStyle: 'bold'
-    }).setOrigin(0.5);
+      fontStyle: 'bold',
+      resolution: 2
+    }).setOrigin(0.5).setAlpha(0);
+
+    // Add explanation text if available
+    const question = this.quizData.questions[this.currentQuestionIndex];
+    let explanation = null;
+    if (question.explanation) {
+      const explanationY = feedbackY + 38;
+      explanation = this.add.text(centerX, explanationY, question.explanation, {
+        fontSize: '15px',
+        color: '#473025',
+        fontFamily: 'Quicksand, sans-serif',
+        fontStyle: '600',
+        resolution: 2,
+        align: 'center',
+        wordWrap: { width: Math.min(550, gameWidth * 0.75) }
+      }).setOrigin(0.5).setAlpha(0);
+    }
+
+    // Simple fade in animation
+    const targets = explanation ? [feedback, explanation] : [feedback];
+    this.tweens.add({
+      targets: targets,
+      alpha: 1,
+      duration: 150,
+      ease: 'Power2'
+    });
 
     // close popup after delay
     this.time.delayedCall(2000, () => {
-      overlay.destroy();
-      panel.destroy();
-      questionText.destroy();
-      answerButtons.forEach(btn => btn.destroy());
-      feedback.destroy();
-      this.questionPopup?.destroy();
-      this.waitingForQuestion = false;
-      this.gameStarted = true;
-      this.currentQuestionIndex++;
+      // Fade out animation
+      const fadeTargets = explanation
+        ? [overlay, panel, questionText, feedback, explanation, ...answerButtons]
+        : [overlay, panel, questionText, feedback, ...answerButtons];
+      this.tweens.add({
+        targets: fadeTargets,
+        alpha: 0,
+        duration: 150,
+        onComplete: () => {
+          overlay.destroy();
+          panel.destroy();
+          questionText.destroy();
+          answerButtons.forEach(btn => btn.destroy());
+          feedback.destroy();
+          if (explanation) explanation.destroy();
+          this.questionPopup?.destroy();
+          // Clear quiz references
+          this.currentQuizQuestion = undefined;
+          this.currentQuizAnswerButtons = undefined;
+          this.currentQuizOverlay = undefined;
+          this.currentQuizPanel = undefined;
+          this.currentQuizTextObj = undefined;
+          this.waitingForQuestion = false;
+          this.gameStarted = true;
+          this.currentQuestionIndex++;
+        }
+      });
     });
   }
 
   updateTowerSelection() {
-    // reset all buttons
-    this.basicTowerBtn.setStrokeStyle(0);
-    this.sniperTowerBtn.setStrokeStyle(0);
-    this.meleeTowerBtn.setStrokeStyle(0);
+    // Update DOM button styles for selection
+    const buttons = [
+      { btn: this.basicTowerBtn, type: 'basic' },
+      { btn: this.sniperTowerBtn, type: 'sniper' },
+      { btn: this.meleeTowerBtn, type: 'melee' }
+    ];
 
-    // highlight selected
-    if (this.selectedTowerType === 'basic') {
-      this.basicTowerBtn.setStrokeStyle(4, 0xffffff);
-    } else if (this.selectedTowerType === 'sniper') {
-      this.sniperTowerBtn.setStrokeStyle(4, 0xffffff);
-    } else if (this.selectedTowerType === 'melee') {
-      this.meleeTowerBtn.setStrokeStyle(4, 0xffffff);
-    }
-    // If null, no button is highlighted
+    buttons.forEach(({ btn, type }) => {
+      const element = btn.node as HTMLElement;
+      if (this.selectedTowerType === type) {
+        element.style.outline = '4px solid #473025';
+        element.style.outlineOffset = '2px';
+        element.style.transform = 'scale(1.05)';
+      } else {
+        element.style.outline = 'none';
+        if (!element.matches(':hover')) {
+          element.style.transform = 'scale(1)';
+        }
+      }
+    });
   }
 
   startWave() {
     if (this.waveActive) return;
     this.waveActive = true;
     this.waveNumber++;
-    // formula: 5 + (1.25 * wave) rounded to integer
-    this.enemiesToSpawn = Math.floor(5 + (1.25 * this.waveNumber));
+    // INCREASED DIFFICULTY: More enemies per wave (8 + 3 per wave, max 40)
+    this.enemiesToSpawn = Math.min(40, Math.floor(8 + (3 * this.waveNumber)));
     this.enemySpawnTimer = 0;
     this.updateWaveButton();
     this.waveCounterText.setText(`Round ${this.waveNumber}`);
   }
 
   toggleGameSpeed() {
+    // Cycle through 1x -> 2x -> 3x -> 1x
     if (this.gameSpeed === 1) {
       this.gameSpeed = 2;
+    } else if (this.gameSpeed === 2) {
+      this.gameSpeed = 3;
     } else {
       this.gameSpeed = 1;
     }
@@ -566,16 +844,27 @@ export default class TowerDefenseScene extends Phaser.Scene {
   }
 
   updateWaveButton() {
+    const buttonElement = this.waveButton.node as HTMLButtonElement;
     if (this.waveActive) {
-      // During wave, show speed control
+      // During wave, show speed control with clear indicator and solid colors
       if (this.gameSpeed === 1) {
-        this.waveButtonText.setText('Speed Up (2x)');
+        buttonElement.textContent = 'Speed: 1x';
+        buttonElement.style.background = '#95b607';
+        buttonElement.style.borderColor = '#006029';
+      } else if (this.gameSpeed === 2) {
+        buttonElement.textContent = 'Speed: 2x';
+        buttonElement.style.background = '#ff9f22';
+        buttonElement.style.borderColor = '#730f11';
       } else {
-        this.waveButtonText.setText('Slow Down (1x)');
+        buttonElement.textContent = 'Speed: 3x';
+        buttonElement.style.background = '#ef4444';
+        buttonElement.style.borderColor = '#730f11';
       }
     } else {
       // Between waves, show start wave button
-      this.waveButtonText.setText(`Start Wave ${this.waveNumber + 1}`);
+      buttonElement.textContent = `Start Wave ${this.waveNumber + 1}`;
+      buttonElement.style.background = '#95b607';
+      buttonElement.style.borderColor = '#006029';
     }
   }
 
@@ -742,7 +1031,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
 
     // Boss spawn logic: every 5 waves, spawn as 5th enemy
     const isBossWave = this.waveNumber % 5 === 0;
-    const enemiesSpawned = Math.floor(5 + (1.25 * this.waveNumber)) - this.enemiesToSpawn;
+    const enemiesSpawned = Math.min(40, Math.floor(8 + (3 * this.waveNumber))) - this.enemiesToSpawn;
     const shouldSpawnBoss = isBossWave && enemiesSpawned === 4; // 5th enemy (0-indexed)
 
     let type: EnemyType;
@@ -762,23 +1051,23 @@ export default class TowerDefenseScene extends Phaser.Scene {
       this.bossActive = true;
       this.showBossQuestion(health); // Triggers quiz popup
     } else {
-      // Regular enemy spawn - probability based on wave number
+      // Regular enemy spawn - HARDER SCALING
       const rand = Math.random();
 
       if (this.waveNumber < 3) {
         // Waves 1-2: Only red
         type = EnemyType.RED;
       } else if (this.waveNumber < 6) {
-        // Waves 3-5: 70% red, 30% blue
-        type = rand < 0.7 ? EnemyType.RED : EnemyType.BLUE;
+        // Waves 3-5: 60% red, 40% blue (more blues)
+        type = rand < 0.6 ? EnemyType.RED : EnemyType.BLUE;
       } else {
-        // Wave 6+: 50% red, 30% blue, 20% yellow
-        if (rand < 0.5) type = EnemyType.RED;
+        // Wave 6+: 40% red, 40% blue, 20% yellow (balanced difficulty)
+        if (rand < 0.4) type = EnemyType.RED;
         else if (rand < 0.8) type = EnemyType.BLUE;
         else type = EnemyType.YELLOW;
       }
 
-      // Set stats based on enemy type
+      // Set stats based on enemy type - balanced for early game
       if (type === EnemyType.RED) {
         health = 25;
         speed = 50;
@@ -826,6 +1115,22 @@ export default class TowerDefenseScene extends Phaser.Scene {
     graphics.setPosition(startPoint.x, startPoint.y);
     graphics.setScale(size);
 
+    // Create health bar background
+    const healthBarBg = this.add.graphics();
+    const healthBarWidth = 30 * size;
+    const healthBarHeight = 4;
+    const healthBarY = -25 * size;
+
+    healthBarBg.fillStyle(0x000000, 0.5);
+    healthBarBg.fillRect(-healthBarWidth / 2, healthBarY, healthBarWidth, healthBarHeight);
+    healthBarBg.setPosition(startPoint.x, startPoint.y);
+
+    // Create health bar fill
+    const healthBarFill = this.add.graphics();
+    healthBarFill.fillStyle(type === EnemyType.BOSS ? 0x6a0dad : 0x00ff00);
+    healthBarFill.fillRect(-healthBarWidth / 2, healthBarY, healthBarWidth, healthBarHeight);
+    healthBarFill.setPosition(startPoint.x, startPoint.y);
+
     // Create enemy entity
     const enemy: Enemy = {
       x: startPoint.x,
@@ -836,7 +1141,9 @@ export default class TowerDefenseScene extends Phaser.Scene {
       type: type,
       pathIndex: 1, // Start at second waypoint (first is spawn)
       graphics: graphics,
-      size: size
+      size: size,
+      healthBarBg: healthBarBg,
+      healthBarFill: healthBarFill
     };
 
     this.enemies.push(enemy);
@@ -850,7 +1157,36 @@ export default class TowerDefenseScene extends Phaser.Scene {
   // Phaser lifecycle: Main game loop (runs ~60 times per second)
   // Handles: enemy spawning, movement, tower attacks, projectiles, DoT, boss timer
   update(time: number, delta: number) {
+    // Handle keyboard shortcuts even when game not started
+    const enterKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER);
+    const key1 = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.ONE);
+    const key2 = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.TWO);
+    const key3 = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.THREE);
+    const key4 = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.FOUR);
+
+    // Handle Enter key to start wave
+    if (Phaser.Input.Keyboard.JustDown(enterKey) && !this.waveActive && !this.waitingForQuestion) {
+      this.startWave();
+    }
+
+    // Handle number keys for quiz answers
+    if (this.currentQuizQuestion && this.currentQuizAnswerButtons && this.currentQuizOverlay && this.currentQuizPanel && this.currentQuizTextObj) {
+      const keys = [key1, key2, key3, key4];
+      for (let i = 0; i < keys.length; i++) {
+        if (Phaser.Input.Keyboard.JustDown(keys[i]) && this.currentQuizQuestion.options.length > i) {
+          const isCorrect = this.currentQuizQuestion.options[i] === this.currentQuizQuestion.answer;
+          this.handleAnswer(isCorrect, this.currentQuizOverlay, this.currentQuizPanel, this.currentQuizTextObj, this.currentQuizAnswerButtons);
+          break;
+        }
+      }
+    }
+
     if (!this.gameStarted) return;
+
+    // Handle spacebar for speed toggle
+    if (Phaser.Input.Keyboard.JustDown(this.spaceKey) && this.waveActive) {
+      this.toggleGameSpeed();
+    }
 
     const scaledDelta = delta * this.gameSpeed; // 2x speed when toggled
 
@@ -873,10 +1209,12 @@ export default class TowerDefenseScene extends Phaser.Scene {
       }
     }
 
-    // Enemy spawning (one every 800ms while wave active)
+    // FASTER SPAWNING: Decreases with wave number for more challenge
     if (this.waveActive && this.enemiesToSpawn > 0) {
       this.enemySpawnTimer += scaledDelta;
-      if (this.enemySpawnTimer > 800) {
+      // Spawn interval: 700ms base, decreases by 30ms per wave, min 300ms
+      const spawnInterval = Math.max(300, 700 - (this.waveNumber * 30));
+      if (this.enemySpawnTimer > spawnInterval) {
         this.spawnEnemy();
         this.enemiesToSpawn--;
         this.enemySpawnTimer = 0;
@@ -886,7 +1224,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
     // Wave completion: all enemies spawned and killed
     if (this.waveActive && this.enemiesToSpawn === 0 && this.enemies.length === 0) {
       this.waveActive = false;
-      this.gameSpeed = 1; // Reset to 1x speed
+      // Keep speed persistent - don't reset to 1x
       this.updateWaveButton();
 
       // Clear boss state (buffs, UI, references)
@@ -917,6 +1255,8 @@ export default class TowerDefenseScene extends Phaser.Scene {
         this.lives--;
         this.livesText.setText(`Lives: ${this.lives}`);
         enemy.graphics.destroy();
+        enemy.healthBarBg?.destroy();
+        enemy.healthBarFill?.destroy();
         this.enemies.splice(i, 1);
 
         if (this.lives <= 0) {
@@ -945,6 +1285,33 @@ export default class TowerDefenseScene extends Phaser.Scene {
 
       enemy.graphics.setPosition(enemy.x, enemy.y);
 
+      // Update health bars
+      if (enemy.healthBarBg && enemy.healthBarFill) {
+        enemy.healthBarBg.setPosition(enemy.x, enemy.y);
+        enemy.healthBarFill.setPosition(enemy.x, enemy.y);
+
+        // Redraw health bar fill based on current health
+        const healthBarWidth = 30 * enemy.size;
+        const healthBarHeight = 4;
+        const healthBarY = -25 * enemy.size;
+        const healthPercent = Math.max(0, enemy.health / enemy.maxHealth);
+
+        enemy.healthBarFill.clear();
+
+        // Color based on health percentage
+        let healthColor = 0x00ff00; // Green
+        if (enemy.type === EnemyType.BOSS) {
+          healthColor = 0x6a0dad; // Purple for boss
+        } else if (healthPercent < 0.3) {
+          healthColor = 0xff0000; // Red
+        } else if (healthPercent < 0.6) {
+          healthColor = 0xffff00; // Yellow
+        }
+
+        enemy.healthBarFill.fillStyle(healthColor);
+        enemy.healthBarFill.fillRect(-healthBarWidth / 2, healthBarY, healthBarWidth * healthPercent, healthBarHeight);
+      }
+
       // remove if dead
       if (enemy.health <= 0) {
         // Award gold based on enemy type
@@ -958,6 +1325,8 @@ export default class TowerDefenseScene extends Phaser.Scene {
         this.goldText.setText(`Gold: ${this.gold}`);
 
         enemy.graphics.destroy();
+        enemy.healthBarBg?.destroy();
+        enemy.healthBarFill?.destroy();
         this.enemies.splice(i, 1);
 
         // Clear boss reference if boss died
@@ -1153,8 +1522,9 @@ export default class TowerDefenseScene extends Phaser.Scene {
   gameOver() {
     this.scene.pause();
 
-    const overlay = this.add.rectangle(640, 360, 1280, 720, 0x000000, 0.7);
-    const text = this.add.text(640, 360, 'GAME OVER!', {
+    // Game over overlay and text (variables unused but objects are rendered)
+    this.add.rectangle(640, 360, 1280, 720, 0x000000, 0.7);
+    this.add.text(640, 360, 'GAME OVER!', {
       fontSize: '64px',
       color: '#ff0000',
       fontFamily: 'Quicksand, sans-serif',
@@ -1163,7 +1533,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
       strokeThickness: 8,
     }).setOrigin(0.5);
 
-    const waveText = this.add.text(640, 440, `You survived ${this.waveNumber} waves!`, {
+    this.add.text(640, 440, `You survived ${this.waveNumber} waves!`, {
       fontSize: '32px',
       color: '#ffffff',
       fontFamily: 'Quicksand, sans-serif',
@@ -1179,8 +1549,8 @@ export default class TowerDefenseScene extends Phaser.Scene {
 
     this.selectedTower = tower;
 
-    // Add thick black border to newly selected tower (6px for better visibility)
-    this.selectedTower.graphics.setStrokeStyle(6, 0x000000);
+    // Add thick bright border to newly selected tower (10px for visibility, bright yellow-green)
+    this.selectedTower.graphics.setStrokeStyle(10, 0xffff00);
 
     this.showUpgradeUI();
   }
@@ -1193,28 +1563,33 @@ export default class TowerDefenseScene extends Phaser.Scene {
 
     if (!this.selectedTower) return;
 
+    // Position upgrades near the selected tower
+    const towerX = this.selectedTower.x;
+    const towerY = this.selectedTower.y;
+    const upgradeY = towerY - 60; // Above the tower
+
     const elements: Phaser.GameObjects.GameObject[] = [];
     this.upgradeButtons = [];
-    const upgradeY = 610;
     const UPGRADE_COST = 15;
 
     // Ballista (basic) upgrades: DOT and Fire Rate
     if (this.selectedTower.type === 'basic') {
-      // DOT upgrade box
+      // DOT upgrade box - modern rounded style
       const dotPurchased = this.selectedTower.upgrades.dotArrows;
       const canAffordDot = this.gold >= UPGRADE_COST;
-      const dotBox = this.add.rectangle(1150, upgradeY, 60, 50, dotPurchased ? 0x27ae60 : (canAffordDot ? 0x27ae60 : 0x555555));
+      const dotBox = this.add.rectangle(towerX - 30, upgradeY, 60, 50, dotPurchased ? 0x96b902 : (canAffordDot ? 0xff9f22 : 0xcccccc), 0.95);
+      dotBox.setStrokeStyle(2, dotPurchased ? 0x7a9700 : (canAffordDot ? 0xff8800 : 0x999999));
       if (!dotPurchased) {
         dotBox.setInteractive({ useHandCursor: true });
         dotBox.on('pointerdown', () => this.purchaseUpgrade('dotArrows'));
       }
-      const dotText = this.add.text(1150, upgradeY - 12, 'DOT', { fontSize: '10px', color: '#fff', fontFamily: 'Quicksand, sans-serif', fontStyle: 'bold' }).setOrigin(0.5);
+      const dotText = this.add.text(towerX - 30, upgradeY - 12, 'DOT', { fontSize: '10px', color: '#473025', fontFamily: 'Quicksand, sans-serif', fontStyle: 'bold', resolution: 2 }).setOrigin(0.5);
 
       if (dotPurchased) {
-        const checkmark = this.add.image(1150, upgradeY + 8, 'checkmark').setScale(0.8);
+        const checkmark = this.add.image(towerX - 30, upgradeY + 8, 'checkmark').setScale(0.8);
         elements.push(dotBox, dotText, checkmark);
       } else {
-        const dotCost = this.add.text(1150, upgradeY + 8, '15g', { fontSize: '9px', color: '#fff', fontFamily: 'Quicksand, sans-serif' }).setOrigin(0.5);
+        const dotCost = this.add.text(towerX - 30, upgradeY + 8, '15g', { fontSize: '9px', color: '#473025', fontFamily: 'Quicksand, sans-serif', fontStyle: '600', resolution: 2 }).setOrigin(0.5);
         elements.push(dotBox, dotText, dotCost);
         this.upgradeButtons.push(dotBox);
       }
@@ -1222,18 +1597,19 @@ export default class TowerDefenseScene extends Phaser.Scene {
       // Fire rate upgrade box
       const firePurchased = this.selectedTower.upgrades.fasterFireRate;
       const canAffordFire = this.gold >= UPGRADE_COST;
-      const fireBox = this.add.rectangle(1210, upgradeY, 60, 50, firePurchased ? 0x27ae60 : (canAffordFire ? 0x27ae60 : 0x555555));
+      const fireBox = this.add.rectangle(towerX + 30, upgradeY, 60, 50, firePurchased ? 0x96b902 : (canAffordFire ? 0xff9f22 : 0xcccccc), 0.95);
+      fireBox.setStrokeStyle(2, firePurchased ? 0x7a9700 : (canAffordFire ? 0xff8800 : 0x999999));
       if (!firePurchased) {
         fireBox.setInteractive({ useHandCursor: true });
         fireBox.on('pointerdown', () => this.purchaseUpgrade('fasterFireRate'));
       }
-      const fireText = this.add.text(1210, upgradeY - 12, 'Fire+', { fontSize: '10px', color: '#fff', fontFamily: 'Quicksand, sans-serif', fontStyle: 'bold' }).setOrigin(0.5);
+      const fireText = this.add.text(towerX + 30, upgradeY - 12, 'Fire+', { fontSize: '10px', color: '#473025', fontFamily: 'Quicksand, sans-serif', fontStyle: 'bold', resolution: 2 }).setOrigin(0.5);
 
       if (firePurchased) {
-        const checkmark = this.add.image(1210, upgradeY + 8, 'checkmark').setScale(0.8);
+        const checkmark = this.add.image(towerX + 30, upgradeY + 8, 'checkmark').setScale(0.8);
         elements.push(fireBox, fireText, checkmark);
       } else {
-        const fireCost = this.add.text(1210, upgradeY + 8, '15g', { fontSize: '9px', color: '#fff', fontFamily: 'Quicksand, sans-serif' }).setOrigin(0.5);
+        const fireCost = this.add.text(towerX + 30, upgradeY + 8, '15g', { fontSize: '9px', color: '#473025', fontFamily: 'Quicksand, sans-serif', fontStyle: '600', resolution: 2 }).setOrigin(0.5);
         elements.push(fireBox, fireText, fireCost);
         this.upgradeButtons.push(fireBox);
       }
@@ -1243,18 +1619,19 @@ export default class TowerDefenseScene extends Phaser.Scene {
     if (this.selectedTower.type === 'sniper') {
       const explosivePurchased = this.selectedTower.upgrades.explosive;
       const canAffordExplosive = this.gold >= UPGRADE_COST;
-      const explosiveBox = this.add.rectangle(1180, upgradeY, 80, 50, explosivePurchased ? 0x27ae60 : (canAffordExplosive ? 0x27ae60 : 0x555555));
+      const explosiveBox = this.add.rectangle(towerX, upgradeY, 80, 50, explosivePurchased ? 0x96b902 : (canAffordExplosive ? 0xff9f22 : 0xcccccc), 0.95);
+      explosiveBox.setStrokeStyle(2, explosivePurchased ? 0x7a9700 : (canAffordExplosive ? 0xff8800 : 0x999999));
       if (!explosivePurchased) {
         explosiveBox.setInteractive({ useHandCursor: true });
         explosiveBox.on('pointerdown', () => this.purchaseUpgrade('explosive'));
       }
-      const explosiveText = this.add.text(1180, upgradeY - 12, 'Explosive', { fontSize: '10px', color: '#fff', fontFamily: 'Quicksand, sans-serif', fontStyle: 'bold' }).setOrigin(0.5);
+      const explosiveText = this.add.text(towerX, upgradeY - 12, 'Explosive', { fontSize: '10px', color: '#473025', fontFamily: 'Quicksand, sans-serif', fontStyle: 'bold', resolution: 2 }).setOrigin(0.5);
 
       if (explosivePurchased) {
-        const checkmark = this.add.image(1180, upgradeY + 8, 'checkmark').setScale(0.8);
+        const checkmark = this.add.image(towerX, upgradeY + 8, 'checkmark').setScale(0.8);
         elements.push(explosiveBox, explosiveText, checkmark);
       } else {
-        const explosiveCost = this.add.text(1180, upgradeY + 8, '15g', { fontSize: '9px', color: '#fff', fontFamily: 'Quicksand, sans-serif' }).setOrigin(0.5);
+        const explosiveCost = this.add.text(towerX, upgradeY + 8, '15g', { fontSize: '9px', color: '#473025', fontFamily: 'Quicksand, sans-serif', fontStyle: '600', resolution: 2 }).setOrigin(0.5);
         elements.push(explosiveBox, explosiveText, explosiveCost);
         this.upgradeButtons.push(explosiveBox);
       }
@@ -1264,18 +1641,19 @@ export default class TowerDefenseScene extends Phaser.Scene {
     if (this.selectedTower.type === 'melee') {
       const damagePurchased = this.selectedTower.upgrades.moreDamage;
       const canAffordDamage = this.gold >= UPGRADE_COST;
-      const damageBox = this.add.rectangle(1180, upgradeY, 80, 50, damagePurchased ? 0x27ae60 : (canAffordDamage ? 0x27ae60 : 0x555555));
+      const damageBox = this.add.rectangle(towerX, upgradeY, 80, 50, damagePurchased ? 0x96b902 : (canAffordDamage ? 0xff9f22 : 0xcccccc), 0.95);
+      damageBox.setStrokeStyle(2, damagePurchased ? 0x7a9700 : (canAffordDamage ? 0xff8800 : 0x999999));
       if (!damagePurchased) {
         damageBox.setInteractive({ useHandCursor: true });
         damageBox.on('pointerdown', () => this.purchaseUpgrade('moreDamage'));
       }
-      const damageText = this.add.text(1180, upgradeY - 12, 'Damage+', { fontSize: '10px', color: '#fff', fontFamily: 'Quicksand, sans-serif', fontStyle: 'bold' }).setOrigin(0.5);
+      const damageText = this.add.text(towerX, upgradeY - 12, 'Damage+', { fontSize: '10px', color: '#473025', fontFamily: 'Quicksand, sans-serif', fontStyle: 'bold', resolution: 2 }).setOrigin(0.5);
 
       if (damagePurchased) {
-        const checkmark = this.add.image(1180, upgradeY + 8, 'checkmark').setScale(0.8);
+        const checkmark = this.add.image(towerX, upgradeY + 8, 'checkmark').setScale(0.8);
         elements.push(damageBox, damageText, checkmark);
       } else {
-        const damageCost = this.add.text(1180, upgradeY + 8, '15g', { fontSize: '9px', color: '#fff', fontFamily: 'Quicksand, sans-serif' }).setOrigin(0.5);
+        const damageCost = this.add.text(towerX, upgradeY + 8, '15g', { fontSize: '9px', color: '#473025', fontFamily: 'Quicksand, sans-serif', fontStyle: '600', resolution: 2 }).setOrigin(0.5);
         elements.push(damageBox, damageText, damageCost);
         this.upgradeButtons.push(damageBox);
       }
@@ -1290,9 +1668,10 @@ export default class TowerDefenseScene extends Phaser.Scene {
     const UPGRADE_COST = 15;
     const canAfford = this.gold >= UPGRADE_COST;
 
-    // Update all unpurchased upgrade button colors
+    // Update all unpurchased upgrade button colors with modern site colors
     this.upgradeButtons.forEach(button => {
-      button.setFillStyle(canAfford ? 0x27ae60 : 0x555555);
+      button.setFillStyle(canAfford ? 0xff9f22 : 0xcccccc, 0.95);
+      button.setStrokeStyle(2, canAfford ? 0xff8800 : 0x999999);
     });
   }
 
@@ -1343,7 +1722,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
 
     // Find all questions answered incorrectly
     for (let i = 0; i < allQuestions.length; i++) {
-      if (this.bossAnsweredCorrectly[i] === false) {
+      if (!this.bossAnsweredCorrectly[i]) {
         incorrectQuestions.push(allQuestions[i]);
       }
     }
@@ -1367,64 +1746,73 @@ export default class TowerDefenseScene extends Phaser.Scene {
     // Find index for answer tracking
     const questionIndex = this.quizData.questions.findIndex(q => q.question === question.question);
 
-    // Popup dimensions (15% smaller than regular quiz popup)
-    const panelWidth = 680;
-    const panelHeight = 238;
-    const panelX = 640;
-    const panelY = 600;
+    // Responsive dimensions
+    const width = this.scale.width;
+    const height = this.scale.height;
+    const centerX = width / 2;
+    const panelWidth = Math.min(680, width * 0.7);
+    const panelHeight = Math.min(238, height * 0.35);
+    const panelY = height - panelHeight / 2 - 40; // Position near bottom
 
     // Semi-transparent overlay
-    const overlay = this.add.rectangle(640, 360, 1280, 720, 0x000000, 0.3);
+    const overlay = this.add.rectangle(centerX, height / 2, width, height, 0x000000, 0.3);
 
     // Panel background
-    const panel = this.add.rectangle(panelX, panelY, panelWidth, panelHeight, 0x2c3e50);
+    const panel = this.add.rectangle(centerX, panelY, panelWidth, panelHeight, 0x2c3e50);
     panel.setStrokeStyle(4, 0xff6600); // Orange border for warning
 
     // Warning label
-    const warningText = this.add.text(panelX, panelY - 93, 'ANSWER BUT BEWARE!', {
+    const warningText = this.add.text(centerX, panelY - 93, 'ANSWER BUT BEWARE!', {
       fontSize: '20px',
       color: '#ff6600',
       fontFamily: 'Quicksand, sans-serif',
-      fontStyle: 'bold'
+      fontStyle: 'bold',
+      resolution: 2
     }).setOrigin(0.5);
 
     // Timer display
-    const timerText = this.add.text(panelX, panelY - 68, 'Time: 30s', {
+    const timerText = this.add.text(centerX, panelY - 68, 'Time: 30s', {
       fontSize: '15px',
       color: '#ffffff',
       fontFamily: 'Quicksand, sans-serif',
-      fontStyle: 'bold'
+      fontStyle: 'bold',
+      resolution: 2
     }).setOrigin(0.5);
 
     // Question text
-    const questionText = this.add.text(panelX, panelY - 43, question.question, {
+    const questionText = this.add.text(centerX, panelY - 43, question.question, {
       fontSize: '15px',
       color: '#ecf0f1',
       fontFamily: 'Quicksand, sans-serif',
       fontStyle: 'bold',
       align: 'center',
-      wordWrap: { width: panelWidth - 40 }
+      wordWrap: { width: panelWidth - 40 },
+      resolution: 2
     }).setOrigin(0.5);
 
     const answerButtons: Phaser.GameObjects.Container[] = [];
 
     // Create answer buttons (2x2 grid)
+    const buttonWidth = (panelWidth - 30) / 2;
+    const buttonHeight = 43;
+
     question.options.forEach((option, index) => {
       const col = index % 2;
       const row = Math.floor(index / 2);
-      const xPos = panelX - 153 + (col * 306); // Adjusted for smaller panel
-      const yPos = panelY + 17 + (row * 51); // Adjusted for smaller panel
+      const xPos = centerX - panelWidth / 2 + 15 + (col * (buttonWidth + 10));
+      const yPos = panelY + 17 + (row * 51);
       const isCorrect = option === question.answer;
 
-      const btnBg = this.add.rectangle(xPos, yPos, 289, 43, 0x34495e); // 340 * 0.85, 50 * 0.85
+      const btnBg = this.add.rectangle(xPos + buttonWidth / 2, yPos, buttonWidth, buttonHeight, 0x34495e);
       btnBg.setInteractive({ useHandCursor: true });
 
-      const btnText = this.add.text(xPos, yPos, option, {
+      const btnText = this.add.text(xPos + buttonWidth / 2, yPos, option, {
         fontSize: '12px',
         color: '#ffffff',
         fontFamily: 'Quicksand, sans-serif',
         align: 'center',
-        wordWrap: { width: 272 } // 320 * 0.85
+        wordWrap: { width: buttonWidth - 20 },
+        resolution: 2
       }).setOrigin(0.5);
 
       const button = this.add.container(0, 0, [btnBg, btnText]);

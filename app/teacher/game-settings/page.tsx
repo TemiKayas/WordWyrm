@@ -57,7 +57,7 @@ function GameSettingsContent() {
         setTitle(quiz.title || 'Untitled Game');
         setQuestions(quizData.questions);
         // Access PDF filename through the included relations
-        const pdfFilename = (quiz as any).processedContent?.pdf?.filename || 'Unknown PDF';
+        const pdfFilename = (quiz as {processedContent?: {pdf?: {filename?: string}}}).processedContent?.pdf?.filename || 'Unknown PDF';
         setPdfFilename(pdfFilename);
       }
       setIsLoading(false);
