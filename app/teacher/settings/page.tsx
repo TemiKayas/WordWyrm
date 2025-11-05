@@ -39,7 +39,7 @@ export default function SettingsPage() {
               Settings Coming Soon
             </h2>
             <p className="font-quicksand text-[#a7613c] text-[16px] max-w-md mx-auto">
-              We're working on bringing you personalization options, notification preferences, and account management features.
+              We&apos;re working on bringing you personalization options, notification preferences, and account management features.
             </p>
           </div>
         </div>

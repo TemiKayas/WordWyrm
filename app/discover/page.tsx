@@ -51,7 +51,7 @@ export default function DiscoverPage() {
 
         {/* Description */}
         <p className="font-quicksand font-bold text-[#a7613c] text-[20px] sm:text-[24px] lg:text-[28px] leading-relaxed mb-8 max-w-2xl mx-auto">
-          Soon you'll be able to explore and play public games created by teachers from around the world!
+          Soon you&apos;ll be able to explore and play public games created by teachers from around the world!
         </p>
 
         {/* Coming Soon badge */}
