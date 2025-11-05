@@ -25,7 +25,7 @@ type ActionResult<T> =
 
 export async function signup(
   formData: FormData
-): Promise<ActionResult<{ message: string }>> {
+): Promise<ActionResult<{ message: string; role: string }>> {
   try {
     // Extract and validate data
     const rawData = {
@@ -91,7 +91,7 @@ export async function signup(
 
     return {
       success: true,
-      data: { message: 'Account created successfully' },
+      data: { message: 'Account created successfully', role: user.role },
     };
   } catch (error) {
     if (error instanceof z.ZodError) {

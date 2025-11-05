@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Sidebar from '@/components/dashboard/Sidebar';
+import Navbar from '@/components/shared/Navbar';
+import SlidingSidebar from '@/components/shared/SlidingSidebar';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import ClassTabs from '@/components/dashboard/ClassTabs';
 import ClassStatistics from '@/components/dashboard/ClassStatistics';
@@ -13,7 +14,8 @@ import { getTeacherStats } from '@/app/actions/quiz';
 export default function TeacherDashboard() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('My Classes');
+  const [activeTab, setActiveTab] = useState('Games');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true); // Default to expanded
 
   // real data from backend
   const [teacherData, setTeacherData] = useState({
@@ -81,7 +83,7 @@ export default function TeacherDashboard() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-r from-[#fffaf2] to-[#fff5e9] flex items-center justify-center">
+      <div className="min-h-screen bg-[#fffaf2] flex items-center justify-center">
         <div className="text-brown font-quicksand font-bold text-xl">
           Loading dashboard...
         </div>
@@ -90,41 +92,57 @@ export default function TeacherDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-r from-[#fffaf2] to-[#fff5e9]">
-      {/* Sidebar Navigation */}
-      <Sidebar onPlayClick={handlePlayClick} onCreateClick={handleCreateClick} />
+    <div className="min-h-screen bg-[#fffaf2]">
+      {/* Navbar with menu button */}
+      <Navbar
+        showSignOut={true}
+        onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)}
+        logoHref="/teacher/dashboard"
+      />
 
-      {/* Main Content Area */}
-      <div className="ml-[200px] md:ml-[240px] lg:ml-[278px] min-h-screen">
-        {/* Main Content Container */}
-        <div className="max-w-[996px] mx-auto bg-[#fffbf6] rounded-[15px] shadow-sm min-h-screen p-4 md:p-6 lg:p-8">
-          {/* Header */}
-          <DashboardHeader
-            userName={teacherData.name}
-            userRole={teacherData.role}
-            userPhoto={teacherData.photo}
-          />
+      {/* Sliding Sidebar */}
+      <SlidingSidebar
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(!isSidebarOpen)}
+      />
 
-          {/* Class Tabs */}
-          <ClassTabs onClassChange={setActiveTab} selectedClass={activeTab} />
+      {/* Main Content Area with transition */}
+      <div
+        className={`transition-all duration-200 ease-in-out ${
+          isSidebarOpen ? 'md:ml-[240px] lg:ml-[278px]' : 'ml-0'
+        }`}
+      >
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Main Content Container */}
+          <div className="max-w-[996px] mx-auto bg-[#fffbf6] rounded-[15px] shadow-lg border-[3px] border-[#473025]/10 min-h-screen p-4 md:p-6 lg:p-8">
+            {/* Header */}
+            <DashboardHeader
+              userName={teacherData.name}
+              userRole={teacherData.role}
+              userPhoto={teacherData.photo}
+            />
 
-          {/* Content based on active tab */}
-          {activeTab === 'My Classes' ? (
-            <>
-              {/* Class Statistics Section */}
-              <ClassStatistics
-                averageScore={stats.averageScore}
-                completionData={stats.completionData}
-              />
+            {/* Class Tabs */}
+            <ClassTabs onClassChange={setActiveTab} selectedClass={activeTab} />
 
-              {/* Students Table */}
-              <StudentsTable />
-            </>
-          ) : (
-            /* Games View */
-            <GamesView onCreateGame={handleCreateClick} />
-          )}
-        </div>
+            {/* Content based on active tab */}
+            {activeTab === 'Games' ? (
+              /* Games View */
+              <GamesView onCreateGame={handleCreateClick} />
+            ) : (
+              <>
+                {/* Class Statistics Section */}
+                <ClassStatistics
+                  averageScore={stats.averageScore}
+                  completionData={stats.completionData}
+                />
+
+                {/* Students Table */}
+                <StudentsTable />
+              </>
+            )}
+          </div>
+        </main>
       </div>
     </div>
   );

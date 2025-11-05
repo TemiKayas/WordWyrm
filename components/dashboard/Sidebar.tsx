@@ -16,6 +16,7 @@ export default function Sidebar({ onPlayClick, onCreateClick }: SidebarProps) {
     {
       label: 'Dashboard',
       icon: '/assets/dashboard/dashboard-icon.svg',
+      inactiveIcon: '/assets/dashboard/tabler_apple-filled.svg',
       href: '/teacher/dashboard',
       active: pathname === '/teacher/dashboard',
     },
@@ -101,7 +102,7 @@ export default function Sidebar({ onPlayClick, onCreateClick }: SidebarProps) {
           >
             <div className="w-5 h-5 md:w-6 md:h-6 relative flex-shrink-0">
               <Image
-                src={item.icon}
+                src={item.active ? item.icon : (item.inactiveIcon || item.icon)}
                 alt={item.label}
                 fill
                 className={`object-contain ${item.active ? 'brightness-0 invert' : ''}`}

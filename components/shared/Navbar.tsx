@@ -3,62 +3,81 @@
 import { signOut } from 'next-auth/react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 /**
- * navigation bar with logo, page links, and sign out
+ * DaisyUI navigation bar with dropdown menu, logo, and sign out
  */
 
 interface NavbarProps {
   showSignOut?: boolean;
+  onMenuClick?: () => void;
+  logoHref?: string;
 }
 
-export default function Navbar({ showSignOut = true }: NavbarProps) {
+export default function Navbar({ showSignOut = true, onMenuClick, logoHref = '/teacher/dashboard' }: NavbarProps) {
+  const router = useRouter();
+
+  const handleMenuClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (onMenuClick) {
+      onMenuClick();
+    }
+  };
 
   return (
-    <nav className="bg-[#fffaf2] border-b-2 border-[#473025]/10">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-24">
-          {/* left side: wordwyrm logo only */}
-          <Link href="/teacher/dashboard" className="hover:opacity-80 transition-opacity">
-            <div className="w-32 h-32 sm:w-40 sm:h-40 relative">
-              <Image
-                src="/assets/dashboard/wordwyrm-logo.png"
-                alt="WordWyrm"
-                fill
-                className="object-contain"
+    <div className="navbar bg-[#fffaf2] border-b-2 border-[#473025]/10 h-20 min-h-20">
+      <div className="navbar-start">
+        {onMenuClick ? (
+          <button
+            onClick={handleMenuClick}
+            className="btn btn-ghost btn-circle hover:bg-[#473025]/10 ml-2"
+            aria-label="Open menu"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-7 w-7 text-[#473025]"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2.5}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M4 6h16M4 12h16M4 18h16"
               />
-            </div>
-          </Link>
-
-          {/* center: navigation links */}
-          <div className="absolute left-1/2 transform -translate-x-1/2 hidden md:flex items-center gap-8">
-            <Link
-              href="/teacher/dashboard"
-              className="text-[#473025] font-quicksand font-semibold text-lg hover:text-[#ff9f22] transition-colors"
-            >
-              Dashboard
-            </Link>
-            <Link
-              href="/teacher/upload"
-              className="text-[#473025] font-quicksand font-semibold text-lg hover:text-[#ff9f22] transition-colors"
-            >
-              Create Game
-            </Link>
-          </div>
-
-          {/* right side: sign out button */}
-          <div className="flex items-center gap-4">
-            {showSignOut && (
-              <button
-                onClick={() => signOut({ callbackUrl: '/' })}
-                className="px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-[#473025] hover:text-[#ff9f22] transition-colors"
-              >
-                Sign Out
-              </button>
-            )}
-          </div>
-        </div>
+            </svg>
+          </button>
+        ) : (
+          <div className="w-12"></div>
+        )}
       </div>
-    </nav>
+
+      <div className="navbar-center">
+        <Link href={logoHref} className="cursor-pointer">
+          <div className="w-32 h-32 relative">
+            <Image
+              src="/assets/game-preview/wordwyrm-icon.png"
+              alt="WordWyrm"
+              fill
+              className="object-contain"
+            />
+          </div>
+        </Link>
+      </div>
+
+      <div className="navbar-end gap-2">
+        {showSignOut && (
+          <button
+            onClick={() => signOut({ callbackUrl: '/login' })}
+            className="btn btn-ghost btn-sm font-quicksand font-semibold text-[#473025] hover:text-[#ff9f22]"
+          >
+            Sign Out
+          </button>
+        )}
+      </div>
+    </div>
   );
 }

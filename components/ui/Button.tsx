@@ -19,7 +19,7 @@ export default function Button({
   className = '',
   ...props
 }: ButtonProps) {
-  const baseClasses = 'font-quicksand font-bold rounded-[11px] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95';
+  const baseClasses = 'font-quicksand font-bold rounded-[11px] transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-95';
 
   const variantClasses = {
     primary: 'bg-[#473025] border-[1.5px] border-[#473025] hover:bg-[#5a3d2e] hover:shadow-md text-white',

@@ -4,8 +4,7 @@ import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { generateUniqueShareCode } from '@/lib/utils/share-code';
 import { generateGameQRCode } from '@/lib/utils/qr-code';
-import { uploadGameImage, deleteGameImage } from '@/lib/blob';
-import type { Game, Quiz, ProcessedContent, GameMode } from '@prisma/client';
+import type { Game, Quiz, ProcessedContent } from '@prisma/client';
 
 //type of server action results, success or fail, T is the type of return.
 type ActionResult<T> =
@@ -173,104 +172,5 @@ export async function getGameWithQuiz(
     // log the error and return a generic err msg
     console.error('Failed to get game:', error);
     return { success: false, error: 'Failed to retrieve game data.' };
-  }
-}
-
-// updates an existing game with new settings (title, description, image, etc.)
-export async function updateGame(params: {
-  gameId: string;
-  title?: string;
-  description?: string;
-  imageFile?: File; // New image to upload
-  removeImage?: boolean; // Flag to remove existing image
-  isPublic?: boolean;
-  gameMode?: GameMode;
-}): Promise<ActionResult<{ game: Game }>> {
-  try {
-    const { gameId, title, description, imageFile, removeImage, isPublic, gameMode } = params;
-
-    // ensure user is a teacher
-    const session = await auth();
-    if (!session?.user || session.user.role !== 'TEACHER') {
-      return { success: false, error: 'Unauthorized' };
-    }
-
-    // verify that the teacher has a profile in db
-    const teacher = await db.teacher.findUnique({
-      where: { userId: session.user.id },
-    });
-
-    if (!teacher) {
-      return { success: false, error: 'Teacher profile not found' };
-    }
-
-    // verify that the game exists and belongs to this teacher
-    const existingGame = await db.game.findUnique({
-      where: { id: gameId },
-    });
-
-    if (!existingGame) {
-      return { success: false, error: 'Game not found' };
-    }
-
-    if (existingGame.teacherId !== teacher.id) {
-      return { success: false, error: 'You do not have permission to edit this game' };
-    }
-
-    // handle image upload/removal
-    let newImageUrl = existingGame.imageUrl;
-
-    if (removeImage && existingGame.imageUrl) {
-      // delete old image from blob storage
-      try {
-        await deleteGameImage(existingGame.imageUrl);
-        newImageUrl = null;
-      } catch (error) {
-        console.error('Failed to delete old image:', error);
-        // continue anyway, just log the error
-      }
-    } else if (imageFile) {
-      // upload new image
-      try {
-        // delete old image if exists
-        if (existingGame.imageUrl) {
-          await deleteGameImage(existingGame.imageUrl);
-        }
-        newImageUrl = await uploadGameImage(imageFile);
-      } catch (error) {
-        console.error('Failed to upload new image:', error);
-        return {
-          success: false,
-          error: error instanceof Error ? error.message : 'Failed to upload image',
-        };
-      }
-    }
-
-    // build update data object (only include fields that were provided)
-    const updateData: any = {
-      updatedAt: new Date(),
-    };
-
-    if (title !== undefined) updateData.title = title;
-    if (description !== undefined) updateData.description = description;
-    if (newImageUrl !== existingGame.imageUrl) updateData.imageUrl = newImageUrl;
-    if (isPublic !== undefined) updateData.isPublic = isPublic;
-    if (gameMode !== undefined) updateData.gameMode = gameMode;
-
-    // update the game record in the database
-    const updatedGame = await db.game.update({
-      where: { id: gameId },
-      data: updateData,
-    });
-
-    console.log(`Game ${gameId} updated successfully`);
-
-    return { success: true, data: { game: updatedGame } };
-  } catch (error) {
-    console.error('Failed to update game:', error);
-    return {
-      success: false,
-      error: 'Failed to update game. Please try again.',
-    };
   }
 }

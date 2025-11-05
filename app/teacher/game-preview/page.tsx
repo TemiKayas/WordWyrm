@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import Navbar from '@/components/shared/Navbar';
+import TeacherPageLayout from '@/components/shared/TeacherPageLayout';
 import { getGameWithQuiz } from '@/app/actions/game';
 
 function GamePreviewContent() {
@@ -13,6 +13,7 @@ function GamePreviewContent() {
   const [gameData, setGameData] = useState<{
     id: string;
     title: string;
+    description: string;
     shareCode: string;
     numQuestions: number;
     playTime: string;
@@ -44,6 +45,7 @@ function GamePreviewContent() {
           setGameData({
             id: game.id,
             title: game.title,
+            description: game.description || '',
             shareCode: game.shareCode,
             numQuestions: game.quiz.numQuestions,
             playTime: `~${estimatedMinutes}min`,
@@ -119,10 +121,7 @@ function GamePreviewContent() {
   }
 
   return (
-    <div className="min-h-screen bg-[#fffaf2]">
-      <Navbar showSignOut={true} />
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* title */}
         <h1 className="font-quicksand font-bold text-brown text-[36px] sm:text-[48px] text-center mb-12">
           Your Game is Ready!
@@ -133,6 +132,18 @@ function GamePreviewContent() {
           <div className="space-y-6">
             {/* game preview card */}
             <div className="bg-[#fffcf8] border-4 border-brown rounded-[15px] p-6">
+              {/* game title and description */}
+              <div className="mb-4">
+                <h2 className="font-quicksand font-bold text-brown text-[24px] mb-2">
+                  {gameData.title}
+                </h2>
+                {gameData.description && (
+                  <p className="font-quicksand text-[#717182] text-[14px] leading-relaxed">
+                    {gameData.description}
+                  </p>
+                )}
+              </div>
+
               {/* game image/thumbnail */}
               <div className="relative w-full aspect-video bg-[#f1e8d9] rounded-[20px] mb-6 overflow-hidden flex items-center justify-center">
                 <img
@@ -252,7 +263,7 @@ function GamePreviewContent() {
                 {/* copied feedback */}
                 {showCopiedFeedback && (
                   <div className="mt-3 bg-[#96b902] text-white font-quicksand font-bold text-sm py-2 px-4 rounded-lg text-center transition-opacity">
-                    ✓ Link copied to clipboard!
+                    Link copied to clipboard!
                   </div>
                 )}
               </div>
@@ -268,7 +279,6 @@ function GamePreviewContent() {
             </div>
           </div>
         </div>
-      </main>
     </div>
   );
 }
@@ -282,7 +292,9 @@ export default function GamePreview() {
         </div>
       </div>
     }>
-      <GamePreviewContent />
+      <TeacherPageLayout>
+        <GamePreviewContent />
+      </TeacherPageLayout>
     </Suspense>
   );
 }
