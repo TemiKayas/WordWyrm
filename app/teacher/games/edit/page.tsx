@@ -102,7 +102,7 @@ function GameEditContent() {
         if (result.success) {
             const quizzes = result.data.quizzes
                 .filter((q: {id: string}) => !attachedPDFs.some((p) => p.quizId === q.id))
-                .map((q: {id: string; title?: string; pdfFilename?: string; numQuestions: number}) => ({
+                .map((q: {id: string; title: string | null; pdfFilename?: string; numQuestions: number}) => ({
                     id: q.id,
                     title: q.title || 'Untitled',
                     pdfFilename: q.pdfFilename || 'unknown.pdf',
