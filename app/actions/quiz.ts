@@ -14,8 +14,8 @@ type QuizWithGame = PrismaQuiz & {
   games: Game[];
 };
 
-// get all quizzes for the logged-in teacher
-export async function getTeacherQuizzes(): Promise<
+// get all quizzes for the logged-in teacher, optionally filtered by classId
+export async function getTeacherQuizzes(classId?: string): Promise<
   ActionResult<{
     quizzes: Array<{
       id: string;
@@ -41,6 +41,7 @@ export async function getTeacherQuizzes(): Promise<
       where: { userId: session.user.id },
       include: {
         pdfs: {
+          where: classId ? { classId } : undefined,
           include: {
             processedContent: {
               include: {

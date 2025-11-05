@@ -29,6 +29,24 @@ export async function uploadAndProcessPDF(
       return { success: false, error: 'Teacher profile not found' };
     }
 
+    // Get and validate classId
+    const classId = formData.get('classId') as string;
+    if (!classId) {
+      return { success: false, error: 'Class ID is required' };
+    }
+
+    // Verify class belongs to teacher
+    const classExists = await db.class.findFirst({
+      where: {
+        id: classId,
+        teacherId: teacher.id,
+      },
+    });
+
+    if (!classExists) {
+      return { success: false, error: 'Invalid class or unauthorized' };
+    }
+
     // Get and validate file
     const file = formData.get('pdf') as File;
     if (!file) {
@@ -58,6 +76,7 @@ export async function uploadAndProcessPDF(
     const pdfRecord = await db.pDF.create({
       data: {
         teacherId: teacher.id,
+        classId: classId,
         filename: file.name,
         blobUrl,
         fileSize: file.size,

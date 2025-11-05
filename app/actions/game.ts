@@ -42,6 +42,24 @@ export async function createGame(params: {
       return { success: false, error: 'Teacher profile not found' };
     }
 
+    // Get quiz to find the classId from its PDF
+    const quiz = await db.quiz.findUnique({
+      where: { id: quizId },
+      include: {
+        processedContent: {
+          include: {
+            pdf: true,
+          },
+        },
+      },
+    });
+
+    if (!quiz || !quiz.processedContent?.pdf) {
+      return { success: false, error: 'Quiz or PDF not found' };
+    }
+
+    const classId = quiz.processedContent.pdf.classId;
+
     // gen a unique 6-character code for sharing the game
     const shareCode = await generateUniqueShareCode();
 
@@ -54,6 +72,7 @@ export async function createGame(params: {
       data: {
         quizId,
         teacherId: teacher.id,
+        classId,
         title,
         description,
         shareCode,
@@ -95,6 +114,24 @@ export async function createGameFromQuiz(
       return { success: false, error: 'Teacher profile not found' };
     }
 
+    // Get quiz to find the classId from its PDF
+    const quiz = await db.quiz.findUnique({
+      where: { id: quizId },
+      include: {
+        processedContent: {
+          include: {
+            pdf: true,
+          },
+        },
+      },
+    });
+
+    if (!quiz || !quiz.processedContent?.pdf) {
+      return { success: false, error: 'Quiz or PDF not found' };
+    }
+
+    const classId = quiz.processedContent.pdf.classId;
+
     // gen a unique 6-character code for sharing the game
     const shareCode = await generateUniqueShareCode();
 
@@ -107,6 +144,7 @@ export async function createGameFromQuiz(
       data: {
         quizId,
         teacherId: teacher.id,
+        classId,
         title,
         shareCode,
         qrCodeUrl,
@@ -131,6 +169,8 @@ export async function getGameWithQuiz(
   idOrShareCode: string
 ): Promise<ActionResult<{ game: GameWithQuiz }>> {
   try {
+    const session = await auth();
+
     // try to find game by share code first (more common for students)
     // if it's a long string (cuid), it's probably an ID
     let game;
@@ -145,6 +185,11 @@ export async function getGameWithQuiz(
               processedContent: true,
             },
           },
+          teacher: {
+            include: {
+              user: true,
+            },
+          },
         },
       });
     } else {
@@ -157,6 +202,11 @@ export async function getGameWithQuiz(
               processedContent: true,
             },
           },
+          teacher: {
+            include: {
+              user: true,
+            },
+          },
         },
       });
     }
@@ -164,6 +214,37 @@ export async function getGameWithQuiz(
     // if the game is not found, return an error.
     if (!game) {
       return { success: false, error: 'Game not found' };
+    }
+
+    // Check class membership for students
+    if (session?.user) {
+      // If user is the teacher who created the game, allow access
+      if (session.user.role === 'TEACHER' && game.teacher.userId === session.user.id) {
+        return { success: true, data: { game } };
+      }
+
+      // For students (or other teachers), check class membership
+      const membership = await db.classMembership.findUnique({
+        where: {
+          classId_userId: {
+            classId: game.classId,
+            userId: session.user.id,
+          },
+        },
+      });
+
+      if (!membership) {
+        return {
+          success: false,
+          error: 'You must be a member of this class to access this game. Please join the class first.'
+        };
+      }
+    } else {
+      // If no session, require login
+      return {
+        success: false,
+        error: 'Please log in to access this game.'
+      };
     }
 
     // return game data on success.
