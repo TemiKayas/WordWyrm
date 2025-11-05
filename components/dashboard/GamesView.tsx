@@ -21,6 +21,7 @@ interface Game {
 
 interface GamesViewProps {
   onCreateGame?: () => void;
+  classId?: string;
 }
 
 function formatTimeAgo(date: Date): string {
@@ -37,14 +38,14 @@ function formatTimeAgo(date: Date): string {
   return `${Math.floor(diffInDays / 30)} months ago`;
 }
 
-export default function GamesView({ onCreateGame }: GamesViewProps) {
+export default function GamesView({ onCreateGame, classId }: GamesViewProps) {
   const router = useRouter();
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadGames() {
-      const result = await getTeacherQuizzes();
+      const result = await getTeacherQuizzes(classId);
       if (result.success) {
         const formattedGames = result.data.quizzes.map(quiz => ({
           id: quiz.id,
@@ -71,7 +72,7 @@ export default function GamesView({ onCreateGame }: GamesViewProps) {
 
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
-  }, []);
+  }, [classId]);
 
   const recentGames = games.filter(g => g.hasGame);
   const drafts = games.filter(g => !g.hasGame);
