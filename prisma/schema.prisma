@@ -49,6 +49,7 @@ enum Subject {
 enum GameMode {
   TRADITIONAL  // Standard quiz format
   TOWER_DEFENSE // Phaser tower defense game
+  SNAKE        // Snake quiz game with colored apples
 }
 
 // NextAuth.js models

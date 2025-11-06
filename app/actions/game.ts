@@ -4,7 +4,7 @@ import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { generateUniqueShareCode } from '@/lib/utils/share-code';
 import { generateGameQRCode } from '@/lib/utils/qr-code';
-import type { Game, Quiz, ProcessedContent, PDF } from '@prisma/client';
+import type { Game, Quiz, ProcessedContent, PDF, Subject, GameMode } from '@prisma/client';
 
 //type of server action results, success or fail, T is the type of return.
 type ActionResult<T> =
@@ -256,12 +256,13 @@ export async function getGameWithQuiz(
   }
 }
 
-// updates game details (title, description, active status)
+// updates game details (title, description, active status, public visibility)
 export async function updateGame(params: {
   gameId: string;
   title?: string;
   description?: string;
   active?: boolean;
+  isPublic?: boolean;
   maxAttempts?: number;
   timeLimit?: number | null;
 }): Promise<ActionResult<{ game: Game }>> {
@@ -466,5 +467,128 @@ export async function removeQuizFromGame(params: {
   } catch (error) {
     console.error('Failed to remove quiz from game:', error);
     return { success: false, error: 'Failed to remove quiz from game' };
+  }
+}
+
+// Filters for public games discovery
+export interface PublicGameFilters {
+  subject?: Subject;
+  gameMode?: GameMode;
+  search?: string;
+  sortBy?: 'newest' | 'mostPlayed';
+}
+
+// Get public games for discovery page
+export async function getPublicGames(
+  filters?: PublicGameFilters
+): Promise<
+  ActionResult<{
+    games: Array<{
+      id: string;
+      title: string;
+      description: string | null;
+      gameMode: GameMode;
+      shareCode: string;
+      imageUrl: string | null;
+      createdAt: Date;
+      teacher: {
+        name: string;
+        school: string | null;
+      };
+      quiz: {
+        subject: Subject;
+        numQuestions: number;
+      };
+      _count: {
+        gameSessions: number;
+      };
+    }>;
+  }>
+> {
+  try {
+    // Build where clause
+    const where: any = {
+      isPublic: true,
+      active: true,
+    };
+
+    // Apply filters
+    if (filters?.subject) {
+      where.quiz = {
+        subject: filters.subject,
+      };
+    }
+
+    if (filters?.gameMode) {
+      where.gameMode = filters.gameMode;
+    }
+
+    if (filters?.search) {
+      where.title = {
+        contains: filters.search,
+        mode: 'insensitive',
+      };
+    }
+
+    // Build orderBy
+    const orderBy: any = filters?.sortBy === 'mostPlayed'
+      ? [{ gameSessions: { _count: 'desc' } }]
+      : [{ createdAt: 'desc' }];
+
+    // Fetch public games
+    const games = await db.game.findMany({
+      where,
+      include: {
+        teacher: {
+          include: {
+            user: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+        quiz: {
+          select: {
+            subject: true,
+            numQuestions: true,
+          },
+        },
+        _count: {
+          select: {
+            gameSessions: true,
+          },
+        },
+      },
+      orderBy,
+      take: 50, // Limit to 50 games
+    });
+
+    // Transform data
+    const transformedGames = games.map((game) => ({
+      id: game.id,
+      title: game.title,
+      description: game.description,
+      gameMode: game.gameMode,
+      shareCode: game.shareCode,
+      imageUrl: game.imageUrl,
+      createdAt: game.createdAt,
+      teacher: {
+        name: game.teacher.user.name,
+        school: game.teacher.school,
+      },
+      quiz: {
+        subject: game.quiz.subject,
+        numQuestions: game.quiz.numQuestions,
+      },
+      _count: {
+        gameSessions: game._count.gameSessions,
+      },
+    }));
+
+    return { success: true, data: { games: transformedGames } };
+  } catch (error) {
+    console.error('Failed to get public games:', error);
+    return { success: false, error: 'Failed to retrieve public games' };
   }
 }

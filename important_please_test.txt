@@ -1,0 +1,431 @@
+# IMPORTANT - PLEASE TEST: Sprint 5 Features
+
+## OVERVIEW
+
+This sprint includes TWO major features: (1) A Snake Quiz Game and (2) Public Games Discovery system. The Snake Quiz is a Phaser-based game where players control a snake that eats colored apples matching multiple-choice answers, with dynamic grid sizing, 5-second pauses between questions, and safe spawn zones. The Public Games Discovery system allows teachers to make their games publicly discoverable through a library at /discover with advanced filtering (search, subject, game mode, sort by newest/most played). Teachers now have two separate toggles in the edit UI: one for Active/Draft status and another for Public Discovery visibility, giving fine-grained control over game visibility.
+
+================================================================================
+## SNAKE QUIZ GAME - QUICK OVERVIEW
+================================================================================
+
+### What Is It?
+A Phaser-based quiz game where you play as a snake. Four colored apples appear on the grid (red, green, yellow, blue) matching the four multiple-choice answers. Eat the correct apple to advance!
+
+### Key Features:
+- Dynamic grid sizing based on question count (scales from 10×10 to 20×20)
+- 5-second pause overlay between questions ("PAUSED - Read the question!")
+- Safe spawn zones (apples won't spawn within 3 cells of snake head)
+- Arrow keys or WASD controls
+- Centered square game area with proper depth layering
+- Question panel on the left side showing current question and options
+
+### How to Test:
+1. Create a game and select "Snake Quiz" as the game mode (during game creation)
+2. Navigate to the game via share code or direct link
+3. Use arrow keys or WASD to move the snake
+4. Eat the colored apple matching the correct answer
+5. Watch for the 5-second pause overlay between questions
+6. Complete all questions to finish the game
+
+### Technical Highlights:
+- File: lib/phaser/SnakeScene.ts (575+ lines)
+- Dynamic GRID_SIZE calculation fills screen horizontally
+- Manhattan distance algorithm prevents instant death from spawning
+- Depth layering (1000/1001) ensures pause text always visible
+- Grid offsets (gameOffsetX, gameOffsetY) center the playable area
+
+================================================================================
+## PUBLIC GAMES DISCOVERY - HOW TO TEST (STEP BY STEP)
+================================================================================
+
+### PART 1: Set Up a Public Game
+
+1. Start your dev server (npm run dev) and go to http://localhost:3000
+
+2. Log in as a TEACHER account
+   - If you don't have one, sign up at /signup
+
+3. Create a game (if you don't have one already):
+   - Dashboard → Click on a class → "Create Game" button
+   - Upload a PDF → Generate quiz → Publish game
+
+4. Edit the game to make it public:
+   - Dashboard → Click on your class → Find a game → Click "Edit"
+
+5. In the Game Settings section, you'll see TWO toggles:
+   - Toggle #1: "Active" - Turn this ON (green)
+     └─ This makes the game active (not a draft)
+   - Toggle #2: "Public Discovery" - Turn this ON (green)
+     └─ This makes the game visible in public discovery
+
+6. Click "Save Game" button at the bottom
+
+7. IMPORTANT: Both toggles must be ON (green) for the game to appear in discovery!
+
+### PART 2: Test the Discovery Page
+
+8. Navigate to http://localhost:3000/discover
+   - You should see your public game displayed in a card
+
+9. Test the FILTERS (left sidebar):
+
+   a) SEARCH:
+      - Type part of your game title in the search box
+      - The game should appear if it matches
+
+   b) SUBJECT FILTER:
+      - Click the "Subject" dropdown
+      - Select a subject (English, Math, Science, History, Language, General)
+      - Only games with that subject should appear
+
+   c) GAME MODE FILTER:
+      - Click the "Game Mode" dropdown
+      - Select a mode (Traditional Quiz, Tower Defense, Snake Quiz)
+      - Only games with that mode should appear
+
+   d) SORT BY:
+      - Click "Sort By" dropdown
+      - Toggle between "Newest" and "Most Played"
+      - Games should reorder accordingly
+
+   e) CLEAR FILTERS:
+      - Click "Clear Filters" button
+      - All filters should reset to default
+
+10. Test the GAME CARD:
+    - You should see:
+      └─ Game icon/image (🐍 for Snake, 🏰 for Tower Defense, 📝 for Traditional)
+      └─ Game title and description
+      └─ Subject badge (colored: purple=English, blue=Math, green=Science, etc.)
+      └─ Game mode badge (orange)
+      └─ Teacher name and school
+      └─ Number of questions
+      └─ Number of times played
+      └─ "Play Now" button
+
+11. Click "PLAY NOW" button:
+    - For Snake games: should route to /play/snake?gameId={id}
+    - For Tower Defense: should route to /play/td?gameId={id}
+    - For Traditional: should route to /play/phaser/{shareCode}
+
+### PART 3: Test Toggle Combinations
+
+12. Go back to the game edit page and test different toggle combinations:
+
+    Scenario A: Active=ON, Public Discovery=OFF
+    ├─ Game is playable by class members
+    └─ Game does NOT appear in /discover
+
+    Scenario B: Active=OFF, Public Discovery=ON
+    ├─ Game is in draft mode
+    └─ Game does NOT appear in /discover (requires both to be ON)
+
+    Scenario C: Active=ON, Public Discovery=ON
+    ├─ Game is playable by class members
+    └─ Game APPEARS in /discover ✓
+
+    Scenario D: Active=OFF, Public Discovery=OFF
+    ├─ Game is in draft mode
+    └─ Game does NOT appear in /discover
+
+13. Verify the database changes:
+    - Open Prisma Studio: npx prisma studio
+    - Navigate to "Game" model
+    - Find your game
+    - Verify that:
+      └─ "active" field matches the Active toggle
+      └─ "isPublic" field matches the Public Discovery toggle
+
+### PART 4: Test Edge Cases
+
+14. Test with NO public games:
+    - Turn off both toggles on all games
+    - Visit /discover
+    - Should see "No Games Found" message with 🔍 icon
+
+15. Test with multiple games:
+    - Create 3-5 games with different subjects and game modes
+    - Make them all public (both toggles ON)
+    - Visit /discover
+    - Test that filtering works correctly with multiple results
+
+16. Test the count display:
+    - Bottom of game cards area should show: "X games found"
+    - This should update as you apply filters
+
+================================================================================
+## IN-DEPTH EXPLANATION - TECHNICAL DETAILS
+================================================================================
+
+### FILES CREATED
+
+1. app/discover/page.tsx (204 lines)
+   └─ Main public games discovery page
+   └─ Client component with filters and game grid
+
+   Key Features:
+   - Lines 15-19: Filter state (subject, gameMode, search, sortBy)
+   - Lines 22-43: useEffect fetches games whenever filters change
+   - Lines 76-159: Filter sidebar (Search, Subject, Game Mode, Sort By, Clear)
+   - Lines 163-198: Games grid with loading/error/empty states
+   - Lines 191-195: Maps games to PublicGameCard components
+
+2. components/discover/PublicGameCard.tsx (128 lines)
+   └─ Individual game card component
+
+   Key Features:
+   - Lines 6-26: TypeScript interface for game props
+   - Lines 29-42: Constants for labels and colors
+   - Lines 47-56: handlePlay() routes based on game mode
+   - Lines 59-73: Game image/icon display
+   - Lines 87-102: Subject and Game Mode badges
+   - Lines 104-116: Metadata (teacher, school, questions, plays)
+   - Lines 119-124: "Play Now" button
+
+### FILES MODIFIED
+
+3. app/actions/game.ts
+
+   ADDITION #1: PublicGameFilters interface (Lines 473-478)
+   └─ Defines filter options: subject, gameMode, search, sortBy
+
+   ADDITION #2: getPublicGames() function (Lines 481-593)
+   └─ Server action to fetch public games with filters
+
+   Implementation Details:
+   - Lines 509-512: WHERE clause requires isPublic=true AND active=true
+   - Lines 515-530: Applies filters (subject, gameMode, search)
+   - Lines 533-535: Builds orderBy (newest or mostPlayed)
+   - Lines 538-564: Prisma query with includes (teacher, quiz, session count)
+   - Lines 567-586: Transforms data to match interface
+   - Line 563: Limits results to 50 games for performance
+
+   MODIFICATION #1: updateGame() function signature (Lines 259-268)
+   └─ Added isPublic?: boolean parameter
+   └─ Allows updating both active AND isPublic fields
+   └─ Comment updated to reflect "public visibility"
+
+4. app/teacher/games/edit/page.tsx
+
+   MODIFICATION #1: State variables (Lines 44-45)
+   BEFORE:
+   - const [isPublic, setIsPublic] = useState(true);
+
+   AFTER:
+   - const [isActive, setIsActive] = useState(true);
+   - const [isPublic, setIsPublic] = useState(false);
+
+   └─ Separated active status from public visibility
+
+   MODIFICATION #2: Loading game data (Lines 73-80)
+   BEFORE:
+   - setIsPublic(game.active);
+
+   AFTER:
+   - setIsActive(game.active);
+   - setIsPublic(game.isPublic);
+
+   └─ Now loads both fields correctly from database
+
+   MODIFICATION #3: Saving game data (Lines 148-159)
+   BEFORE:
+   - active: isPublic,
+
+   AFTER:
+   - active: isActive,
+   - isPublic: isPublic,
+
+   └─ Saves both fields separately
+
+   MODIFICATION #4: UI Toggle Section (Lines 323-360)
+   BEFORE:
+   - Single "Public" toggle
+
+   AFTER:
+   - Two separate toggles:
+
+   Toggle #1: Active (Lines 324-341)
+   ├─ Label: "Active"
+   ├─ Subtitle: "Game is active/draft"
+   ├─ Controls: isActive state
+   └─ Database field: active
+
+   Toggle #2: Public Discovery (Lines 342-359)
+   ├─ Label: "Public Discovery"
+   ├─ Subtitle: "Visible in discovery/Class only"
+   ├─ Controls: isPublic state
+   └─ Database field: isPublic
+
+### DATABASE FIELDS USED
+
+From prisma/schema.prisma:
+
+Game model fields:
+- active: Boolean (default: true)
+  └─ Controls if game is active or draft
+  └─ Must be true for students to play
+
+- isPublic: Boolean (default: false)
+  └─ Controls if game appears in public discovery
+  └─ Must be true (along with active) to appear in /discover
+
+### ROUTING LOGIC
+
+PublicGameCard.tsx handlePlay() function (Lines 47-56):
+
+if (game.gameMode === 'SNAKE')
+  → router.push(`/play/snake?gameId=${game.id}`)
+
+else if (game.gameMode === 'TOWER_DEFENSE')
+  → router.push(`/play/td?gameId=${game.id}`)
+
+else (TRADITIONAL)
+  → router.push(`/play/phaser/${game.shareCode}`)
+
+### FILTER LOGIC
+
+app/actions/game.ts getPublicGames() (Lines 507-530):
+
+Base WHERE clause:
+- isPublic: true
+- active: true
+
+Applied filters:
+- Subject filter (Lines 515-518):
+  └─ where.quiz = { subject: filters.subject }
+
+- Game Mode filter (Lines 521-523):
+  └─ where.gameMode = filters.gameMode
+
+- Search filter (Lines 525-529):
+  └─ where.title = { contains: filters.search, mode: 'insensitive' }
+
+Sort options (Lines 533-535):
+- "mostPlayed": [{ gameSessions: { _count: 'desc' } }]
+- "newest": [{ createdAt: 'desc' }]
+
+### STYLING & COLORS
+
+Subject Badge Colors (PublicGameCard.tsx Lines 35-42):
+- ENGLISH: purple-100 bg, purple-700 text, purple-300 border
+- MATH: blue-100 bg, blue-700 text, blue-300 border
+- SCIENCE: green-100 bg, green-700 text, green-300 border
+- HISTORY: orange-100 bg, orange-700 text, orange-300 border
+- LANGUAGE: pink-100 bg, pink-700 text, pink-300 border
+- GENERAL: gray-100 bg, gray-700 text, gray-300 border
+
+Game Mode Badge (PublicGameCard.tsx Line 99):
+- Orange background (#fd9227)
+- White text
+- Red border (#730f11)
+
+### KEY DESIGN DECISIONS
+
+1. BOTH active AND isPublic must be true
+   └─ Prevents draft games from appearing publicly
+   └─ Gives teachers granular control
+
+2. Query limit of 50 games (Line 563)
+   └─ Prevents performance issues
+   └─ Can be increased if needed
+
+3. Case-insensitive search (Line 528)
+   └─ Better UX, finds "math" and "Math"
+
+4. Separate routing for each game mode
+   └─ Snake uses ?gameId query param
+   └─ Tower Defense uses ?gameId query param
+   └─ Traditional uses /[shareCode] dynamic route
+
+5. Empty states for better UX
+   └─ No games: "No Games Found" with 🔍
+   └─ Loading: "Loading games..." spinner
+   └─ Error: Red error box
+
+### DEPENDENCIES
+
+No new npm packages were installed. Uses existing:
+- Next.js 15 (App Router)
+- Prisma (database queries)
+- React hooks (useState, useEffect)
+- next/navigation (useRouter)
+
+### POTENTIAL IMPROVEMENTS (Future)
+
+1. Pagination for >50 games
+2. Filter by rating or popularity
+3. Game preview modal
+4. Teacher profile pages
+5. "Save to Favorites" feature
+6. Analytics on discovery page views
+7. Featured games section
+8. Recently viewed games
+9. Filter by difficulty level
+10. Multi-select filters (e.g., Math AND Science)
+
+================================================================================
+## TESTING CHECKLIST
+================================================================================
+
+Basic Functionality:
+[ ] Can see discover page at /discover
+[ ] Can see public games in grid layout
+[ ] Game cards display all metadata correctly
+[ ] "Play Now" button routes to correct game page
+
+Filters:
+[ ] Search filter works
+[ ] Subject filter works
+[ ] Game Mode filter works
+[ ] Sort by Newest works
+[ ] Sort by Most Played works
+[ ] Clear Filters resets everything
+[ ] Multiple filters can be applied together
+
+Edit Page Toggles:
+[ ] Active toggle changes game.active field
+[ ] Public Discovery toggle changes game.isPublic field
+[ ] Both toggles save correctly
+[ ] Toggling both ON makes game appear in discovery
+[ ] Toggling either OFF removes game from discovery
+
+Edge Cases:
+[ ] No public games shows empty state
+[ ] Filter with no results shows "No Games Found"
+[ ] Games with no description still display correctly
+[ ] Games without school name still display correctly
+
+Database Verification:
+[ ] Check Prisma Studio to confirm active field updates
+[ ] Check Prisma Studio to confirm isPublic field updates
+
+================================================================================
+## TROUBLESHOOTING
+================================================================================
+
+Issue: Game doesn't appear in /discover
+Solution:
+- Check that BOTH Active AND Public Discovery toggles are ON (green)
+- Verify in Prisma Studio that active=true AND isPublic=true
+
+Issue: Filters don't work
+Solution:
+- Clear browser cache and refresh
+- Check browser console for errors
+- Verify dev server is running
+
+Issue: "Play Now" button doesn't work
+Solution:
+- Check that the game has a valid shareCode (for Traditional)
+- Check that the game has a valid ID (for Snake/TD)
+- Verify game mode is set correctly in database
+
+Issue: Can't save toggles
+Solution:
+- Check browser console for errors
+- Verify you're logged in as a teacher
+- Check that you own the game you're editing
+
+================================================================================
+END OF DOCUMENTATION
+================================================================================
