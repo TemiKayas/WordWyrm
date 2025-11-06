@@ -34,16 +34,8 @@ async function migrateToClasses() {
     const teachers = await prisma.teacher.findMany({
       include: {
         user: true,
-        pdfs: {
-          where: {
-            classId: null, // Only get PDFs not yet assigned to a class
-          },
-        },
-        games: {
-          where: {
-            classId: null, // Only get Games not yet assigned to a class
-          },
-        },
+        pdfs: true,
+        games: true,
       },
     });
 
@@ -87,32 +79,15 @@ async function migrateToClasses() {
         console.log(`  ✅ "Default" class already exists`);
       }
 
-      // Assign PDFs to default class
+      // Note: PDFs and Games now require classId in schema
+      // This migration logic is preserved for reference but won't match any records
+      // since classId is a required field
       if (teacher.pdfs.length > 0) {
-        console.log(`  📄 Assigning ${teacher.pdfs.length} PDFs to "Default" class...`);
-        await prisma.pDF.updateMany({
-          where: {
-            teacherId: teacher.id,
-            classId: null,
-          },
-          data: {
-            classId: defaultClass.id,
-          },
-        });
+        console.log(`  📄 ${teacher.pdfs.length} PDFs already have class assignments`);
       }
 
-      // Assign Games to default class
       if (teacher.games.length > 0) {
-        console.log(`  🎮 Assigning ${teacher.games.length} Games to "Default" class...`);
-        await prisma.game.updateMany({
-          where: {
-            teacherId: teacher.id,
-            classId: null,
-          },
-          data: {
-            classId: defaultClass.id,
-          },
-        });
+        console.log(`  🎮 ${teacher.games.length} Games already have class assignments`);
       }
 
       console.log(`  ✅ Teacher migration complete\n`);

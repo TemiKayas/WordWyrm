@@ -87,7 +87,7 @@ function TowerDefenseContent() {
           if (typeof gameData.quiz.quizJson === 'string') {
             gameData.quiz.quizJson = JSON.parse(gameData.quiz.quizJson);
           }
-          setQuiz(gameData.quiz.quizJson as Quiz);
+          setQuiz(gameData.quiz.quizJson as unknown as Quiz);
         } else {
           // set error state if fetch fails
           setError(result.error);

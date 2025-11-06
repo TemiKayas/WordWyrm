@@ -8,7 +8,8 @@
       "Bash(npm run typecheck:*)",
       "Bash(npx prisma migrate dev:*)",
       "Bash(npx prisma db push:*)",
-      "Bash(npx ts-node:*)"
+      "Bash(npx ts-node:*)",
+      "Bash(npm run build:*)"
     ],
     "deny": [],
     "ask": []
