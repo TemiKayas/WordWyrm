@@ -18,14 +18,15 @@ type GameWithQuiz = Game & {
   };
 };
 
-// creates a new game with full settings (title, description, etc.)
+// creates a new game with full settings (title, description, game mode, etc.)
 export async function createGame(params: {
   quizId: string;
   title: string;
   description?: string;
+  gameMode?: GameMode;
 }): Promise<ActionResult<{ gameId: string; shareCode: string }>> {
   try {
-    const { quizId, title, description } = params;
+    const { quizId, title, description, gameMode } = params;
 
     // ensure user is a teacher
     const session = await auth();
@@ -77,6 +78,7 @@ export async function createGame(params: {
         description,
         shareCode,
         qrCodeUrl,
+        gameMode: gameMode || GameMode.TRADITIONAL,
       },
     });
 
@@ -216,7 +218,12 @@ export async function getGameWithQuiz(
       return { success: false, error: 'Game not found' };
     }
 
-    // Check class membership for students
+    // If game is public and active, allow access to anyone
+    if (game.isPublic && game.active) {
+      return { success: true, data: { game } };
+    }
+
+    // For private games, check authentication and membership
     if (session?.user) {
       // If user is the teacher who created the game, allow access
       if (session.user.role === 'TEACHER' && game.teacher.userId === session.user.id) {
@@ -256,13 +263,14 @@ export async function getGameWithQuiz(
   }
 }
 
-// updates game details (title, description, active status, public visibility)
+// updates game details (title, description, active status, public visibility, game mode)
 export async function updateGame(params: {
   gameId: string;
   title?: string;
   description?: string;
   active?: boolean;
   isPublic?: boolean;
+  gameMode?: GameMode;
   maxAttempts?: number;
   timeLimit?: number | null;
 }): Promise<ActionResult<{ game: Game }>> {
@@ -562,6 +570,17 @@ export async function getPublicGames(
       },
       orderBy,
       take: 50, // Limit to 50 games
+    });
+
+    console.log('🔍 Public Games Query Results:', {
+      totalFound: games.length,
+      games: games.map(g => ({
+        id: g.id,
+        title: g.title,
+        gameMode: g.gameMode,
+        active: g.active,
+        isPublic: g.isPublic,
+      }))
     });
 
     // Transform data

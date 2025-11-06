@@ -6,6 +6,7 @@ import { createGame } from '@/app/actions/game';
 import { getQuizById, updateQuizQuestions } from '@/app/actions/quiz';
 import Button from '@/components/ui/Button';
 import TeacherPageLayout from '@/components/shared/TeacherPageLayout';
+import { GameMode } from '@prisma/client';
 
 interface QuizQuestion {
   question: string;
@@ -27,6 +28,7 @@ function GameSettingsContent() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [isPublic, setIsPublic] = useState(true);
+  const [gameMode, setGameMode] = useState<GameMode>(GameMode.TRADITIONAL);
 
   // Quiz questions state
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
@@ -147,6 +149,7 @@ function GameSettingsContent() {
         quizId,
         title,
         description,
+        gameMode,
       });
 
       if (result.success) {
@@ -280,6 +283,23 @@ function GameSettingsContent() {
                   placeholder="Tell your students what this game is about..."
                   className="w-full bg-[#fff6e8] border-[3px] border-[#ffb554] rounded-[11px] h-[100px] px-4 py-3 font-quicksand text-[#473025] text-[14px] placeholder:text-[#be9f91] focus:outline-none focus:ring-4 focus:ring-[#ff9f22]/30 focus:border-[#ff9f22] hover:border-[#ff9f22] transition-all resize-none"
                 />
+              </div>
+
+              {/* Game Mode */}
+              <div>
+                <label htmlFor="gameMode" className="font-quicksand font-bold text-[#473025] text-[14px] md:text-[16px] mb-2 block">
+                  Game Mode *
+                </label>
+                <select
+                  id="gameMode"
+                  value={gameMode}
+                  onChange={(e) => setGameMode(e.target.value as GameMode)}
+                  className="w-full bg-[#fff6e8] border-[3px] border-[#ffb554] rounded-[11px] h-[50px] md:h-[55px] px-4 font-quicksand font-semibold text-[#473025] text-[14px] focus:outline-none focus:ring-4 focus:ring-[#ff9f22]/30 focus:border-[#ff9f22] hover:border-[#ff9f22] transition-all"
+                >
+                  <option value={GameMode.TRADITIONAL}>📝 Traditional Quiz</option>
+                  <option value={GameMode.TOWER_DEFENSE}>🏰 Tower Defense</option>
+                  <option value={GameMode.SNAKE}>🐍 Snake Quiz</option>
+                </select>
               </div>
 
               {/* Privacy Settings */}

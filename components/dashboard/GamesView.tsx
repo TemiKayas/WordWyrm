@@ -17,6 +17,7 @@ interface Game {
   shareCode?: string;
   hasGame: boolean;
   qrCodeUrl?: string | null;
+  gameMode?: string;
 }
 
 interface GamesViewProps {
@@ -58,6 +59,7 @@ export default function GamesView({ onCreateGame, classId }: GamesViewProps) {
           shareCode: quiz.shareCode,
           hasGame: quiz.hasGame,
           qrCodeUrl: quiz.qrCodeUrl || null,
+          gameMode: quiz.gameMode,
         }));
         setGames(formattedGames);
       }
@@ -78,7 +80,11 @@ export default function GamesView({ onCreateGame, classId }: GamesViewProps) {
   const drafts = games.filter(g => !g.hasGame);
 
   const handlePlay = (game: Game) => {
-    if (game.shareCode) {
+    if (game.gameMode === 'SNAKE') {
+      router.push(`/play/snake?gameId=${game.gameId}`);
+    } else if (game.gameMode === 'TOWER_DEFENSE') {
+      router.push(`/play/td?gameId=${game.gameId}`);
+    } else if (game.shareCode) {
       router.push(`/play/phaser/${game.shareCode}`);
     }
   };

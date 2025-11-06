@@ -1,4 +1,35 @@
-# IMPORTANT - PLEASE TEST: Sprint 5 Features
+# IMPORTANT - PLEASE TEST: Sprint 5 Features + Bug Fixes
+
+## COMPLETE FEATURE LIST (Quick Summary)
+
+### Core Features (Sprint 5)
+- ✅ Snake Quiz Game - Phaser-based game where snake eats colored apples matching quiz answers
+- ✅ Dynamic grid sizing (10×10 to 20×20 based on question count)
+- ✅ 5-second pause overlay between questions
+- ✅ Safe spawn zones (apples won't spawn near snake head)
+- ✅ Arrow keys + WASD controls
+- ✅ Question panel with colored answer options
+- ✅ Public Games Discovery system at /discover with filters
+- ✅ Search filter (by game title)
+- ✅ Subject filter (English, Math, Science, History, Language, General)
+- ✅ Game Mode filter (Traditional, Tower Defense, Snake)
+- ✅ Sort by Newest or Most Played
+- ✅ PublicGameCard component with game metadata and badges
+- ✅ Separate Active and Public Discovery toggles in game edit UI
+- ✅ Database fields: active (draft/active) and isPublic (discoverable)
+
+### Hotfixes & Improvements (Latest Session)
+- ✅ Added game mode dropdown to game creation page (Traditional, Tower Defense, Snake)
+- ✅ Added game mode dropdown to game edit page
+- ✅ Fixed dashboard game cards showing wrong icon (always showed tower defense)
+- ✅ Fixed Play button routing to wrong game type (now checks gameMode field)
+- ✅ Added exit button to Snake game (top left, red, navigates back)
+- ✅ Repositioned Snake game UI (score top right, exit top left)
+- ✅ Implemented /teacher/discover page with full public games functionality
+- ✅ Created /student/discover page with same functionality
+- ✅ Fixed SlidingSidebar to use dynamic role-based routes (/student or /teacher)
+- ✅ Fixed public game access - no class membership required for public games
+- ✅ Added console.log debugging to getPublicGames for troubleshooting
 
 ## OVERVIEW
 
@@ -157,9 +188,42 @@ A Phaser-based quiz game where you play as a snake. Four colored apples appear o
 ## IN-DEPTH EXPLANATION - TECHNICAL DETAILS
 ================================================================================
 
-### FILES CREATED
+### SNAKE QUIZ GAME - FILES CREATED
 
-1. app/discover/page.tsx (204 lines)
+1. lib/phaser/SnakeScene.ts (575+ lines)
+   └─ Core Phaser game scene for Snake Quiz
+
+   Key Implementation Details:
+   - Lines 1-50: Imports, interfaces, and class setup
+   - Lines 51-125: Grid sizing calculations (dynamic based on question count)
+   - Lines 126-180: create() method - initializes game, UI, and snake
+   - Lines 181-250: startRound() - spawns apples, shows question
+   - Lines 251-320: update() - game loop, snake movement, collision detection
+   - Lines 321-380: spawnApple() - safe spawn zones with Manhattan distance
+   - Lines 381-450: showPauseOverlay() - 5-second countdown between questions
+   - Lines 451-520: handleCorrectAnswer() / handleWrongAnswer()
+   - Lines 521-575: Helper methods and game over logic
+
+   Critical Features:
+   - Dynamic grid: gridWidth/gridHeight scale from 10×10 to 20×20 based on question count
+   - Safe spawn: isTooCloseToSnakeHead() uses Manhattan distance < 3 cells
+   - Depth management: Pause overlay at depth 1000, text at 1001
+   - Centered rendering: gameOffsetX and gameOffsetY position the grid
+   - Color mapping: Red→0, Green→1, Yellow→2, Blue→3 for answer options
+
+2. components/game/SnakeGame.tsx (120+ lines)
+   └─ React wrapper component for Phaser Snake game
+   └─ Same pattern as TowerDefenseGame.tsx
+   └─ Handles dynamic Phaser import and scene initialization
+
+3. app/play/snake/page.tsx (150+ lines)
+   └─ Route page for playing Snake games
+   └─ Uses ?gameId query parameter (matches Tower Defense pattern)
+   └─ Verifies gameMode === 'SNAKE' before rendering
+
+### PUBLIC GAMES DISCOVERY - FILES CREATED
+
+4. app/discover/page.tsx (204 lines)
    └─ Main public games discovery page
    └─ Client component with filters and game grid
 
@@ -170,7 +234,7 @@ A Phaser-based quiz game where you play as a snake. Four colored apples appear o
    - Lines 163-198: Games grid with loading/error/empty states
    - Lines 191-195: Maps games to PublicGameCard components
 
-2. components/discover/PublicGameCard.tsx (128 lines)
+5. components/discover/PublicGameCard.tsx (128 lines)
    └─ Individual game card component
 
    Key Features:
@@ -184,7 +248,28 @@ A Phaser-based quiz game where you play as a snake. Four colored apples appear o
 
 ### FILES MODIFIED
 
-3. app/actions/game.ts
+SNAKE GAME MODIFICATIONS:
+
+1. prisma/schema.prisma
+   └─ Added SNAKE to GameMode enum
+   └─ Allows games to be created with Snake Quiz mode
+
+   Before:
+   enum GameMode {
+     TRADITIONAL
+     TOWER_DEFENSE
+   }
+
+   After:
+   enum GameMode {
+     TRADITIONAL
+     TOWER_DEFENSE
+     SNAKE          // ← Added for Snake Quiz game
+   }
+
+PUBLIC GAMES DISCOVERY MODIFICATIONS:
+
+2. app/actions/game.ts
 
    ADDITION #1: PublicGameFilters interface (Lines 473-478)
    └─ Defines filter options: subject, gameMode, search, sortBy
@@ -205,7 +290,7 @@ A Phaser-based quiz game where you play as a snake. Four colored apples appear o
    └─ Allows updating both active AND isPublic fields
    └─ Comment updated to reflect "public visibility"
 
-4. app/teacher/games/edit/page.tsx
+3. app/teacher/games/edit/page.tsx
 
    MODIFICATION #1: State variables (Lines 44-45)
    BEFORE:
@@ -400,6 +485,177 @@ Database Verification:
 [ ] Check Prisma Studio to confirm isPublic field updates
 
 ================================================================================
+## NEW FEATURES & BUG FIXES (LATEST SESSION)
+================================================================================
+
+### GAME MODE SELECTION
+
+FEATURE: Teachers can now select game mode during game creation and editing
+
+Files Modified:
+1. app/teacher/game-settings/page.tsx (Lines 47, 126-142)
+   - Added gameMode state variable (defaults to TRADITIONAL)
+   - Added dropdown UI between description and privacy settings
+   - Passes gameMode to createGame() server action
+
+2. app/teacher/games/edit/page.tsx (Lines 47, 82, 158, 327-337)
+   - Added gameMode state variable
+   - Loads gameMode from existing game
+   - Saves gameMode when updating
+   - Added identical dropdown UI
+
+How to Test:
+1. Create a new game → See "Game Mode" dropdown with 📝 🏰 🐍 options
+2. Select "Snake Quiz" → Publish game → Verify gameMode saved
+3. Edit existing game → Change game mode → Save → Verify update
+
+### DASHBOARD ICON FIX
+
+BUG FIX: Game cards always showed tower defense icon regardless of actual game mode
+
+Files Modified:
+1. components/dashboard/GameCard.tsx (Lines 5, 14, 27, 134-149)
+   - Added GameMode import from @prisma/client
+   - Added gameMode prop to interface
+   - Updated icon rendering to check gameMode:
+     * SNAKE → 🐍 emoji
+     * TOWER_DEFENSE → tower-defense-game-icon.png
+     * TRADITIONAL → 📝 emoji
+
+2. components/dashboard/GamesView.tsx (Lines 20, 62, 83-89)
+   - Added gameMode to Game interface
+   - Included gameMode in data mapping
+   - Updated handlePlay routing logic:
+     * SNAKE → /play/snake?gameId={id}
+     * TOWER_DEFENSE → /play/td?gameId={id}
+     * Default → /play/phaser/{shareCode}
+
+3. app/actions/quiz.ts (Lines 32, 58, 95)
+   - Added gameMode to return interface
+   - Added gameMode: true to Prisma select
+   - Included gameMode in mapped data
+
+How to Test:
+1. Dashboard → Create Snake game → Card shows 🐍
+2. Dashboard → Create TD game → Card shows 🏰
+3. Dashboard → Create Traditional game → Card shows 📝
+4. Click Play on Snake game → Routes to /play/snake
+5. Click Play on TD game → Routes to /play/td
+
+### SNAKE GAME UI IMPROVEMENTS
+
+FEATURE: Added exit button and repositioned score display
+
+File Modified:
+lib/phaser/SnakeScene.ts (Lines 110-145, 185-190)
+
+Changes:
+- Added red exit button (top left at 70, 30)
+  * Dimensions: 120x40 pixels
+  * Color: 0xff4444 (red)
+  * Hover color: 0xcc3333 (darker red)
+  * Action: window.history.back()
+
+- Repositioned score text (top right of question panel)
+  * Position: (availableWidth - 20, 20)
+  * Origin: (1, 0) for right-alignment
+  * No longer overlaps with game title
+
+How to Test:
+1. Play Snake game → See red "Exit" button top left
+2. Hover over exit button → Color darkens
+3. Click exit button → Returns to previous page
+4. Score appears at top right of black question panel
+
+### DISCOVER PAGE IMPLEMENTATION
+
+FEATURE: Both teachers and students can now browse public games at role-based routes
+
+Files Created:
+1. app/teacher/discover/page.tsx (188 lines)
+   - Replaced "Coming soon" placeholder
+   - Full public games discovery with filters
+   - Uses TeacherPageLayout wrapper
+
+2. app/student/discover/page.tsx (226 lines)
+   - New page for students
+   - Same functionality as teacher version
+   - Uses Navbar + SlidingSidebar layout
+
+How to Test:
+1. Login as teacher → Navigate to /teacher/discover → See public games
+2. Login as student → Navigate to /student/discover → See same games
+3. Test all filters (search, subject, game mode, sort)
+4. Click "Play Now" on any game → Game loads correctly
+
+### SIDEBAR ROUTING FIX
+
+BUG FIX: Sidebar was hardcoded to /teacher routes, breaking student navigation
+
+File Modified:
+components/shared/SlidingSidebar.tsx (Lines 17-18, 25-40, 42-49)
+
+Changes:
+- Added role detection: const isStudent = pathname.startsWith('/student')
+- Added dynamic prefix: const rolePrefix = isStudent ? '/student' : '/teacher'
+- Updated all navigation hrefs to use rolePrefix:
+  * Dashboard: `${rolePrefix}/dashboard`
+  * Discover: `${rolePrefix}/discover`
+  * Shop: `${rolePrefix}/shop`
+  * Games: `${rolePrefix}/games`
+  * Upload: `${rolePrefix}/upload`
+
+How to Test:
+1. Login as student → Click Discover → Goes to /student/discover ✓
+2. Login as teacher → Click Discover → Goes to /teacher/discover ✓
+3. Test all sidebar links for both roles
+
+### PUBLIC GAME ACCESS FIX
+
+BUG FIX: Public games required class membership to play
+
+File Modified:
+app/actions/game.ts getGameWithQuiz() (Lines 221-224)
+
+Changes:
+- Added early return for public games:
+  if (game.isPublic && game.active) {
+    return { success: true, data: { game } };
+  }
+- Moved class membership check after public check
+- Public games now accessible to anyone
+
+How to Test:
+1. Create public game (Active=ON, Public Discovery=ON)
+2. Share link with student NOT in the class
+3. Student clicks link → Game loads ✓ (previously showed "join class" error)
+
+### DEBUGGING IMPROVEMENTS
+
+FEATURE: Added console logging to troubleshoot discover page issues
+
+File Modified:
+app/actions/game.ts getPublicGames() (Lines 570-579)
+
+Added:
+console.log('🔍 Public Games Query Results:', {
+  totalFound: games.length,
+  games: games.map(g => ({
+    id: g.id,
+    title: g.title,
+    gameMode: g.gameMode,
+    active: g.active,
+    isPublic: g.isPublic,
+  }))
+});
+
+How to Use:
+1. Visit /teacher/discover or /student/discover
+2. Check terminal console for "🔍 Public Games Query Results"
+3. Verify which games are being returned
+4. Debug why games might not appear
+
+================================================================================
 ## TROUBLESHOOTING
 ================================================================================
 
@@ -425,6 +681,75 @@ Solution:
 - Check browser console for errors
 - Verify you're logged in as a teacher
 - Check that you own the game you're editing
+
+Issue: Student discover button doesn't work
+Solution:
+- Fixed in latest session (SlidingSidebar now uses dynamic routes)
+- Should now route to /student/discover correctly
+- Clear cache and refresh if still not working
+
+Issue: Wrong game icon showing in dashboard
+Solution:
+- Fixed in latest session (GameCard now checks gameMode prop)
+- Make sure gameMode is saved when creating/editing game
+- Check Prisma Studio to verify gameMode field is correct
+
+Issue: Play button goes to wrong game
+Solution:
+- Fixed in latest session (GamesView now routes based on gameMode)
+- Verify gameMode field is correct in database
+- Test each game mode separately
+
+Issue: Public game requires class membership
+Solution:
+- Fixed in latest session (getGameWithQuiz checks isPublic first)
+- Make sure game has isPublic=true AND active=true
+- Try accessing game in incognito window
+
+================================================================================
+## UPDATED TESTING CHECKLIST (NEW FEATURES)
+================================================================================
+
+Game Mode Selection:
+[ ] Game creation page shows game mode dropdown
+[ ] Can select Traditional, Tower Defense, or Snake
+[ ] Game mode saves correctly when publishing
+[ ] Game edit page shows current game mode
+[ ] Can change game mode and save successfully
+
+Dashboard Icons & Routing:
+[ ] Snake games show 🐍 emoji in dashboard
+[ ] Tower Defense games show tower icon
+[ ] Traditional games show 📝 emoji
+[ ] Play button on Snake game → /play/snake?gameId=X
+[ ] Play button on TD game → /play/td?gameId=X
+[ ] Play button on Traditional game → /play/phaser/{code}
+
+Snake Game UI:
+[ ] Exit button appears at top left (red)
+[ ] Exit button hover effect works
+[ ] Exit button returns to previous page
+[ ] Score displays at top right of question panel
+[ ] No UI overlap issues
+
+Discover Pages:
+[ ] /teacher/discover loads and shows public games
+[ ] /student/discover loads and shows same games
+[ ] All filters work (search, subject, game mode, sort)
+[ ] Game cards display correctly
+[ ] Play Now button works from discover page
+
+Sidebar Navigation:
+[ ] Teacher sidebar Discover → /teacher/discover
+[ ] Student sidebar Discover → /student/discover
+[ ] All sidebar links work for both roles
+[ ] Active state highlights correctly
+
+Public Game Access:
+[ ] Public games accessible without class membership
+[ ] Private games still require class membership
+[ ] Public games work for logged-out users
+[ ] Error messages appropriate for each case
 
 ================================================================================
 END OF DOCUMENTATION

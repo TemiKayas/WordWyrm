@@ -6,6 +6,7 @@ import { updateGame, getGameQuizzes, addQuizToGame, removeQuizFromGame } from '@
 import { getQuizById, updateQuizQuestions, getTeacherQuizzes } from '@/app/actions/quiz';
 import Button from '@/components/ui/Button';
 import TeacherPageLayout from '@/components/shared/TeacherPageLayout';
+import { GameMode } from '@prisma/client';
 
 interface QuizQuestion {
     question: string;
@@ -43,6 +44,7 @@ function GameEditContent() {
     const [description, setDescription] = useState('');
     const [isActive, setIsActive] = useState(true);
     const [isPublic, setIsPublic] = useState(false);
+    const [gameMode, setGameMode] = useState<GameMode>(GameMode.TRADITIONAL);
     const [coverImage, setCoverImage] = useState<string>('');
     const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
 
@@ -77,6 +79,7 @@ function GameEditContent() {
                     setDescription(game.description || '');
                     setIsActive(game.active);
                     setIsPublic(game.isPublic);
+                    setGameMode(game.gameMode);
                     await loadAttachedPDFs(game.id);
                 }
             }
@@ -152,6 +155,7 @@ function GameEditContent() {
                     description,
                     active: isActive,
                     isPublic: isPublic,
+                    gameMode: gameMode,
                 });
                 if (gRes.success) {
                     results.push('Game updated');
@@ -319,6 +323,18 @@ function GameEditContent() {
                                         className="w-full bg-[#fff6e8] border-2 border-[#ffb554] rounded-[8px] h-[60px] px-3 py-2 font-quicksand text-[#473025] text-[13px] focus:outline-none focus:border-[#ff9f22] transition-all resize-none"
                                         placeholder="Game description..."
                                     />
+                                </div>
+                                <div>
+                                    <label className="font-quicksand font-semibold text-[#473025] text-[12px] mb-1.5 block">Game Mode</label>
+                                    <select
+                                        value={gameMode}
+                                        onChange={(e) => setGameMode(e.target.value as GameMode)}
+                                        className="w-full bg-[#fff6e8] border-2 border-[#ffb554] rounded-[8px] h-[36px] px-3 font-quicksand text-[#473025] text-[13px] focus:outline-none focus:border-[#ff9f22] transition-all"
+                                    >
+                                        <option value={GameMode.TRADITIONAL}>📝 Traditional Quiz</option>
+                                        <option value={GameMode.TOWER_DEFENSE}>🏰 Tower Defense</option>
+                                        <option value={GameMode.SNAKE}>🐍 Snake Quiz</option>
+                                    </select>
                                 </div>
                                 <div className="space-y-3">
                                     <div className="flex items-center justify-between">

@@ -13,35 +13,39 @@ export default function SlidingSidebar({ isOpen, onClose }: SlidingSidebarProps)
   const pathname = usePathname();
   const router = useRouter();
 
+  // Determine role from pathname
+  const isStudent = pathname.startsWith('/student');
+  const rolePrefix = isStudent ? '/student' : '/teacher';
+
   const navItems = [
     {
       label: 'Dashboard',
       icon: '/assets/dashboard/dashboard-icon.svg',
       inactiveIcon: '/assets/dashboard/tabler_apple-filled.svg',
-      href: '/teacher/dashboard',
-      active: pathname === '/teacher/dashboard',
+      href: `${rolePrefix}/dashboard`,
+      active: pathname === `${rolePrefix}/dashboard`,
     },
     {
       label: 'Discover',
       icon: '/assets/dashboard/discover-icon.svg',
-      href: '/teacher/discover',
-      active: pathname === '/teacher/discover',
+      href: `${rolePrefix}/discover`,
+      active: pathname === `${rolePrefix}/discover`,
     },
     {
       label: 'Shop',
       icon: '/assets/dashboard/shop-icon.svg',
-      href: '/teacher/shop',
-      active: pathname === '/teacher/shop',
+      href: `${rolePrefix}/shop`,
+      active: pathname === `${rolePrefix}/shop`,
     },
   ];
 
   const handlePlayClick = () => {
-    router.push('/teacher/games');
+    router.push(`${rolePrefix}/games`);
     onClose();
   };
 
   const handleCreateClick = () => {
-    router.push('/teacher/upload');
+    router.push(`${rolePrefix}/upload`);
     onClose();
   };
 

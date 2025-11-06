@@ -147,13 +147,38 @@ export default class SnakeScene extends Phaser.Scene {
       D: this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.D)
     };
 
-    // Score display
-    this.scoreText = this.add.text(20, 20, 'Score: 0', {
+    // Exit button (top left)
+    const exitButton = this.add.rectangle(70, 30, 120, 40, 0xff4444);
+    exitButton.setInteractive({ useHandCursor: true });
+    const exitText = this.add.text(70, 30, 'Exit', {
+      fontSize: '20px',
+      color: '#ffffff',
+      fontFamily: 'Quicksand, sans-serif',
+      fontStyle: 'bold'
+    }).setOrigin(0.5);
+
+    exitButton.on('pointerdown', () => {
+      // Navigate back
+      if (typeof window !== 'undefined') {
+        window.history.back();
+      }
+    });
+
+    exitButton.on('pointerover', () => {
+      exitButton.setFillStyle(0xcc3333);
+    });
+
+    exitButton.on('pointerout', () => {
+      exitButton.setFillStyle(0xff4444);
+    });
+
+    // Score display (top right of left panel area)
+    this.scoreText = this.add.text(availableWidth - 20, 20, 'Score: 0', {
       fontSize: '24px',
       color: '#ffffff',
       fontFamily: 'Quicksand, sans-serif',
       fontStyle: 'bold'
-    });
+    }).setOrigin(1, 0);
 
     // Draw initial snake
     this.drawSnake();
