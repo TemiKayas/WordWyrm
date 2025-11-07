@@ -6,6 +6,7 @@ import { updateGame, getGameQuizzes, addQuizToGame, removeQuizFromGame } from '@
 import { getQuizById, updateQuizQuestions, getTeacherQuizzes } from '@/app/actions/quiz';
 import Button from '@/components/ui/Button';
 import TeacherPageLayout from '@/components/shared/TeacherPageLayout';
+import { GameMode } from '@prisma/client';
 
 interface QuizQuestion {
     question: string;
@@ -41,7 +42,9 @@ function GameEditContent() {
     const [gameId, setGameId] = useState<string>('');
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
-    const [isPublic, setIsPublic] = useState(true);
+    const [isActive, setIsActive] = useState(true);
+    const [isPublic, setIsPublic] = useState(false);
+    const [gameMode, setGameMode] = useState<GameMode>(GameMode.TRADITIONAL);
     const [coverImage, setCoverImage] = useState<string>('');
     const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
 
@@ -74,7 +77,9 @@ function GameEditContent() {
                     setGameId(game.id);
                     setTitle(game.title);
                     setDescription(game.description || '');
-                    setIsPublic(game.active);
+                    setIsActive(game.active);
+                    setIsPublic(game.isPublic);
+                    setGameMode(game.gameMode);
                     await loadAttachedPDFs(game.id);
                 }
             }
@@ -148,7 +153,9 @@ function GameEditContent() {
                     gameId,
                     title,
                     description,
-                    active: isPublic,
+                    active: isActive,
+                    isPublic: isPublic,
+                    gameMode: gameMode,
                 });
                 if (gRes.success) {
                     results.push('Game updated');
@@ -317,20 +324,55 @@ function GameEditContent() {
                                         placeholder="Game description..."
                                     />
                                 </div>
-                                <div className="flex items-center justify-between">
-                                    <span className="font-quicksand font-semibold text-[#473025] text-[12px]">Public</span>
-                                    <button
-                                        onClick={() => setIsPublic(!isPublic)}
-                                        className={`relative inline-flex h-[28px] w-[52px] items-center rounded-full transition-colors ${
-                                            isPublic ? 'bg-[#96b902]' : 'bg-gray-300'
-                                        }`}
+                                <div>
+                                    <label className="font-quicksand font-semibold text-[#473025] text-[12px] mb-1.5 block">Game Mode</label>
+                                    <select
+                                        value={gameMode}
+                                        onChange={(e) => setGameMode(e.target.value as GameMode)}
+                                        className="w-full bg-[#fff6e8] border-2 border-[#ffb554] rounded-[8px] h-[36px] px-3 font-quicksand text-[#473025] text-[13px] focus:outline-none focus:border-[#ff9f22] transition-all"
                                     >
-                                        <span
-                                            className={`inline-block h-[22px] w-[22px] transform rounded-full bg-white transition-transform ${
-                                                isPublic ? 'translate-x-6' : 'translate-x-1'
+                                        <option value={GameMode.TRADITIONAL}>📝 Traditional Quiz</option>
+                                        <option value={GameMode.TOWER_DEFENSE}>🏰 Tower Defense</option>
+                                        <option value={GameMode.SNAKE}>🐍 Snake Quiz</option>
+                                    </select>
+                                </div>
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <span className="font-quicksand font-semibold text-[#473025] text-[12px] block">Active</span>
+                                            <span className="font-quicksand text-[#a7613c] text-[10px]">Game is {isActive ? 'active' : 'draft'}</span>
+                                        </div>
+                                        <button
+                                            onClick={() => setIsActive(!isActive)}
+                                            className={`relative inline-flex h-[28px] w-[52px] items-center rounded-full transition-colors ${
+                                                isActive ? 'bg-[#96b902]' : 'bg-gray-300'
                                             }`}
-                                        />
-                                    </button>
+                                        >
+                                            <span
+                                                className={`inline-block h-[22px] w-[22px] transform rounded-full bg-white transition-transform ${
+                                                    isActive ? 'translate-x-6' : 'translate-x-1'
+                                                }`}
+                                            />
+                                        </button>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <span className="font-quicksand font-semibold text-[#473025] text-[12px] block">Public Discovery</span>
+                                            <span className="font-quicksand text-[#a7613c] text-[10px]">{isPublic ? 'Visible in discovery' : 'Class only'}</span>
+                                        </div>
+                                        <button
+                                            onClick={() => setIsPublic(!isPublic)}
+                                            className={`relative inline-flex h-[28px] w-[52px] items-center rounded-full transition-colors ${
+                                                isPublic ? 'bg-[#96b902]' : 'bg-gray-300'
+                                            }`}
+                                        >
+                                            <span
+                                                className={`inline-block h-[22px] w-[22px] transform rounded-full bg-white transition-transform ${
+                                                    isPublic ? 'translate-x-6' : 'translate-x-1'
+                                                }`}
+                                            />
+                                        </button>
+                                    </div>
                                 </div>
                                 <div>
                                     <label className="font-quicksand font-semibold text-[#473025] text-[12px] mb-1.5 block">Cover Image</label>

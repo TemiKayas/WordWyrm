@@ -4,7 +4,7 @@ import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { generateUniqueShareCode } from '@/lib/utils/share-code';
 import { generateGameQRCode } from '@/lib/utils/qr-code';
-import type { Game, Quiz, ProcessedContent, PDF } from '@prisma/client';
+import type { Game, Quiz, ProcessedContent, PDF, Subject, GameMode } from '@prisma/client';
 
 //type of server action results, success or fail, T is the type of return.
 type ActionResult<T> =
@@ -18,14 +18,15 @@ type GameWithQuiz = Game & {
   };
 };
 
-// creates a new game with full settings (title, description, etc.)
+// creates a new game with full settings (title, description, game mode, etc.)
 export async function createGame(params: {
   quizId: string;
   title: string;
   description?: string;
+  gameMode?: GameMode;
 }): Promise<ActionResult<{ gameId: string; shareCode: string }>> {
   try {
-    const { quizId, title, description } = params;
+    const { quizId, title, description, gameMode } = params;
 
     // ensure user is a teacher
     const session = await auth();
@@ -42,6 +43,24 @@ export async function createGame(params: {
       return { success: false, error: 'Teacher profile not found' };
     }
 
+    // Get quiz to find the classId from its PDF
+    const quiz = await db.quiz.findUnique({
+      where: { id: quizId },
+      include: {
+        processedContent: {
+          include: {
+            pdf: true,
+          },
+        },
+      },
+    });
+
+    if (!quiz || !quiz.processedContent?.pdf) {
+      return { success: false, error: 'Quiz or PDF not found' };
+    }
+
+    const classId = quiz.processedContent.pdf.classId;
+
     // gen a unique 6-character code for sharing the game
     const shareCode = await generateUniqueShareCode();
 
@@ -54,10 +73,12 @@ export async function createGame(params: {
       data: {
         quizId,
         teacherId: teacher.id,
+        classId,
         title,
         description,
         shareCode,
         qrCodeUrl,
+        gameMode: gameMode || GameMode.TRADITIONAL,
       },
     });
 
@@ -95,6 +116,24 @@ export async function createGameFromQuiz(
       return { success: false, error: 'Teacher profile not found' };
     }
 
+    // Get quiz to find the classId from its PDF
+    const quiz = await db.quiz.findUnique({
+      where: { id: quizId },
+      include: {
+        processedContent: {
+          include: {
+            pdf: true,
+          },
+        },
+      },
+    });
+
+    if (!quiz || !quiz.processedContent?.pdf) {
+      return { success: false, error: 'Quiz or PDF not found' };
+    }
+
+    const classId = quiz.processedContent.pdf.classId;
+
     // gen a unique 6-character code for sharing the game
     const shareCode = await generateUniqueShareCode();
 
@@ -107,6 +146,7 @@ export async function createGameFromQuiz(
       data: {
         quizId,
         teacherId: teacher.id,
+        classId,
         title,
         shareCode,
         qrCodeUrl,
@@ -131,6 +171,8 @@ export async function getGameWithQuiz(
   idOrShareCode: string
 ): Promise<ActionResult<{ game: GameWithQuiz }>> {
   try {
+    const session = await auth();
+
     // try to find game by share code first (more common for students)
     // if it's a long string (cuid), it's probably an ID
     let game;
@@ -145,6 +187,11 @@ export async function getGameWithQuiz(
               processedContent: true,
             },
           },
+          teacher: {
+            include: {
+              user: true,
+            },
+          },
         },
       });
     } else {
@@ -157,6 +204,11 @@ export async function getGameWithQuiz(
               processedContent: true,
             },
           },
+          teacher: {
+            include: {
+              user: true,
+            },
+          },
         },
       });
     }
@@ -164,6 +216,42 @@ export async function getGameWithQuiz(
     // if the game is not found, return an error.
     if (!game) {
       return { success: false, error: 'Game not found' };
+    }
+
+    // If game is public and active, allow access to anyone
+    if (game.isPublic && game.active) {
+      return { success: true, data: { game } };
+    }
+
+    // For private games, check authentication and membership
+    if (session?.user) {
+      // If user is the teacher who created the game, allow access
+      if (session.user.role === 'TEACHER' && game.teacher.userId === session.user.id) {
+        return { success: true, data: { game } };
+      }
+
+      // For students (or other teachers), check class membership
+      const membership = await db.classMembership.findUnique({
+        where: {
+          classId_userId: {
+            classId: game.classId,
+            userId: session.user.id,
+          },
+        },
+      });
+
+      if (!membership) {
+        return {
+          success: false,
+          error: 'You must be a member of this class to access this game. Please join the class first.'
+        };
+      }
+    } else {
+      // If no session, require login
+      return {
+        success: false,
+        error: 'Please log in to access this game.'
+      };
     }
 
     // return game data on success.
@@ -175,12 +263,14 @@ export async function getGameWithQuiz(
   }
 }
 
-// updates game details (title, description, active status)
+// updates game details (title, description, active status, public visibility, game mode)
 export async function updateGame(params: {
   gameId: string;
   title?: string;
   description?: string;
   active?: boolean;
+  isPublic?: boolean;
+  gameMode?: GameMode;
   maxAttempts?: number;
   timeLimit?: number | null;
 }): Promise<ActionResult<{ game: Game }>> {
@@ -385,5 +475,139 @@ export async function removeQuizFromGame(params: {
   } catch (error) {
     console.error('Failed to remove quiz from game:', error);
     return { success: false, error: 'Failed to remove quiz from game' };
+  }
+}
+
+// Filters for public games discovery
+export interface PublicGameFilters {
+  subject?: Subject;
+  gameMode?: GameMode;
+  search?: string;
+  sortBy?: 'newest' | 'mostPlayed';
+}
+
+// Get public games for discovery page
+export async function getPublicGames(
+  filters?: PublicGameFilters
+): Promise<
+  ActionResult<{
+    games: Array<{
+      id: string;
+      title: string;
+      description: string | null;
+      gameMode: GameMode;
+      shareCode: string;
+      imageUrl: string | null;
+      createdAt: Date;
+      teacher: {
+        name: string;
+        school: string | null;
+      };
+      quiz: {
+        subject: Subject;
+        numQuestions: number;
+      };
+      _count: {
+        gameSessions: number;
+      };
+    }>;
+  }>
+> {
+  try {
+    // Build where clause
+    const where: any = {
+      isPublic: true,
+      active: true,
+    };
+
+    // Apply filters
+    if (filters?.subject) {
+      where.quiz = {
+        subject: filters.subject,
+      };
+    }
+
+    if (filters?.gameMode) {
+      where.gameMode = filters.gameMode;
+    }
+
+    if (filters?.search) {
+      where.title = {
+        contains: filters.search,
+        mode: 'insensitive',
+      };
+    }
+
+    // Build orderBy
+    const orderBy: any = filters?.sortBy === 'mostPlayed'
+      ? [{ gameSessions: { _count: 'desc' } }]
+      : [{ createdAt: 'desc' }];
+
+    // Fetch public games
+    const games = await db.game.findMany({
+      where,
+      include: {
+        teacher: {
+          include: {
+            user: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+        quiz: {
+          select: {
+            subject: true,
+            numQuestions: true,
+          },
+        },
+        _count: {
+          select: {
+            gameSessions: true,
+          },
+        },
+      },
+      orderBy,
+      take: 50, // Limit to 50 games
+    });
+
+    console.log('🔍 Public Games Query Results:', {
+      totalFound: games.length,
+      games: games.map(g => ({
+        id: g.id,
+        title: g.title,
+        gameMode: g.gameMode,
+        active: g.active,
+        isPublic: g.isPublic,
+      }))
+    });
+
+    // Transform data
+    const transformedGames = games.map((game) => ({
+      id: game.id,
+      title: game.title,
+      description: game.description,
+      gameMode: game.gameMode,
+      shareCode: game.shareCode,
+      imageUrl: game.imageUrl,
+      createdAt: game.createdAt,
+      teacher: {
+        name: game.teacher.user.name,
+        school: game.teacher.school,
+      },
+      quiz: {
+        subject: game.quiz.subject,
+        numQuestions: game.quiz.numQuestions,
+      },
+      _count: {
+        gameSessions: game._count.gameSessions,
+      },
+    }));
+
+    return { success: true, data: { games: transformedGames } };
+  } catch (error) {
+    console.error('Failed to get public games:', error);
+    return { success: false, error: 'Failed to retrieve public games' };
   }
 }

@@ -17,10 +17,12 @@ interface Game {
   shareCode?: string;
   hasGame: boolean;
   qrCodeUrl?: string | null;
+  gameMode?: string;
 }
 
 interface GamesViewProps {
   onCreateGame?: () => void;
+  classId?: string;
 }
 
 function formatTimeAgo(date: Date): string {
@@ -37,14 +39,14 @@ function formatTimeAgo(date: Date): string {
   return `${Math.floor(diffInDays / 30)} months ago`;
 }
 
-export default function GamesView({ onCreateGame }: GamesViewProps) {
+export default function GamesView({ onCreateGame, classId }: GamesViewProps) {
   const router = useRouter();
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadGames() {
-      const result = await getTeacherQuizzes();
+      const result = await getTeacherQuizzes(classId);
       if (result.success) {
         const formattedGames = result.data.quizzes.map(quiz => ({
           id: quiz.id,
@@ -57,6 +59,7 @@ export default function GamesView({ onCreateGame }: GamesViewProps) {
           shareCode: quiz.shareCode,
           hasGame: quiz.hasGame,
           qrCodeUrl: quiz.qrCodeUrl || null,
+          gameMode: quiz.gameMode,
         }));
         setGames(formattedGames);
       }
@@ -71,13 +74,17 @@ export default function GamesView({ onCreateGame }: GamesViewProps) {
 
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
-  }, []);
+  }, [classId]);
 
   const recentGames = games.filter(g => g.hasGame);
   const drafts = games.filter(g => !g.hasGame);
 
   const handlePlay = (game: Game) => {
-    if (game.shareCode) {
+    if (game.gameMode === 'SNAKE') {
+      router.push(`/play/snake?gameId=${game.gameId}`);
+    } else if (game.gameMode === 'TOWER_DEFENSE') {
+      router.push(`/play/td?gameId=${game.gameId}`);
+    } else if (game.shareCode) {
       router.push(`/play/phaser/${game.shareCode}`);
     }
   };

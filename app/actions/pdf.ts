@@ -4,7 +4,7 @@ import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { uploadPDF } from '@/lib/blob';
 import { extractTextFromPDF, validatePDF } from '@/lib/processors/pdf-processor';
-import { generateQuiz, Quiz } from '@/lib/processors/ai-generator';
+import { generateQuiz, Quiz, Subject } from '@/lib/processors/ai-generator';
 
 type ActionResult<T> =
   | { success: true; data: T }
@@ -29,6 +29,24 @@ export async function uploadAndProcessPDF(
       return { success: false, error: 'Teacher profile not found' };
     }
 
+    // Get and validate classId
+    const classId = formData.get('classId') as string;
+    if (!classId) {
+      return { success: false, error: 'Class ID is required' };
+    }
+
+    // Verify class belongs to teacher
+    const classExists = await db.class.findFirst({
+      where: {
+        id: classId,
+        teacherId: teacher.id,
+      },
+    });
+
+    if (!classExists) {
+      return { success: false, error: 'Invalid class or unauthorized' };
+    }
+
     // Get and validate file
     const file = formData.get('pdf') as File;
     if (!file) {
@@ -43,6 +61,12 @@ export async function uploadAndProcessPDF(
     // Get number of questions (default 5)
     const numQuestions = parseInt(formData.get('numQuestions') as string) || 5;
 
+    // Get subject (default GENERAL if not provided)
+    const subjectValue = formData.get('subject') as string;
+    const subject = subjectValue && subjectValue in Subject
+      ? (subjectValue as Subject)
+      : Subject.GENERAL;
+
     // Upload to Vercel Blob
     console.log('Uploading PDF to Vercel Blob...');
     const blobUrl = await uploadPDF(file);
@@ -52,6 +76,7 @@ export async function uploadAndProcessPDF(
     const pdfRecord = await db.pDF.create({
       data: {
         teacherId: teacher.id,
+        classId: classId,
         filename: file.name,
         blobUrl,
         fileSize: file.size,
@@ -89,8 +114,8 @@ export async function uploadAndProcessPDF(
     });
 
     // Generate quiz using Gemini
-    console.log('Generating quiz with Gemini AI...');
-    const quiz = await generateQuiz(extractedText, numQuestions);
+    console.log(`Generating quiz with Gemini AI (Subject: ${subject})...`);
+    const quiz = await generateQuiz(extractedText, numQuestions, subject);
 
     // save quiz
     console.log('Saving quiz to database...');
@@ -98,6 +123,7 @@ export async function uploadAndProcessPDF(
       data: {
         processedContentId: processedContent.id,
         title: file.name.replace('.pdf', ''),
+        subject: subject,
         numQuestions: quiz.questions.length,
         quizJson: JSON.parse(JSON.stringify(quiz)),
       },

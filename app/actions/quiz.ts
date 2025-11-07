@@ -14,8 +14,8 @@ type QuizWithGame = PrismaQuiz & {
   games: Game[];
 };
 
-// get all quizzes for the logged-in teacher
-export async function getTeacherQuizzes(): Promise<
+// get all quizzes for the logged-in teacher, optionally filtered by classId
+export async function getTeacherQuizzes(classId?: string): Promise<
   ActionResult<{
     quizzes: Array<{
       id: string;
@@ -28,6 +28,7 @@ export async function getTeacherQuizzes(): Promise<
       shareCode?: string;
       pdfFilename?: string;
       qrCodeUrl?: string | null;
+      gameMode?: string;
     }>;
   }>
 > {
@@ -41,6 +42,7 @@ export async function getTeacherQuizzes(): Promise<
       where: { userId: session.user.id },
       include: {
         pdfs: {
+          where: classId ? { classId } : undefined,
           include: {
             processedContent: {
               include: {
@@ -52,6 +54,7 @@ export async function getTeacherQuizzes(): Promise<
                         shareCode: true,
                         qrCodeUrl: true,
                         title: true,
+                        gameMode: true,
                       },
                       take: 1,
                     },
@@ -89,6 +92,7 @@ export async function getTeacherQuizzes(): Promise<
         shareCode: quiz.games[0]?.shareCode,
         qrCodeUrl: quiz.games[0]?.qrCodeUrl || null,
         pdfFilename: pdf.filename,
+        gameMode: quiz.games[0]?.gameMode,
       })) || []
     );
 

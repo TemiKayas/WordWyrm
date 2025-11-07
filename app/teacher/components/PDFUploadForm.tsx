@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useTransition, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { uploadAndProcessPDF } from '@/app/actions/pdf';
 import FileUploadDropZone from '@/components/fileupload/FileUploadDropZone';
 import StepIndicator from '@/components/fileupload/StepIndicator';
@@ -13,12 +13,22 @@ interface PDFUploadFormProps {
 
 export default function PDFUploadForm({ onFileSelect }: PDFUploadFormProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const classId = searchParams.get('classId');
+
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [progress, setProgress] = useState<string>('');
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [numQuestions, setNumQuestions] = useState<number>(5);
   const [subject, setSubject] = useState<string>('');
+
+  // Redirect if no classId is provided
+  useEffect(() => {
+    if (!classId) {
+      router.push('/teacher/dashboard');
+    }
+  }, [classId, router]);
 
   async function handleFileSelect(file: File | File[]) {
     const files = Array.isArray(file) ? file : [file];
@@ -30,6 +40,12 @@ export default function PDFUploadForm({ onFileSelect }: PDFUploadFormProps) {
   async function handleSubmit() {
     if (selectedFiles.length === 0) {
       setError('Please select at least one PDF file');
+      return;
+    }
+
+    if (!classId) {
+      setError('Class ID is missing. Redirecting...');
+      setTimeout(() => router.push('/teacher/dashboard'), 2000);
       return;
     }
 
@@ -47,6 +63,7 @@ export default function PDFUploadForm({ onFileSelect }: PDFUploadFormProps) {
 
           const formData = new FormData();
           formData.append('pdf', file);
+          formData.append('classId', classId);
           formData.append('numQuestions', numQuestions.toString());
           if (subject) {
             formData.append('subject', subject);
