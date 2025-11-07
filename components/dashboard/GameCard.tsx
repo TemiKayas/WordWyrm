@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
+import { GameMode } from '@prisma/client';
 
 interface GameCardProps {
   title: string;
@@ -10,6 +11,7 @@ interface GameCardProps {
   createdAt: string;
   isDraft?: boolean;
   imageUrl?: string | null;
+  gameMode?: GameMode;
   onPlay?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
@@ -22,6 +24,7 @@ export default function GameCard({
   createdAt,
   isDraft = false,
   imageUrl,
+  gameMode = GameMode.TRADITIONAL,
   onPlay,
   onEdit,
   onDelete,
@@ -119,7 +122,7 @@ export default function GameCard({
         </div>
       </div>
 
-      {/* game image or tower defense icon */}
+      {/* game image or game mode icon */}
       <div className="flex justify-center mb-4">
         <div className="relative w-full h-[100px] md:h-[110px] rounded-[15px] overflow-hidden bg-gradient-to-br from-[#fff6e8] to-[#ffe9d0] border-2 border-[#473025]/10">
           {imageUrl ? (
@@ -128,13 +131,21 @@ export default function GameCard({
               alt={title}
               className="w-full h-full object-cover"
             />
-          ) : (
+          ) : gameMode === GameMode.SNAKE ? (
+            <div className="w-full h-full flex items-center justify-center text-7xl">
+              🐍
+            </div>
+          ) : gameMode === GameMode.TOWER_DEFENSE ? (
             <Image
               src="/assets/dashboard/tower-defense-game-icon.png"
               alt="Tower Defense Game"
               fill
               className="object-contain p-2"
             />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-7xl">
+              📝
+            </div>
           )}
         </div>
       </div>
