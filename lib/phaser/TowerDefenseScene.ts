@@ -5,11 +5,21 @@ import { Quiz, QuizQuestion } from '@/lib/processors/ai-generator';
 // RED: Low HP, slow (25 HP, 50 speed, 0.85 size, 1 gold)
 // BLUE: Medium HP, medium speed (50 HP, 55 speed, 1.0 size, 2 gold)
 // YELLOW: High HP, fast (75 HP, 60.5 speed, 1.2 size, 3 gold)
-// BOSS: Spawns every 5 waves with quiz integration (300 + 50*wave HP, 57.75 speed, 1.7 size, 50 gold)
+// SPEEDY: Low HP, very fast (20 HP, 80 speed, 0.7 size, 2 gold) - intro wave 7
+// ARMORED: High HP, slow, 35% dmg reduction (80 HP, 45 speed, 1.1 size, 5 gold) - intro wave 11
+// HEALER: Medium HP, heals 3 HP/s in 80px (50 HP, 50 speed, 1.0 size, 6 gold) - intro wave 16, priority target
+// COMMANDER: Medium HP, +20% speed aura 100px (60 HP, 48 speed, 1.15 size, 7 gold) - intro wave 21, priority target
+// MINI_BOSS: Spawns every 5 waves (120 + 15*wave HP, 55 speed, 1.3 size, 15 gold) - waves 5, 15, 25, 35, 45
+// BOSS: Spawns every 10 waves with quiz (300 + 50*wave HP, 57.75 speed, 1.7 size, 50 gold) - waves 20, 40
 enum EnemyType {
   RED = 'RED',
   BLUE = 'BLUE',
   YELLOW = 'YELLOW',
+  SPEEDY = 'SPEEDY',
+  ARMORED = 'ARMORED',
+  HEALER = 'HEALER',
+  COMMANDER = 'COMMANDER',
+  MINI_BOSS = 'MINI_BOSS',
   BOSS = 'BOSS',
 }
 
@@ -17,7 +27,8 @@ enum EnemyType {
 interface Enemy {
   x: number;
   y: number;
-  speed: number; // pixels per second
+  speed: number; // pixels per second (affected by commander aura)
+  baseSpeed: number; // original speed before buffs
   health: number;
   maxHealth: number;
   type: EnemyType;
@@ -26,28 +37,35 @@ interface Enemy {
   size: number; // scale multiplier for visual size
   healthBarBg?: Phaser.GameObjects.Graphics; // health bar background
   healthBarFill?: Phaser.GameObjects.Graphics; // health bar fill
+  goldValue: number; // gold reward for killing this enemy
+  isPriorityTarget?: boolean; // true for HEALER and COMMANDER
+  lastHealTime?: number; // timestamp for healer healing tick
 }
 
 // Tower entity - attacks enemies in range
 // Ballista (basic): Fast fire, 50 gold, 150 range
 // Trebuchet (sniper): Slow fire, 75 gold, 300 range
-// Melee: Very fast fire, 25 gold, 60 range
-// Fact: Support tower, 40 gold, 200 buff radius (doesn't attack)
+// Knight (melee): Very fast fire, 25 gold, 60 range
+// Training Camp (fact): Support tower, 40 gold, 200 buff radius (doesn't attack)
+// Archmage (wizard): Spell rotation, 100 gold, 170 range (requires 5+ correct answers)
 interface Tower {
   x: number;
   y: number;
-  range: number; // attack radius (or buff radius for Fact tower)
+  range: number; // attack radius (or buff radius for Training Camp)
   fireRate: number; // ms between attacks
   damage: number;
   cost: number; // purchase price
   lastFired: number; // timestamp of last attack
-  type: 'basic' | 'sniper' | 'melee' | 'fact';
+  type: 'basic' | 'sniper' | 'melee' | 'fact' | 'wizard';
   graphics: Phaser.GameObjects.Rectangle;
   upgrades: {
     explosive?: boolean; // Trebuchet: AoE damage
     dotArrows?: boolean; // Ballista: damage over time
     fasterFireRate?: boolean; // Ballista: -15% fire rate
-    moreDamage?: boolean; // Melee: +10% damage
+    moreDamage?: boolean; // Knight: +10% damage
+    lightningDebuff?: boolean; // Archmage Path A: Lightning applies 5% damage debuff
+    knowledgeScaling?: boolean; // Archmage Path B: +1% dmg/fire rate per correct answer
+    aoeCharge?: boolean; // Archmage Path A Tier 2: 15s charge AoE blast
   };
   baseDamage: number; // original damage (for buff calculations)
   baseFireRate: number; // original fire rate (for buff calculations)
@@ -59,6 +77,13 @@ interface Tower {
   boosted?: boolean; // If Question ability buff is active
   boostedUntil?: number; // Timestamp when boost expires
   baseBuffRadius?: number; // Original buff radius before Question ability
+
+  // Wizard tower specific properties
+  currentSpell?: 'fire' | 'ice' | 'lightning'; // Current spell in rotation
+  nextSpell?: 'fire' | 'ice' | 'lightning'; // Next spell (shown as glow)
+  spellGlow?: Phaser.GameObjects.Arc; // Visual glow indicator
+  correctAnswersWhenPlaced?: number; // For knowledge scaling tracking
+  lastChargeBlast?: number; // Timestamp of last AoE charge blast
 }
 
 // Damage over time effect (from Ballista upgrade)
@@ -115,7 +140,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
   private pauseOverlay?: Phaser.GameObjects.Container;
 
   // Tower placement/selection
-  private selectedTowerType: 'basic' | 'sniper' | 'melee' | 'fact' | null = 'basic';
+  private selectedTowerType: 'basic' | 'sniper' | 'melee' | 'fact' | 'wizard' | null = 'basic';
   private selectedTower: Tower | null = null; // selected for upgrades
   private clickedOnTower: boolean = false; // prevent double-click placement
 
@@ -125,20 +150,23 @@ export default class TowerDefenseScene extends Phaser.Scene {
   private waitingForQuestion: boolean = false;
 
   // Tower purchase quiz gate system
-  private towerPurchaseCount: { basic: number; sniper: number; melee: number; fact: number } = {
+  private towerPurchaseCount: { basic: number; sniper: number; melee: number; fact: number; wizard: number } = {
     basic: 0,
     sniper: 0,
     melee: 0,
-    fact: 0
+    fact: 0,
+    wizard: 0
   };
-  private towerPurchasePrice: { basic: number; sniper: number; melee: number; fact: number } = {
+  private towerPurchasePrice: { basic: number; sniper: number; melee: number; fact: number; wizard: number } = {
     basic: 50,
     sniper: 75,
     melee: 25,
-    fact: 40
+    fact: 40,
+    wizard: 100
   };
-  private pendingTowerPlacement: { x: number; y: number; type: 'basic' | 'sniper' | 'melee' | 'fact' } | null = null;
+  private pendingTowerPlacement: { x: number; y: number; type: 'basic' | 'sniper' | 'melee' | 'fact' | 'wizard' } | null = null;
   private towerPurchaseQuestionPopup?: Phaser.GameObjects.Container;
+  private totalCorrectAnswers: number = 0; // Track all correct answers for wizard unlock
 
   // Upgrade knowledge check system
   private upgradeUnlocked: {
@@ -170,13 +198,13 @@ export default class TowerDefenseScene extends Phaser.Scene {
   private lightningStrikeCooldown: number = 0; // ms remaining
   private freezeCooldown: number = 0; // ms remaining
   private questionAbilityCooldown: number = 0; // ms remaining
-  private questionAbilityUnlocked: boolean = false; // Unlocked after placing first Fact Tower
+  private questionAbilityUnlocked: boolean = false; // Unlocked after placing first Training Camp
   private lightningStrikeActive: boolean = false; // Waiting for enemy selection
   private pendingLightningTarget: Enemy | null = null;
   private abilityQuestionPopup?: Phaser.GameObjects.Container;
   private abilityButtons?: Phaser.GameObjects.Container;
   private frozenEnemies: Set<Enemy> = new Set(); // Track frozen enemies
-  private incorrectQuestionIndices: Set<number> = new Set(); // Track incorrect questions for Fact Tower tooltips
+  private incorrectQuestionIndices: Set<number> = new Set(); // Track incorrect questions for Training Camp tooltips
   private factTowerTooltip?: Phaser.GameObjects.Container;
   private pausedCooldowns: { question: number; timestamp: number } = { question: 0, timestamp: 0 }; // Store Question ability cooldown when wave ends
 
@@ -215,6 +243,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
   private sniperTowerBtn!: Phaser.GameObjects.DOMElement;
   private meleeTowerBtn!: Phaser.GameObjects.DOMElement;
   private factTowerBtn!: Phaser.GameObjects.DOMElement;
+  private wizardTowerBtn!: Phaser.GameObjects.DOMElement;
   private waveButton!: Phaser.GameObjects.DOMElement;
   private backButton!: Phaser.GameObjects.DOMElement;
   private upgradeContainer?: Phaser.GameObjects.Container;
@@ -353,11 +382,11 @@ export default class TowerDefenseScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     // gold display in sidebar - clean minimal design
-    const goldBg = this.add.rectangle(width - sidebarWidth/2, 600, sidebarWidth - 20, 40, 0xffffff, 0.95);
+    const goldBg = this.add.rectangle(width - sidebarWidth/2, 710, sidebarWidth - 20, 40, 0xffffff, 0.95);
     goldBg.setOrigin(0.5);
     goldBg.setStrokeStyle(2, 0xc4a46f);
 
-    this.goldText = this.add.text(width - sidebarWidth/2, 600, `Gold: ${this.gold}`, {
+    this.goldText = this.add.text(width - sidebarWidth/2, 710, `Gold: ${this.gold}`, {
       fontSize: '18px',
       color: '#ff9f22',
       fontFamily: 'Quicksand, sans-serif',
@@ -513,8 +542,8 @@ export default class TowerDefenseScene extends Phaser.Scene {
       el.style.background = '#95b607';
     });
 
-    // Melee Tower (Orange with dark border)
-    this.meleeTowerBtn = createTowerButton(420, 'Melee Tower', 'Rapid Fire • 25g',
+    // Knight (Orange with dark border)
+    this.meleeTowerBtn = createTowerButton(420, 'Knight', 'Rapid Fire • 25g',
       '#fd9227', '#730f11');
 
     this.meleeTowerBtn.addListener('click');
@@ -539,8 +568,8 @@ export default class TowerDefenseScene extends Phaser.Scene {
       el.style.background = '#fd9227';
     });
 
-    // Fact Tower (Blue with dark border) - Support tower
-    this.factTowerBtn = createTowerButton(520, 'Fact Tower', 'Support • 40g',
+    // Training Camp (Blue with dark border) - Support tower
+    this.factTowerBtn = createTowerButton(520, 'Training Camp', 'Support • 40g',
       '#3498db', '#2c3e50');
 
     this.factTowerBtn.addListener('click');
@@ -563,6 +592,37 @@ export default class TowerDefenseScene extends Phaser.Scene {
       el.style.transform = 'scale(1)';
       el.style.boxShadow = 'none';
       el.style.background = '#3498db';
+    });
+
+    // Archmage (Purple with dark border) - Spell rotation (requires 5+ correct answers)
+    this.wizardTowerBtn = createTowerButton(620, 'Archmage', 'Spells • 100g',
+      '#9c27b0', '#4a148c');
+
+    this.wizardTowerBtn.addListener('click');
+    this.wizardTowerBtn.on('click', () => {
+      // Check if wizard is unlocked (5+ correct answers)
+      if (this.totalCorrectAnswers < 5) {
+        this.showErrorMessage(`Archmage locked! Need 5 correct answers (${this.totalCorrectAnswers}/5)`);
+        return;
+      }
+      this.selectedTowerType = this.selectedTowerType === 'wizard' ? null : 'wizard';
+      this.updateTowerSelection();
+    });
+
+    this.wizardTowerBtn.addListener('mouseenter');
+    this.wizardTowerBtn.on('mouseenter', () => {
+      const el = this.wizardTowerBtn.node as HTMLElement;
+      el.style.transform = 'scale(0.98)';
+      el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.25)';
+      el.style.background = '#7b1fa2';
+    });
+
+    this.wizardTowerBtn.addListener('mouseleave');
+    this.wizardTowerBtn.on('mouseleave', () => {
+      const el = this.wizardTowerBtn.node as HTMLElement;
+      el.style.transform = 'scale(1)';
+      el.style.boxShadow = 'none';
+      el.style.background = '#9c27b0';
     });
 
     this.updateTowerSelection();
@@ -1043,7 +1103,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
 
     elements.push(freezeShadow, freezeBg, freezeTitle, freezeInfo);
 
-    // Question Button (unlocked by Fact Tower, free, 90s cooldown)
+    // Question Button (unlocked by Training Camp, free, 90s cooldown)
     const questionX = startX + buttonWidth * 2.5 + buttonSpacing * 2;
     const questionShadow = this.add.rectangle(questionX + 2, bottomY + 2, buttonWidth, buttonHeight, 0x000000, 0.3);
     const questionBg = this.add.rectangle(questionX, bottomY, buttonWidth, buttonHeight, 0x96b902);
@@ -1304,7 +1364,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
   }
 
   // Complete tower placement after validation/quiz
-  completeTowerPlacement(x: number, y: number, towerType: 'basic' | 'sniper' | 'melee' | 'fact') {
+  completeTowerPlacement(x: number, y: number, towerType: 'basic' | 'sniper' | 'melee' | 'fact' | 'wizard') {
     // Get tower stats
     let towerStats: { color: number; range: number; fireRate: number; damage: number; size: number };
     if (towerType === 'basic') {
@@ -1319,7 +1379,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
       towerStats = {
         color: 0xff9800,
         range: 300,
-        fireRate: 2000,
+        fireRate: 3500,
         damage: 50,
         size: 1.2
       };
@@ -1331,13 +1391,21 @@ export default class TowerDefenseScene extends Phaser.Scene {
         damage: 8,
         size: 0.85
       };
-    } else { // fact
+    } else if (towerType === 'fact') {
       towerStats = {
         color: 0x3498db,
         range: 200,
         fireRate: 0,
         damage: 0,
         size: 1.0
+      };
+    } else { // wizard
+      towerStats = {
+        color: 0x9c27b0, // Purple for wizard
+        range: 170,
+        fireRate: 2500,
+        damage: 20, // Base damage (varies by spell)
+        size: 1.1
       };
     }
 
@@ -1410,7 +1478,12 @@ export default class TowerDefenseScene extends Phaser.Scene {
       baseBuffRadius: towerType === 'fact' ? 200 : undefined,
       factText: towerType === 'fact' ? factText : undefined,
       boosted: false,
-      boostedUntil: 0
+      boostedUntil: 0,
+      // Wizard tower specific properties
+      currentSpell: towerType === 'wizard' ? 'fire' : undefined,
+      nextSpell: towerType === 'wizard' ? 'ice' : undefined,
+      correctAnswersWhenPlaced: towerType === 'wizard' ? this.totalCorrectAnswers : undefined,
+      lastChargeBlast: towerType === 'wizard' ? 0 : undefined
     };
 
     // Add click handler to select tower for upgrades or Question ability
@@ -1418,7 +1491,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
       this.clickedOnTower = true;
       pointer.event.stopPropagation();
 
-      // Check if we're in Fact Tower selection mode for Question ability
+      // Check if we're in Training Camp selection mode for Question ability
       if (tower.type === 'fact' && this.questionAbilityCooldown > 0 && this.questionAbilityCooldown < 90000) {
         this.boostFactTower(tower);
         return;
@@ -1430,7 +1503,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
       this.selectTowerForUpgrade(tower);
     });
 
-    // Add hover tooltip for Fact Towers
+    // Add hover tooltip for Training Camps
     if (towerType === 'fact' && factText) {
       towerGraphics.on('pointerover', () => {
         this.showFactTowerTooltip(tower);
@@ -1444,6 +1517,14 @@ export default class TowerDefenseScene extends Phaser.Scene {
     // Draw range circle
     const rangeCircle = this.add.circle(x, y, tower.range, towerStats.color, 0.1);
     rangeCircle.setStrokeStyle(2, towerStats.color, 0.3);
+
+    // Add spell glow indicator for Wizard tower
+    if (towerType === 'wizard' && tower.nextSpell) {
+      const glowColor = tower.nextSpell === 'fire' ? 0xff0000 : (tower.nextSpell === 'ice' ? 0x00ffff : 0xffff00);
+      const glow = this.add.circle(x, y, 25 * towerStats.size, glowColor, 0.25);
+      glow.setStrokeStyle(2, glowColor, 0.3);
+      tower.spellGlow = glow;
+    }
 
     this.towers.push(tower);
   }
@@ -1481,75 +1562,174 @@ export default class TowerDefenseScene extends Phaser.Scene {
   }
 
   // Spawn a single enemy based on wave number
-  // Boss: Every 5 waves (5, 10, 15...) as the 5th enemy spawn
-  // Regular enemies: Type probability scales with wave number
+  // 50-wave spawn progression system with 9 enemy types
+  // Mini-boss: Every 5 waves (5, 15, 25, 35, 45)
+  // Boss: Every 10 waves (10, 20, 30, 40, 50) - spawns with quiz
+  // Challenge: Every 10 waves (10, 30, 50) - handled separately
   spawnEnemy() {
     const startPoint = this.pathPoints[0];
 
-    // Boss spawn logic: every 5 waves, spawn as 5th enemy
-    const isBossWave = this.waveNumber % 5 === 0;
     const enemiesSpawned = Math.min(40, Math.floor(8 + (3 * this.waveNumber))) - this.enemiesToSpawn;
-    const shouldSpawnBoss = isBossWave && enemiesSpawned === 4; // 5th enemy (0-indexed)
+
+    // Determine if this should be a special spawn
+    const isBossWave = this.waveNumber % 10 === 0;
+    const isMiniBossWave = this.waveNumber % 5 === 0 && !isBossWave;
+    const shouldSpawnBoss = isBossWave && enemiesSpawned === 4; // 5th enemy
+    const shouldSpawnMiniBoss = isMiniBossWave && enemiesSpawned === 4; // 5th enemy
 
     let type: EnemyType;
     let health: number;
+    let baseHealth: number;
     let speed: number;
     let color: number;
     let size: number;
+    let goldValue: number;
+    let isPriorityTarget: boolean = false;
 
     if (shouldSpawnBoss) {
-      // Boss spawns with quiz question popup
+      // Boss spawns every 10 waves with quiz question
       type = EnemyType.BOSS;
-      health = 300 + (50 * this.waveNumber); // Scales with wave
-      speed = 57.75; // Between blue and yellow
-      color = 0x6a0dad; // Deep purple
-      size = 1.7; // 2x red enemy size
+      baseHealth = 300 + (50 * this.waveNumber);
+      speed = 57.75;
+      color = 0x6a0dad; // Purple
+      size = 1.7;
+      goldValue = 25;
 
       this.bossActive = true;
-      this.showBossQuestion(health); // Triggers quiz popup
+      this.showBossQuestion(baseHealth);
+    } else if (shouldSpawnMiniBoss) {
+      // Mini-boss spawns every 5 waves (except boss waves)
+      type = EnemyType.MINI_BOSS;
+      baseHealth = 120 + (15 * this.waveNumber);
+      speed = 55;
+      color = 0x800000; // Maroon
+      size = 1.3;
+      goldValue = 15;
     } else {
-      // Regular enemy spawn - HARDER SCALING
+      // Regular enemy spawn based on wave progression
       const rand = Math.random();
 
-      if (this.waveNumber < 3) {
-        // Waves 1-2: Only red
-        type = EnemyType.RED;
-      } else if (this.waveNumber < 6) {
-        // Waves 3-5: 60% red, 40% blue (more blues)
-        type = rand < 0.6 ? EnemyType.RED : EnemyType.BLUE;
+      if (this.waveNumber < 7) {
+        // Waves 1-6: Only RED and BLUE/YELLOW
+        if (this.waveNumber < 3) {
+          type = EnemyType.RED;
+        } else if (this.waveNumber < 6) {
+          type = rand < 0.6 ? EnemyType.RED : EnemyType.BLUE;
+        } else {
+          if (rand < 0.4) type = EnemyType.RED;
+          else if (rand < 0.8) type = EnemyType.BLUE;
+          else type = EnemyType.YELLOW;
+        }
+      } else if (this.waveNumber < 11) {
+        // Waves 7-10: Introduce SPEEDY (15%)
+        if (rand < 0.15) type = EnemyType.SPEEDY;
+        else if (rand < 0.45) type = EnemyType.RED;
+        else if (rand < 0.75) type = EnemyType.BLUE;
+        else type = EnemyType.YELLOW;
+      } else if (this.waveNumber < 16) {
+        // Waves 11-15: Introduce ARMORED (20%), increase SPEEDY (20%)
+        if (rand < 0.20) type = EnemyType.ARMORED;
+        else if (rand < 0.40) type = EnemyType.SPEEDY;
+        else if (rand < 0.60) type = EnemyType.RED;
+        else if (rand < 0.80) type = EnemyType.BLUE;
+        else type = EnemyType.YELLOW;
+      } else if (this.waveNumber < 21) {
+        // Waves 16-20: Introduce HEALER (10%), balanced mix
+        if (rand < 0.10) type = EnemyType.HEALER;
+        else if (rand < 0.30) type = EnemyType.ARMORED;
+        else if (rand < 0.50) type = EnemyType.SPEEDY;
+        else if (rand < 0.65) type = EnemyType.RED;
+        else if (rand < 0.80) type = EnemyType.BLUE;
+        else type = EnemyType.YELLOW;
       } else {
-        // Wave 6+: 40% red, 40% blue, 20% yellow (balanced difficulty)
-        if (rand < 0.4) type = EnemyType.RED;
-        else if (rand < 0.8) type = EnemyType.BLUE;
+        // Waves 21+: Full roster with COMMANDER (8%)
+        if (rand < 0.08) type = EnemyType.COMMANDER;
+        else if (rand < 0.16) type = EnemyType.HEALER;
+        else if (rand < 0.40) type = EnemyType.ARMORED;
+        else if (rand < 0.60) type = EnemyType.SPEEDY;
+        else if (rand < 0.72) type = EnemyType.RED;
+        else if (rand < 0.84) type = EnemyType.BLUE;
         else type = EnemyType.YELLOW;
       }
 
-      // Set stats based on enemy type - balanced for early game
-      if (type === EnemyType.RED) {
-        health = 25;
-        speed = 50;
-        color = 0xff0000;
-        size = 0.85;
-      } else if (type === EnemyType.BLUE) {
-        health = 50;
-        speed = 55;
-        color = 0x0000ff;
-        size = 1.0;
-      } else { // YELLOW
-        health = 75;
-        speed = 60.5;
-        color = 0xffff00;
-        size = 1.2;
+      // Set base stats based on enemy type
+      switch (type) {
+        case EnemyType.RED:
+          baseHealth = 25;
+          speed = 50;
+          color = 0xff0000;
+          size = 0.85;
+          goldValue = 1;
+          break;
+        case EnemyType.BLUE:
+          baseHealth = 50;
+          speed = 55;
+          color = 0x0000ff;
+          size = 1.0;
+          goldValue = 2;
+          break;
+        case EnemyType.YELLOW:
+          baseHealth = 75;
+          speed = 60.5;
+          color = 0xffff00;
+          size = 1.2;
+          goldValue = 3;
+          break;
+        case EnemyType.SPEEDY:
+          baseHealth = 20;
+          speed = 80;
+          color = 0x00ff00; // Green
+          size = 0.7;
+          goldValue = 2;
+          break;
+        case EnemyType.ARMORED:
+          baseHealth = 80;
+          speed = 45;
+          color = 0x808080; // Gray
+          size = 1.1;
+          goldValue = 5;
+          break;
+        case EnemyType.HEALER:
+          baseHealth = 50;
+          speed = 50;
+          color = 0x90ee90; // Light green
+          size = 1.0;
+          goldValue = 6;
+          isPriorityTarget = true;
+          break;
+        case EnemyType.COMMANDER:
+          baseHealth = 60;
+          speed = 48;
+          color = 0xffa500; // Orange
+          size = 1.15;
+          goldValue = 7;
+          isPriorityTarget = true;
+          break;
+        default:
+          baseHealth = 25;
+          speed = 50;
+          color = 0xff0000;
+          size = 0.85;
+          goldValue = 1;
       }
+    }
+
+    // Apply HP scaling for waves 20+
+    if (this.waveNumber >= 20 && type !== EnemyType.BOSS && type !== EnemyType.MINI_BOSS) {
+      const scalingFactor = 1 + ((this.waveNumber - 20) / 20);
+      health = Math.floor(baseHealth * scalingFactor);
+    } else {
+      health = baseHealth;
     }
 
     // Create visual representation
     const graphics = this.add.graphics();
-    graphics.fillStyle(color);
-    graphics.beginPath();
 
-    if (type === EnemyType.BOSS) {
-      // Hexagon shape for boss
+    // Draw different shapes based on enemy type
+    if (type === EnemyType.BOSS || type === EnemyType.MINI_BOSS) {
+      // Hexagon shape for bosses
+      graphics.fillStyle(color);
+      graphics.beginPath();
       const radius = 20;
       for (let i = 0; i < 6; i++) {
         const angle = (Math.PI / 3) * i - Math.PI / 2;
@@ -1560,8 +1740,50 @@ export default class TowerDefenseScene extends Phaser.Scene {
       }
       graphics.closePath();
       graphics.fillPath();
+    } else if (type === EnemyType.HEALER) {
+      // Star shape for healer (5-pointed)
+      graphics.fillStyle(color);
+      graphics.beginPath();
+      const spikes = 5;
+      const outerRadius = 15;
+      const innerRadius = 7;
+      for (let i = 0; i < spikes * 2; i++) {
+        const angle = (Math.PI / spikes) * i - Math.PI / 2;
+        const radius = i % 2 === 0 ? outerRadius : innerRadius;
+        const x = radius * Math.cos(angle);
+        const y = radius * Math.sin(angle);
+        if (i === 0) graphics.moveTo(x, y);
+        else graphics.lineTo(x, y);
+      }
+      graphics.closePath();
+      graphics.fillPath();
+    } else if (type === EnemyType.COMMANDER) {
+      // Diamond shape for commander
+      graphics.fillStyle(color);
+      graphics.beginPath();
+      graphics.moveTo(0, -15);
+      graphics.lineTo(12, 0);
+      graphics.lineTo(0, 15);
+      graphics.lineTo(-12, 0);
+      graphics.closePath();
+      graphics.fillPath();
+    } else if (type === EnemyType.ARMORED) {
+      // Triangle with thick metallic border for armored
+      graphics.fillStyle(color);
+      graphics.beginPath();
+      graphics.moveTo(0, -15);
+      graphics.lineTo(15, 10);
+      graphics.lineTo(-15, 10);
+      graphics.closePath();
+      graphics.fillPath();
+
+      // Add thick armored border
+      graphics.lineStyle(4, 0x4a4a4a, 1); // Dark gray metallic border
+      graphics.strokeTriangle(0, -15, 15, 10, -15, 10);
     } else {
-      // Triangle shape for regular enemies
+      // Triangle shape for regular enemies (RED, BLUE, YELLOW, SPEEDY)
+      graphics.fillStyle(color);
+      graphics.beginPath();
       graphics.moveTo(0, -15);
       graphics.lineTo(15, 10);
       graphics.lineTo(-15, 10);
@@ -1574,11 +1796,8 @@ export default class TowerDefenseScene extends Phaser.Scene {
 
     // Make enemy interactive for Lightning Strike ability
     // Graphics objects need an explicit hit area defined
-    if (type === EnemyType.BOSS) {
-      graphics.setInteractive(new Phaser.Geom.Circle(0, 0, 20), Phaser.Geom.Circle.Contains);
-    } else {
-      graphics.setInteractive(new Phaser.Geom.Circle(0, 0, 15), Phaser.Geom.Circle.Contains);
-    }
+    const hitRadius = (type === EnemyType.BOSS || type === EnemyType.MINI_BOSS) ? 20 : 15;
+    graphics.setInteractive(new Phaser.Geom.Circle(0, 0, hitRadius), Phaser.Geom.Circle.Contains);
     graphics.input!.cursor = 'pointer';
 
     // Create health bar background
@@ -1597,11 +1816,12 @@ export default class TowerDefenseScene extends Phaser.Scene {
     healthBarFill.fillRect(-healthBarWidth / 2, healthBarY, healthBarWidth, healthBarHeight);
     healthBarFill.setPosition(startPoint.x, startPoint.y);
 
-    // Create enemy entity
+    // Create enemy entity with new properties
     const enemy: Enemy = {
       x: startPoint.x,
       y: startPoint.y,
       speed: speed,
+      baseSpeed: speed, // Store original speed for aura calculations
       health: health,
       maxHealth: health,
       type: type,
@@ -1609,7 +1829,10 @@ export default class TowerDefenseScene extends Phaser.Scene {
       graphics: graphics,
       size: size,
       healthBarBg: healthBarBg,
-      healthBarFill: healthBarFill
+      healthBarFill: healthBarFill,
+      goldValue: goldValue,
+      isPriorityTarget: isPriorityTarget,
+      lastHealTime: type === EnemyType.HEALER ? Date.now() : undefined
     };
 
     this.enemies.push(enemy);
@@ -1625,6 +1848,20 @@ export default class TowerDefenseScene extends Phaser.Scene {
     if (type === EnemyType.BOSS) {
       this.bossEnemy = enemy;
     }
+  }
+
+  // Apply damage to enemy with armor reduction
+  // ARMORED enemies take 35% less damage, except from DoT sources
+  applyDamageToEnemy(enemy: Enemy, damage: number, isDoT: boolean = false): number {
+    let finalDamage = damage;
+
+    // Apply armor damage reduction (except for DoT)
+    if (enemy.type === EnemyType.ARMORED && !isDoT) {
+      finalDamage = damage * 0.65; // 35% damage reduction
+    }
+
+    enemy.health -= finalDamage;
+    return finalDamage; // Return actual damage dealt
   }
 
   // Phaser lifecycle: Main game loop (runs ~60 times per second)
@@ -1681,7 +1918,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
     // Update ability button UI to reflect cooldown changes
     this.updateAbilityButtons();
 
-    // Check for Fact Tower boost expiration (2 minute duration)
+    // Check for Training Camp boost expiration (2 minute duration)
     this.towers.forEach(tower => {
       if (tower.type === 'fact' && tower.boosted && tower.boostedUntil) {
         if (Date.now() > tower.boostedUntil) {
@@ -1831,12 +2068,8 @@ export default class TowerDefenseScene extends Phaser.Scene {
 
       // remove if dead
       if (enemy.health <= 0) {
-        // Award gold based on enemy type
-        let goldReward = 0;
-        if (enemy.type === EnemyType.RED) goldReward = 1;
-        else if (enemy.type === EnemyType.BLUE) goldReward = 2;
-        else if (enemy.type === EnemyType.YELLOW) goldReward = 3;
-        else if (enemy.type === EnemyType.BOSS) goldReward = 50;
+        // Award gold based on enemy's goldValue property
+        let goldReward = enemy.goldValue;
 
         // Apply gold buff (+1 gold per kill)
         if (this.activeBuff === 'gold') {
@@ -1864,12 +2097,86 @@ export default class TowerDefenseScene extends Phaser.Scene {
       }
     }
 
+    // HEALER healing aura logic (3 HP/s, 80px radius, no stacking)
+    this.enemies.forEach(healer => {
+      if (healer.type !== EnemyType.HEALER || healer.health <= 0) return;
+
+      // Heal every 1 second (1000ms)
+      const healTickRate = 1000 / this.gameSpeed;
+      const now = Date.now();
+
+      if (healer.lastHealTime && now - healer.lastHealTime < healTickRate) return;
+
+      healer.lastHealTime = now;
+
+      // Find enemies in healing range (80px radius)
+      const healRadius = 80;
+      this.enemies.forEach(target => {
+        if (target === healer) return; // Don't heal self
+        if (target.health >= target.maxHealth) return; // Already at full health
+        if (target.type === EnemyType.HEALER || target.type === EnemyType.COMMANDER) return; // No aura stacking
+
+        const dx = target.x - healer.x;
+        const dy = target.y - healer.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < healRadius) {
+          // Heal 3 HP/s
+          target.health = Math.min(target.health + 3, target.maxHealth);
+
+          // Visual heal effect (small green text)
+          const healText = this.add.text(target.x, target.y - 20, `+3`, {
+            fontSize: '10px',
+            color: '#00ff00',
+            fontFamily: 'Quicksand, sans-serif',
+            fontStyle: 'bold',
+            stroke: '#000000',
+            strokeThickness: 1
+          }).setOrigin(0.5);
+
+          this.tweens.add({
+            targets: healText,
+            y: target.y - 35,
+            alpha: 0,
+            duration: 500,
+            onComplete: () => healText.destroy()
+          });
+        }
+      });
+    });
+
+    // COMMANDER speed aura logic (+20% speed, 100px radius, no stacking)
+    // First, reset all enemy speeds to base speed
+    this.enemies.forEach(enemy => {
+      enemy.speed = enemy.baseSpeed;
+    });
+
+    // Then apply commander aura buffs
+    this.enemies.forEach(commander => {
+      if (commander.type !== EnemyType.COMMANDER || commander.health <= 0) return;
+
+      const auraRadius = 100;
+      this.enemies.forEach(target => {
+        if (target === commander) return; // Don't buff self
+        if (target.type === EnemyType.HEALER || target.type === EnemyType.COMMANDER) return; // No aura stacking
+
+        const dx = target.x - commander.x;
+        const dy = target.y - commander.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < auraRadius) {
+          // Apply +20% speed boost (only from strongest commander, no stacking)
+          target.speed = Math.max(target.speed, target.baseSpeed * 1.20);
+        }
+      });
+    });
+
     // Tower shooting logic (applies global boss buff if active)
     this.towers.forEach(tower => {
-      // Skip Fact Towers (they don't attack)
+      // Skip Training Camps (they don't attack)
       if (tower.type === 'fact') return;
 
-      // Calculate Fact Tower buffs (5% or 15% if boosted, strongest only, don't stack)
+      // Calculate Training Camp buffs (5% or 15% if boosted, strongest only, don't stack)
       let factTowerDamageBuff = 1.0;
       let factTowerSpeedBuff = 1.0;
 
@@ -1896,7 +2203,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
 
       // Calculate fire rate with buffs
       let effectiveFireRate = tower.fireRate;
-      effectiveFireRate *= factTowerSpeedBuff; // Fact Tower buff
+      effectiveFireRate *= factTowerSpeedBuff; // Training Camp buff
       if (this.towerGlobalBuffActive) {
         effectiveFireRate *= 0.85; // Boss buff: 15% faster
       }
@@ -1907,13 +2214,13 @@ export default class TowerDefenseScene extends Phaser.Scene {
         if (target) {
           // Calculate damage with buffs
           let effectiveDamage = tower.damage;
-          effectiveDamage *= factTowerDamageBuff; // Fact Tower buff
+          effectiveDamage *= factTowerDamageBuff; // Training Camp buff
           if (this.towerGlobalBuffActive) {
             effectiveDamage *= 1.15; // Boss buff: 15% more damage
           }
 
           if (tower.type === 'melee') {
-            target.health -= effectiveDamage; // Hitscan (instant)
+            this.applyDamageToEnemy(target, effectiveDamage); // Hitscan (instant)
 
             // Apply AoE buff for melee attacks too
             if (this.activeBuff === 'aoe') {
@@ -1924,7 +2231,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
                 const ey = enemy.y - target.y;
                 const enemyDist = Math.sqrt(ex * ex + ey * ey);
                 if (enemyDist < aoeRadius) {
-                  enemy.health -= effectiveDamage;
+                  this.applyDamageToEnemy(enemy, effectiveDamage);
                 }
               });
             }
@@ -1951,8 +2258,8 @@ export default class TowerDefenseScene extends Phaser.Scene {
       const dist = Math.sqrt(dx * dx + dy * dy);
 
       if (dist < 10) {
-        // hit target - apply direct damage
-        proj.target.health -= proj.damage;
+        // hit target - apply direct damage with armor reduction
+        this.applyDamageToEnemy(proj.target, proj.damage);
 
         // Apply AoE buff (all tower attacks deal small AoE damage)
         if (this.activeBuff === 'aoe') {
@@ -1963,7 +2270,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
             const ey = enemy.y - proj.target.y;
             const enemyDist = Math.sqrt(ex * ex + ey * ey);
             if (enemyDist < aoeRadius) {
-              enemy.health -= proj.damage;
+              this.applyDamageToEnemy(enemy, proj.damage);
             }
           });
         }
@@ -1979,7 +2286,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
             const ey = enemy.y - proj.target.y;
             const enemyDist = Math.sqrt(ex * ex + ey * ey);
             if (enemyDist < explosionRadius) {
-              enemy.health -= proj.damage;
+              this.applyDamageToEnemy(enemy, proj.damage);
             }
           });
 
@@ -2032,7 +2339,8 @@ export default class TowerDefenseScene extends Phaser.Scene {
       // Tick every 500ms (adjusted for game speed)
       const dotTickRate = 500 / this.gameSpeed;
       if (time - dot.lastTick > dotTickRate) {
-        dot.enemy.health -= dot.damagePerTick;
+        // DoT bypasses armor
+        this.applyDamageToEnemy(dot.enemy, dot.damagePerTick, true);
         dot.ticksRemaining--;
         dot.lastTick = time;
 
@@ -2063,6 +2371,8 @@ export default class TowerDefenseScene extends Phaser.Scene {
   }
 
   findClosestEnemy(tower: Tower): Enemy | null {
+    let closestPriority: Enemy | null = null;
+    let minPriorityDist = tower.range;
     let closest: Enemy | null = null;
     let minDist = tower.range;
 
@@ -2073,13 +2383,21 @@ export default class TowerDefenseScene extends Phaser.Scene {
       const dy = enemy.y - tower.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
 
+      // Check for priority targets (HEALER/COMMANDER)
+      if (enemy.isPriorityTarget && dist < minPriorityDist) {
+        minPriorityDist = dist;
+        closestPriority = enemy;
+      }
+
+      // Track closest regular enemy as fallback
       if (dist < minDist) {
         minDist = dist;
         closest = enemy;
       }
     });
 
-    return closest;
+    // Return priority target if found, otherwise closest regular enemy
+    return closestPriority || closest;
   }
 
   shootProjectile(tower: Tower, target: Enemy, damage?: number) {
@@ -2456,13 +2774,13 @@ export default class TowerDefenseScene extends Phaser.Scene {
   // Show tower purchase quiz gate popup
   // Requires answering a question correctly to purchase tower (from 2nd purchase onward)
   // Wrong answer increases tower price by 25% and re-prompts
-  showTowerPurchaseQuestion(towerType: 'basic' | 'sniper' | 'melee' | 'fact') {
+  showTowerPurchaseQuestion(towerType: 'basic' | 'sniper' | 'melee' | 'fact' | 'wizard') {
     // Pick a random question from quiz pool
     const question = this.quizData.questions[Math.floor(Math.random() * this.quizData.questions.length)];
 
     // Get current tower price
     const currentPrice = this.towerPurchasePrice[towerType];
-    const towerNames = { basic: 'Ballista', sniper: 'Trebuchet', melee: 'Melee Tower', fact: 'Fact Tower' };
+    const towerNames = { basic: 'Ballista', sniper: 'Trebuchet', melee: 'Knight', fact: 'Training Camp', wizard: 'Archmage' };
 
     // Responsive dimensions - center in game area (excluding sidebar)
     const width = this.scale.width;
@@ -2586,7 +2904,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
   // Incorrect: Increase price by 25%, re-prompt
   handleTowerPurchaseAnswer(
     isCorrect: boolean,
-    towerType: 'basic' | 'sniper' | 'melee' | 'fact',
+    towerType: 'basic' | 'sniper' | 'melee' | 'fact' | 'wizard',
     overlay: Phaser.GameObjects.Rectangle,
     panel: Phaser.GameObjects.Rectangle,
     shadow: Phaser.GameObjects.Rectangle,
@@ -2720,7 +3038,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
       sniperTitle.nextElementSibling!.textContent = `Slow Fire • ${this.towerPurchasePrice.sniper}g`;
     }
 
-    // Update Melee Tower price
+    // Update Knight price
     const meleeTitle = this.meleeTowerBtn.node.querySelector('div:first-child') as HTMLElement;
     if (meleeTitle) {
       meleeTitle.nextElementSibling!.textContent = `Rapid Fire • ${this.towerPurchasePrice.melee}g`;
@@ -3021,7 +3339,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
   // Show ability quiz popup
   // lightning: 40g, 45s cooldown, enemy selection after quiz
   // freeze: 60g, 60s cooldown, freezes all enemies
-  // question: free, 90s cooldown, boost selected Fact Tower
+  // question: free, 90s cooldown, boost selected Training Camp
   showAbilityQuestion(abilityType: 'lightning' | 'freeze' | 'question') {
     // Pick a random question from quiz pool
     const question = this.quizData.questions[Math.floor(Math.random() * this.quizData.questions.length)];
@@ -3281,17 +3599,17 @@ export default class TowerDefenseScene extends Phaser.Scene {
       this.questionAbilityCooldown = 90000; // 90 seconds in ms
       this.updateAbilityButtons();
 
-      // Check if there are any Fact Towers to boost
+      // Check if there are any Training Camps to boost
       const factTowers = this.towers.filter(t => t.type === 'fact');
       if (factTowers.length === 0) {
-        this.showErrorMessage('No Fact Towers to boost!');
+        this.showErrorMessage('No Training Camps to boost!');
         // Refund cooldown since ability can't be used
         this.questionAbilityCooldown = 0;
         this.updateAbilityButtons();
       } else {
-        // Highlight all Fact Towers for selection
+        // Highlight all Training Camps for selection
         this.highlightFactTowers(true);
-        this.showErrorMessage('Select a Fact Tower to boost!');
+        this.showErrorMessage('Select a Training Camp to boost!');
       }
     }
   }
@@ -3342,8 +3660,8 @@ export default class TowerDefenseScene extends Phaser.Scene {
       this.errorMessage = undefined;
     }
 
-    // Deal 100 damage to target
-    target.health -= 100;
+    // Deal 100 damage to target (with armor reduction)
+    this.applyDamageToEnemy(target, 100);
 
     // Visual lightning effect on target
     const lightning = this.add.graphics();
@@ -3383,7 +3701,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
       const dist = Math.sqrt(dx * dx + dy * dy);
 
       if (dist < aoeRadius) {
-        enemy.health -= 25;
+        this.applyDamageToEnemy(enemy, 25);
 
         // AoE damage number
         const aoeDamageText = this.add.text(enemy.x, enemy.y - 20, `-25`, {
@@ -3424,7 +3742,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
     });
   }
 
-  // Highlight or un-highlight Fact Towers for Question ability selection
+  // Highlight or un-highlight Training Camps for Question ability selection
   highlightFactTowers(highlight: boolean) {
     this.towers.forEach(tower => {
       if (tower.type === 'fact') {
@@ -3448,7 +3766,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
     });
   }
 
-  // Boost selected Fact Tower (+10% radius, 5%→15% buffs for 2 mins)
+  // Boost selected Training Camp (+10% radius, 5%→15% buffs for 2 mins)
   boostFactTower(tower: Tower) {
     if (tower.type !== 'fact') return;
 
@@ -3467,7 +3785,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
     }
 
     // Visual feedback
-    this.showErrorMessage('Fact Tower boosted! +10% radius, 15% buffs for 2 minutes');
+    this.showErrorMessage('Training Camp boosted! +10% radius, 15% buffs for 2 minutes');
     this.time.delayedCall(2000, () => {
       if (this.errorMessage) {
         this.errorMessage.destroy();
@@ -3478,7 +3796,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
     // Set up boost expiration (handled in update loop)
   }
 
-  // Show tooltip with educational fact for Fact Tower
+  // Show tooltip with educational fact for Training Camp
   showFactTowerTooltip(tower: Tower) {
     if (!tower.factText) return;
 
@@ -3500,7 +3818,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
 
     // Background panel
     const bg = this.add.rectangle(0, 0, tooltipMaxWidth, 100, 0x2c3e50, 0.95);
-    bg.setStrokeStyle(3, 0x96b902); // Green border (Fact Tower color)
+    bg.setStrokeStyle(3, 0x96b902); // Green border (Training Camp color)
     this.factTowerTooltip.add(bg);
 
     // Title text
@@ -3552,7 +3870,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
     this.factTowerTooltip.setDepth(10000); // Above everything
   }
 
-  // Hide Fact Tower tooltip
+  // Hide Training Camp tooltip
   hideFactTowerTooltip() {
     if (this.factTowerTooltip) {
       this.factTowerTooltip.destroy();
