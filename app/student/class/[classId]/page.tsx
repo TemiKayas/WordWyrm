@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import Navbar from '@/components/shared/Navbar';
 import SlidingSidebar from '@/components/shared/SlidingSidebar';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
+import BackButton from '@/components/ui/BackButton';
 import { getStudentClassDetails } from '@/app/actions/class';
 import Image from 'next/image';
 
@@ -31,7 +32,7 @@ export default function StudentClassDetailPage() {
   const classId = params.classId as string;
 
   const [isLoading, setIsLoading] = useState(true);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [classDetails, setClassDetails] = useState<ClassDetails | null>(null);
   const [error, setError] = useState('');
 
@@ -135,13 +136,10 @@ export default function StudentClassDetailPage() {
 
             {/* Class Header */}
             <div className="mt-8 mb-6">
-              <button
-                onClick={() => router.push('/student/dashboard')}
-                className="text-[#473025]/60 font-quicksand text-[14px] mb-2 hover:text-[#473025]"
-              >
-                ← Back to My Classes
-              </button>
-              <h2 className="font-quicksand font-bold text-[#473025] text-[28px] md:text-[32px]">
+              <BackButton href="/student/dashboard" variant="text">
+                Back to My Classes
+              </BackButton>
+              <h2 className="font-quicksand font-bold text-[#473025] text-[28px] md:text-[32px] mt-2">
                 {classDetails.name}
               </h2>
               {classDetails.description && (

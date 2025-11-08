@@ -331,9 +331,9 @@ function GameEditContent() {
                                         onChange={(e) => setGameMode(e.target.value as GameMode)}
                                         className="w-full bg-[#fff6e8] border-2 border-[#ffb554] rounded-[8px] h-[36px] px-3 font-quicksand text-[#473025] text-[13px] focus:outline-none focus:border-[#ff9f22] transition-all"
                                     >
-                                        <option value={GameMode.TRADITIONAL}>📝 Traditional Quiz</option>
-                                        <option value={GameMode.TOWER_DEFENSE}>🏰 Tower Defense</option>
-                                        <option value={GameMode.SNAKE}>🐍 Snake Quiz</option>
+                                        <option value={GameMode.TRADITIONAL}>Traditional Quiz</option>
+                                        <option value={GameMode.TOWER_DEFENSE}>Tower Defense</option>
+                                        <option value={GameMode.SNAKE}>Snake Quiz</option>
                                     </select>
                                 </div>
                                 <div className="space-y-3">

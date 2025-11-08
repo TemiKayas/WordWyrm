@@ -81,8 +81,7 @@ export default function PDFUploadForm({ onFileSelect }: PDFUploadFormProps) {
         }
 
         setProgress('All PDFs processed successfully! Redirecting...');
-        // Redirect to game settings page with the first quiz ID
-        // In the future, this could be updated to handle multiple quizzes
+        // Redirect to game settings to review questions
         router.push(`/teacher/game-settings?quizId=${quizIds[0]}`);
       } catch {
         setError('An unexpected error occurred');
@@ -193,7 +192,7 @@ export default function PDFUploadForm({ onFileSelect }: PDFUploadFormProps) {
         disabled={isPending || selectedFiles.length === 0}
         variant="success"
         size="md"
-        className="w-full animate-slide-up shadow-lg hover:shadow-xl"
+        className="w-full animate-slide-up"
         style={{ animationDelay: '0.4s' } as React.CSSProperties}
         isLoading={isPending}
       >

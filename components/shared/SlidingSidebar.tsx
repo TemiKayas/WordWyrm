@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { Menu } from 'lucide-react';
 
 interface SlidingSidebarProps {
   isOpen: boolean;
@@ -34,8 +35,8 @@ export default function SlidingSidebar({ isOpen, onClose }: SlidingSidebarProps)
     {
       label: 'Shop',
       icon: '/assets/dashboard/shop-icon.svg',
-      href: `${rolePrefix}/shop`,
-      active: pathname === `${rolePrefix}/shop`,
+      href: '/shop',
+      active: pathname === '/shop',
     },
   ];
 
@@ -61,25 +62,10 @@ export default function SlidingSidebar({ isOpen, onClose }: SlidingSidebarProps)
         <div className="px-4 md:px-6 lg:px-[35px] pt-6 pb-4 flex justify-start">
           <button
             onClick={onClose}
-            className="btn btn-ghost btn-sm text-[#473025] hover:text-[#ff9f22] transition-colors min-h-0 h-auto"
+            className="btn btn-ghost btn-circle hover:bg-[#473025]/10 text-[#473025] hover:text-[#ff9f22] transition-colors"
             aria-label="Close menu"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="28"
-              height="28"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              className="text-[#473025]"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2.5"
-                d="M4 6h16M4 12h16M4 18h7"
-              />
-            </svg>
+            <Menu size={28} strokeWidth={2.5} />
           </button>
         </div>
 
@@ -87,7 +73,7 @@ export default function SlidingSidebar({ isOpen, onClose }: SlidingSidebarProps)
         <div className="px-4 md:px-6 lg:px-[35px] mb-4">
           <button
             onClick={handlePlayClick}
-            className="btn-primary w-full h-[50px] md:h-[57px] bg-[#95b607] border-[3px] border-[#006029] rounded-[15px] flex items-center gap-2 md:gap-3 px-3 md:px-4 hover:bg-[#7a9700] cursor-pointer transition-all"
+            className="btn-primary w-full h-[50px] md:h-[57px] bg-[#95b607] border-[3px] border-[#006029] rounded-[15px] flex items-center gap-2 md:gap-3 px-3 md:px-4 hover:bg-[#7a9700] cursor-pointer transition-all shadow-[0_6px_0_0_#006029] hover:shadow-[0_8px_0_0_#006029] active:shadow-[0_2px_0_0_#006029] hover:-translate-y-0.5 active:translate-y-1"
           >
             <div className="w-5 h-5 md:w-6 md:h-6 relative flex-shrink-0">
               <Image
@@ -107,7 +93,7 @@ export default function SlidingSidebar({ isOpen, onClose }: SlidingSidebarProps)
         <div className="px-4 md:px-6 lg:px-[35px] mb-6 md:mb-8">
           <button
             onClick={handleCreateClick}
-            className="btn-primary w-full h-[50px] md:h-[57px] bg-[#ff3875] border-[3px] border-[#730f11] rounded-[15px] flex items-center gap-2 md:gap-3 px-3 md:px-4 hover:bg-[#e6326a] cursor-pointer transition-all"
+            className="btn-primary w-full h-[50px] md:h-[57px] bg-[#ff3875] border-[3px] border-[#730f11] rounded-[15px] flex items-center gap-2 md:gap-3 px-3 md:px-4 hover:bg-[#e6326a] cursor-pointer transition-all shadow-[0_6px_0_0_#730f11] hover:shadow-[0_8px_0_0_#730f11] active:shadow-[0_2px_0_0_#730f11] hover:-translate-y-0.5 active:translate-y-1"
           >
             <div className="w-5 h-5 md:w-6 md:h-6 relative flex-shrink-0">
               <Image

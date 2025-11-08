@@ -572,7 +572,7 @@ export async function getPublicGames(
       take: 50, // Limit to 50 games
     });
 
-    console.log('🔍 Public Games Query Results:', {
+    console.log('[Public Games Query]', {
       totalFound: games.length,
       games: games.map(g => ({
         id: g.id,

@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { createGame } from '@/app/actions/game';
 import { getQuizById, updateQuizQuestions } from '@/app/actions/quiz';
 import Button from '@/components/ui/Button';
+import BackButton from '@/components/ui/BackButton';
 import TeacherPageLayout from '@/components/shared/TeacherPageLayout';
 import { GameMode } from '@prisma/client';
 
@@ -111,31 +112,6 @@ function GameSettingsContent() {
     setEditingQuestionIndex(questions.length);
   };
 
-  const handleSaveQuestions = async () => {
-    if (!quizId || questions.length === 0) {
-      setSaveMessage({ type: 'error', text: 'At least one question is required' });
-      return;
-    }
-
-    setIsSaving(true);
-    try {
-      const quizData: Quiz = { questions };
-      const result = await updateQuizQuestions(quizId, quizData);
-
-      if (result.success) {
-        setSaveMessage({ type: 'success', text: 'Questions saved successfully!' });
-        setTimeout(() => setSaveMessage(null), 3000);
-      } else {
-        setSaveMessage({ type: 'error', text: result.error });
-      }
-    } catch (error) {
-      console.error('Error saving questions:', error);
-      setSaveMessage({ type: 'error', text: 'Failed to save questions' });
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
   const handlePublish = async () => {
     if (!quizId || !title.trim()) {
       setSaveMessage({ type: 'error', text: 'Title is required' });
@@ -144,7 +120,17 @@ function GameSettingsContent() {
 
     setIsSaving(true);
     try {
-      // Create the game
+      // First save the questions
+      const quizData: Quiz = { questions };
+      const updateResult = await updateQuizQuestions(quizId, quizData);
+
+      if (!updateResult.success) {
+        setSaveMessage({ type: 'error', text: 'Failed to save questions' });
+        setIsSaving(false);
+        return;
+      }
+
+      // Then create the game
       const result = await createGame({
         quizId,
         title,
@@ -155,7 +141,7 @@ function GameSettingsContent() {
       if (result.success) {
         setSaveMessage({ type: 'success', text: isPublic ? 'Game published successfully! Redirecting...' : 'Game saved as draft! Redirecting...' });
         setTimeout(() => {
-          router.push('/teacher/dashboard');
+          router.push('/teacher/games');
         }, 1500);
       } else {
         setSaveMessage({ type: 'error', text: result.error || 'Failed to create game' });
@@ -190,17 +176,8 @@ function GameSettingsContent() {
               </p>
             </div>
 
-            <button
-              onClick={() => router.push('/teacher/dashboard')}
-              className="w-full md:w-auto bg-[#fd9227] border-[1.5px] border-[#730f11] rounded-[8px] h-[38px] px-4 flex items-center justify-center gap-2 hover:bg-[#e6832b] transition-all cursor-pointer"
-            >
-              <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12.5 15L7.5 10L12.5 5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-              <span className="font-quicksand font-bold text-white text-[14px]">
-                Back
-              </span>
-            </button>
+            <BackButton href="/teacher/dashboard" />
+
           </div>
 
           {/* Save Message */}
@@ -296,9 +273,9 @@ function GameSettingsContent() {
                   onChange={(e) => setGameMode(e.target.value as GameMode)}
                   className="w-full bg-[#fff6e8] border-[3px] border-[#ffb554] rounded-[11px] h-[50px] md:h-[55px] px-4 font-quicksand font-semibold text-[#473025] text-[14px] focus:outline-none focus:ring-4 focus:ring-[#ff9f22]/30 focus:border-[#ff9f22] hover:border-[#ff9f22] transition-all"
                 >
-                  <option value={GameMode.TRADITIONAL}>📝 Traditional Quiz</option>
-                  <option value={GameMode.TOWER_DEFENSE}>🏰 Tower Defense</option>
-                  <option value={GameMode.SNAKE}>🐍 Snake Quiz</option>
+                  <option value={GameMode.TRADITIONAL}>Traditional Quiz</option>
+                  <option value={GameMode.TOWER_DEFENSE}>Tower Defense</option>
+                  <option value={GameMode.SNAKE}>Snake Quiz</option>
                 </select>
               </div>
 
@@ -376,7 +353,7 @@ function GameSettingsContent() {
               </div>
               <button
                 onClick={handleAddQuestion}
-                className="bg-[#96b902] text-white font-quicksand font-bold text-[11px] px-2.5 py-1.5 rounded-[6px] hover:bg-[#82a002] transition-all"
+                className="bg-[#96b902] border-[2px] border-[#006029] text-white font-quicksand font-bold text-[11px] px-2.5 py-1.5 rounded-[6px] hover:bg-[#82a002] transition-all shadow-[0_3px_0_0_#006029] hover:shadow-[0_4px_0_0_#006029] active:shadow-[0_1px_0_0_#006029] hover:-translate-y-0.5 active:translate-y-0.5 cursor-pointer"
               >
                 + Add
               </button>
@@ -500,27 +477,28 @@ function GameSettingsContent() {
               ))}
             </div>
 
-            {/* Save Questions Button */}
-            <div className="flex justify-end mt-3">
-              <button
-                onClick={handleSaveQuestions}
-                disabled={isSaving || questions.length === 0}
-                className="bg-[#96b902] text-white font-quicksand font-bold text-[14px] px-6 py-3 rounded-[10px] hover:bg-[#82a002] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-              >
-                {isSaving ? 'Saving...' : 'Save Questions'}
-              </button>
-            </div>
           </div>
 
           {/* Publish Section */}
-          <div className="mt-6 flex justify-end">
-            <button
+          <div className="mt-6 bg-white border-[3px] border-[#96b902] rounded-[16px] p-6 shadow-md flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h3 className="font-quicksand font-bold text-[#473025] text-[18px] mb-1">
+                Ready to {isPublic ? 'Publish' : 'Save'}?
+              </h3>
+              <p className="font-quicksand text-[#473025]/70 text-[14px]">
+                All questions and settings will be saved when you {isPublic ? 'publish' : 'save as draft'}.
+              </p>
+            </div>
+            <Button
               onClick={handlePublish}
               disabled={isSaving || !title.trim() || questions.length === 0}
-              className="bg-[#96b902] text-white font-quicksand font-bold text-[14px] px-6 py-3 rounded-[10px] hover:bg-[#82a002] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              variant="success"
+              size="lg"
+              isLoading={isSaving}
+              className="w-full md:w-auto"
             >
-              {isSaving ? 'Saving...' : (isPublic ? 'Publish Game' : 'Save as Draft')}
-            </button>
+              {isSaving ? 'Publishing...' : (isPublic ? 'Publish Game' : 'Save as Draft')}
+            </Button>
           </div>
         </div>
       </div>
