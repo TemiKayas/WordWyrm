@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import { GameMode } from '@prisma/client';
+import { FileText, Gamepad2 } from 'lucide-react';
 
 interface GameCardProps {
   title: string;
@@ -132,8 +133,8 @@ export default function GameCard({
               className="w-full h-full object-cover"
             />
           ) : gameMode === GameMode.SNAKE ? (
-            <div className="w-full h-full flex items-center justify-center text-7xl">
-              🐍
+            <div className="w-full h-full flex items-center justify-center text-[#473025]">
+              <Gamepad2 size={64} strokeWidth={1.5} />
             </div>
           ) : gameMode === GameMode.TOWER_DEFENSE ? (
             <Image
@@ -143,8 +144,8 @@ export default function GameCard({
               className="object-contain p-2"
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center text-7xl">
-              📝
+            <div className="w-full h-full flex items-center justify-center text-[#473025]">
+              <FileText size={64} strokeWidth={1.5} />
             </div>
           )}
         </div>

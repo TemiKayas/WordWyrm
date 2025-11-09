@@ -43,5 +43,5 @@ next-env.d.ts
 
 /lib/generated/prisma
 .env*.local
-.claude/settings.local.json
+/.claude/settings.local.json
 /.claude

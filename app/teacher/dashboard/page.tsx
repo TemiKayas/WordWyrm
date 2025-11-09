@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Navbar from '@/components/shared/Navbar';
 import SlidingSidebar from '@/components/shared/SlidingSidebar';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
+import Button from '@/components/ui/Button';
 import { getTeacherClasses, createClass } from '@/app/actions/class';
 
 type ClassData = {
@@ -27,7 +28,7 @@ type ClassData = {
 export default function TeacherDashboard() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [classes, setClasses] = useState<ClassData[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -112,6 +113,8 @@ export default function TeacherDashboard() {
         showSignOut={true}
         onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)}
         logoHref="/teacher/dashboard"
+        userName={teacherData.name}
+        userRole={teacherData.role}
       />
 
       <SlidingSidebar
@@ -124,61 +127,111 @@ export default function TeacherDashboard() {
           isSidebarOpen ? 'md:ml-[240px] lg:ml-[278px]' : 'ml-0'
         }`}
       >
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="max-w-[996px] mx-auto bg-[#fffbf6] rounded-[15px] shadow-lg border-[3px] border-[#473025]/10 min-h-screen p-4 md:p-6 lg:p-8">
-            <DashboardHeader
-              userName={teacherData.name}
-              userRole={teacherData.role}
-              userPhoto={teacherData.photo}
-            />
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          {/* Header with Quick Actions */}
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+            <div>
+              <h1 className="font-quicksand font-bold text-[#473025] text-[28px] md:text-[36px]">
+                My Classes
+              </h1>
+              <p className="font-quicksand text-[#473025]/70 text-[16px] mt-1">
+                Manage your classes and create new games
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <Button
+                onClick={() => router.push('/teacher/discover')}
+                variant="orange"
+                size="sm"
+              >
+                Discover Games
+              </Button>
+              <Button
+                onClick={() => router.push('/shop')}
+                variant="create"
+                size="sm"
+              >
+                Shop
+              </Button>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-[20px] shadow-sm border-[2px] border-[#473025]/10 p-6 md:p-8">
 
             {/* Classes Section */}
-            <div className="mt-8">
+            <div>
               <div className="flex items-center justify-between mb-6">
-                <h2 className="font-quicksand font-bold text-[#473025] text-[24px] md:text-[28px] lg:text-[32px]">
-                  My Classes
+                <h2 className="font-quicksand font-bold text-[#473025] text-[20px] md:text-[24px]">
+                  All Classes
                 </h2>
-                <button
+                <Button
                   onClick={() => setShowCreateModal(true)}
-                  className="bg-[#473025] text-[#fffbf6] font-quicksand font-bold px-6 py-2 rounded-[15px] hover:bg-[#5a3d2e] transition-colors"
+                  variant="primary"
+                  size="sm"
                 >
                   + Create Class
-                </button>
+                </Button>
               </div>
 
               {/* Classes Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {classes.map((classItem) => (
-                  <div
-                    key={classItem.id}
-                    onClick={() => router.push(`/teacher/class/${classItem.id}`)}
-                    className="bg-[#fffaf2] border-[3px] border-[#473025]/20 rounded-[15px] p-6 cursor-pointer hover:border-[#473025] hover:shadow-md transition-all"
-                  >
-                    <h3 className="font-quicksand font-bold text-[#473025] text-[20px] mb-2">
-                      {classItem.name}
-                    </h3>
-                    {classItem.description && (
-                      <p className="font-quicksand text-[#473025]/70 text-[14px] mb-4">
-                        {classItem.description}
-                      </p>
-                    )}
-                    <div className="flex gap-4 text-[14px] font-quicksand text-[#473025]/60">
-                      <span>{classItem._count.memberships} students</span>
-                      <span>{classItem._count.games} games</span>
-                      <span>{classItem._count.pdfs} PDFs</span>
-                    </div>
-                    {classItem.inviteCodes[0] && (
-                      <div className="mt-4 pt-4 border-t border-[#473025]/10">
-                        <span className="font-quicksand text-[12px] text-[#473025]/60">
-                          Invite Code:
+                {classes.map((classItem, index) => {
+                  // Rotate through different color schemes
+                  const colorSchemes = [
+                    { bg: 'from-[#96b902]/10 to-[#7a9700]/10', border: 'border-[#96b902]', accent: 'bg-[#96b902]' },
+                    { bg: 'from-[#ff9f22]/10 to-[#fd9227]/10', border: 'border-[#ff9f22]', accent: 'bg-[#ff9f22]' },
+                    { bg: 'from-[#ff3875]/10 to-[#ff5a8f]/10', border: 'border-[#ff3875]', accent: 'bg-[#ff3875]' },
+                    { bg: 'from-[#473025]/10 to-[#5a3d2e]/10', border: 'border-[#473025]', accent: 'bg-[#473025]' },
+                  ];
+                  const scheme = colorSchemes[index % colorSchemes.length];
+
+                  return (
+                    <div
+                      key={classItem.id}
+                      onClick={() => router.push(`/teacher/class/${classItem.id}`)}
+                      className={`bg-gradient-to-br ${scheme.bg} border-[3px] ${scheme.border} rounded-[15px] p-6 cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all`}
+                    >
+                      <div className="flex items-start gap-3 mb-3">
+                        <div className={`w-12 h-12 ${scheme.accent} rounded-[10px] flex items-center justify-center flex-shrink-0`}>
+                          <span className="font-quicksand font-bold text-white text-[20px]">
+                            {classItem.name.charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="font-quicksand font-bold text-[#473025] text-[20px] mb-1">
+                            {classItem.name}
+                          </h3>
+                          {classItem.description && (
+                            <p className="font-quicksand text-[#473025]/70 text-[14px]">
+                              {classItem.description}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full ${scheme.accent} text-white font-quicksand font-bold text-[12px]`}>
+                          {classItem._count.memberships} students
                         </span>
-                        <span className="font-quicksand font-bold text-[#473025] ml-2">
-                          {classItem.inviteCodes[0].code}
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/50 text-[#473025] font-quicksand font-bold text-[12px]">
+                          {classItem._count.games} games
+                        </span>
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/50 text-[#473025] font-quicksand font-bold text-[12px]">
+                          {classItem._count.pdfs} PDFs
                         </span>
                       </div>
-                    )}
-                  </div>
-                ))}
+                      {classItem.inviteCodes[0] && (
+                        <div className="mt-3 pt-3 border-t border-[#473025]/10">
+                          <span className="font-quicksand text-[12px] text-[#473025]/60">
+                            Invite Code:
+                          </span>
+                          <span className="font-quicksand font-bold text-[#473025] ml-2">
+                            {classItem.inviteCodes[0].code}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
 
                 {classes.length === 0 && (
                   <div className="col-span-full text-center py-12">
@@ -230,21 +283,25 @@ export default function TeacherDashboard() {
                 </div>
               )}
               <div className="flex gap-3">
-                <button
+                <Button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="flex-1 bg-[#fffaf2] border-[3px] border-[#473025] text-[#473025] font-quicksand font-bold py-2 rounded-[10px] hover:bg-[#faf4ed] transition-colors"
+                  variant="secondary"
+                  size="md"
+                  fullWidth
                   disabled={isCreating}
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
-                  className="flex-1 bg-[#473025] text-[#fffbf6] font-quicksand font-bold py-2 rounded-[10px] hover:bg-[#5a3d2e] transition-colors disabled:opacity-50"
-                  disabled={isCreating}
+                  variant="primary"
+                  size="md"
+                  fullWidth
+                  isLoading={isCreating}
                 >
                   {isCreating ? 'Creating...' : 'Create Class'}
-                </button>
+                </Button>
               </div>
             </form>
           </div>

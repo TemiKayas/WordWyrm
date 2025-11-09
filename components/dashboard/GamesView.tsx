@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import GameCard from './GameCard';
 import Image from 'next/image';
 import { getTeacherQuizzes, deleteQuiz } from '@/app/actions/quiz';
+import { GameMode } from '@prisma/client';
 
 interface Game {
   id: string;
@@ -17,12 +18,13 @@ interface Game {
   shareCode?: string;
   hasGame: boolean;
   qrCodeUrl?: string | null;
-  gameMode?: string;
+  gameMode?: GameMode;
 }
 
 interface GamesViewProps {
   onCreateGame?: () => void;
   classId?: string;
+  hideTitle?: boolean;
 }
 
 function formatTimeAgo(date: Date): string {
@@ -39,7 +41,7 @@ function formatTimeAgo(date: Date): string {
   return `${Math.floor(diffInDays / 30)} months ago`;
 }
 
-export default function GamesView({ onCreateGame, classId }: GamesViewProps) {
+export default function GamesView({ onCreateGame, classId, hideTitle = false }: GamesViewProps) {
   const router = useRouter();
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,7 +61,7 @@ export default function GamesView({ onCreateGame, classId }: GamesViewProps) {
           shareCode: quiz.shareCode,
           hasGame: quiz.hasGame,
           qrCodeUrl: quiz.qrCodeUrl || null,
-          gameMode: quiz.gameMode,
+          gameMode: quiz.gameMode as GameMode | undefined,
         }));
         setGames(formattedGames);
       }
@@ -121,27 +123,48 @@ export default function GamesView({ onCreateGame, classId }: GamesViewProps) {
   return (
     <div>
       {/* Title and Create Button */}
-      <div className="flex flex-col md:flex-row items-center justify-between mb-8 md:mb-10 gap-4 md:gap-0">
-        <h2 className="font-quicksand font-bold text-[#473025] text-[26px] md:text-[30px] lg:text-[34px] text-center md:text-left">
-          Your Quizzes and Games
-        </h2>
-        <button
-          onClick={onCreateGame}
-          className="justify-center btn-primary bg-[#fd9227] border-[2px] border-[#730f11] rounded-[15px] h-[46px] md:h-[50px] px-5 md:px-7 flex items-center gap-2.5 hover:bg-[#e6832b] hover:shadow-md active:scale-[0.98] transition-all cursor-pointer"
-        >
-          <div className="w-[18px] h-[18px] md:w-[20px] md:h-[20px] relative flex-shrink-0">
-            <Image
-              src="/assets/dashboard/create-icon.svg"
-              alt="Create"
-              fill
-              className="object-contain brightness-0 invert"
-            />
-          </div>
-          <span className="font-quicksand font-bold text-white text-[18px] md:text-[20px]">
-            Create Game
-          </span>
-        </button>
-      </div>
+      {!hideTitle ? (
+        <div className="flex flex-col md:flex-row items-center justify-between mb-8 md:mb-10 gap-4 md:gap-0">
+          <h2 className="font-quicksand font-bold text-[#473025] text-[26px] md:text-[30px] lg:text-[34px] text-center md:text-left">
+            Your Quizzes and Games
+          </h2>
+          <button
+            onClick={onCreateGame}
+            className="justify-center btn-primary bg-[#fd9227] border-[2px] border-[#730f11] rounded-[15px] h-[46px] md:h-[50px] px-5 md:px-7 flex items-center gap-2.5 hover:bg-[#e6832b] hover:shadow-md active:scale-[0.98] transition-all cursor-pointer"
+          >
+            <div className="w-[18px] h-[18px] md:w-[20px] md:h-[20px] relative flex-shrink-0">
+              <Image
+                src="/assets/dashboard/create-icon.svg"
+                alt="Create"
+                fill
+                className="object-contain brightness-0 invert"
+              />
+            </div>
+            <span className="font-quicksand font-bold text-white text-[18px] md:text-[20px]">
+              Create Game
+            </span>
+          </button>
+        </div>
+      ) : (
+        <div className="flex justify-end mb-6">
+          <button
+            onClick={onCreateGame}
+            className="justify-center btn-primary bg-[#fd9227] border-[3px] border-[#473025] rounded-[15px] shadow-[0_6px_0_0_#473025] hover:shadow-[0_4px_0_0_#473025] hover:-translate-y-0.5 active:shadow-[0_2px_0_0_#473025] active:translate-y-1 h-[48px] px-6 flex items-center gap-2.5 transition-all cursor-pointer"
+          >
+            <div className="w-[20px] h-[20px] relative flex-shrink-0">
+              <Image
+                src="/assets/dashboard/create-icon.svg"
+                alt="Create"
+                fill
+                className="object-contain brightness-0 invert"
+              />
+            </div>
+            <span className="font-quicksand font-bold text-white text-[18px]">
+              Create Game
+            </span>
+          </button>
+        </div>
+      )}
 
       {/* Recently Played Section */}
       {recentGames.length > 0 && (
@@ -199,7 +222,10 @@ export default function GamesView({ onCreateGame, classId }: GamesViewProps) {
           </p>
           <button
             onClick={onCreateGame}
-            className="btn-primary bg-[#fd9227] border-[1.5px] border-[#730f11] rounded-[15px] h-[44px] px-8 flex items-center gap-2 hover:bg-[#e6832b] cursor-pointer"
+            className={hideTitle
+              ? "btn-primary bg-[#fd9227] border-[3px] border-[#473025] rounded-[15px] shadow-[0_6px_0_0_#473025] hover:shadow-[0_4px_0_0_#473025] hover:-translate-y-0.5 active:shadow-[0_2px_0_0_#473025] active:translate-y-1 h-[48px] px-8 flex items-center gap-2 transition-all cursor-pointer"
+              : "btn-primary bg-[#fd9227] border-[1.5px] border-[#730f11] rounded-[15px] h-[44px] px-8 flex items-center gap-2 hover:bg-[#e6832b] cursor-pointer"
+            }
           >
             <div className="w-[18px] h-[18px] relative">
               <Image

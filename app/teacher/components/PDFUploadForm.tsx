@@ -6,6 +6,7 @@ import { uploadAndProcessPDF } from '@/app/actions/pdf';
 import FileUploadDropZone from '@/components/fileupload/FileUploadDropZone';
 import StepIndicator from '@/components/fileupload/StepIndicator';
 import Button from '@/components/ui/Button';
+import { useToast } from '@/components/providers/ToastProvider';
 
 interface PDFUploadFormProps {
   onFileSelect?: (file: File | File[] | null) => void;
@@ -15,10 +16,9 @@ export default function PDFUploadForm({ onFileSelect }: PDFUploadFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const classId = searchParams.get('classId');
+  const { showToast } = useToast();
 
-  const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const [progress, setProgress] = useState<string>('');
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [numQuestions, setNumQuestions] = useState<number>(5);
   const [subject, setSubject] = useState<string>('');
@@ -33,24 +33,22 @@ export default function PDFUploadForm({ onFileSelect }: PDFUploadFormProps) {
   async function handleFileSelect(file: File | File[]) {
     const files = Array.isArray(file) ? file : [file];
     setSelectedFiles(files);
-    setError(null);
     onFileSelect?.(file);
   }
 
   async function handleSubmit() {
     if (selectedFiles.length === 0) {
-      setError('Please select at least one PDF file');
+      showToast('Please select at least one PDF file', 'error');
       return;
     }
 
     if (!classId) {
-      setError('Class ID is missing. Redirecting...');
+      showToast('Class ID is missing. Redirecting...', 'error');
       setTimeout(() => router.push('/teacher/dashboard'), 2000);
       return;
     }
 
-    setError(null);
-    setProgress(`Uploading ${selectedFiles.length} PDF(s)...`);
+    showToast(`Uploading ${selectedFiles.length} PDF(s)...`, 'info');
 
     startTransition(async () => {
       try {
@@ -59,7 +57,7 @@ export default function PDFUploadForm({ onFileSelect }: PDFUploadFormProps) {
         // Process each PDF one by one
         for (let i = 0; i < selectedFiles.length; i++) {
           const file = selectedFiles[i];
-          setProgress(`Processing ${file.name} (${i + 1}/${selectedFiles.length})...`);
+          showToast(`Processing ${file.name} (${i + 1}/${selectedFiles.length})...`, 'info');
 
           const formData = new FormData();
           formData.append('pdf', file);
@@ -72,21 +70,20 @@ export default function PDFUploadForm({ onFileSelect }: PDFUploadFormProps) {
           const result = await uploadAndProcessPDF(formData);
 
           if (!result.success) {
-            setError(`Failed to process ${file.name}: ${result.error}`);
-            setProgress('');
+            showToast(`Failed to process ${file.name}: ${result.error}`, 'error');
             return;
           }
 
           quizIds.push(result.data.quizId);
         }
 
-        setProgress('All PDFs processed successfully! Redirecting...');
-        // Redirect to game settings page with the first quiz ID
-        // In the future, this could be updated to handle multiple quizzes
-        router.push(`/teacher/game-settings?quizId=${quizIds[0]}`);
+        showToast('All PDFs processed successfully! Redirecting...', 'success');
+        // Redirect to game settings to review questions
+        setTimeout(() => {
+          router.push(`/teacher/game-settings?quizId=${quizIds[0]}`);
+        }, 1500);
       } catch {
-        setError('An unexpected error occurred');
-        setProgress('');
+        showToast('An unexpected error occurred', 'error');
       }
     });
   }
@@ -97,19 +94,6 @@ export default function PDFUploadForm({ onFileSelect }: PDFUploadFormProps) {
       <div className="mb-4 animate-fade-in flex justify-center">
         <StepIndicator step={1} title="Upload your PDF" />
       </div>
-
-      {/* Progress and Error Messages */}
-      {progress && (
-        <div className="mb-3 p-2 bg-[#96b902]/10 border-2 border-[#96b902] rounded-lg animate-slide-up">
-          <p className="text-[#7a9700] font-semibold text-center text-xs">{progress}</p>
-        </div>
-      )}
-
-      {error && (
-        <div className="mb-3 p-2 bg-red-100 border-2 border-error rounded-lg animate-slide-up">
-          <p className="text-error font-semibold text-center text-xs">{error}</p>
-        </div>
-      )}
 
       {/* File Upload Drop Zone */}
       <div className="mb-4 animate-slide-up" style={{ animationDelay: '0.1s' }}>
@@ -193,7 +177,7 @@ export default function PDFUploadForm({ onFileSelect }: PDFUploadFormProps) {
         disabled={isPending || selectedFiles.length === 0}
         variant="success"
         size="md"
-        className="w-full animate-slide-up shadow-lg hover:shadow-xl"
+        className="w-full animate-slide-up"
         style={{ animationDelay: '0.4s' } as React.CSSProperties}
         isLoading={isPending}
       >
