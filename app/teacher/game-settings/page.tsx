@@ -176,7 +176,7 @@ function GameSettingsContent() {
               </p>
             </div>
 
-            <BackButton href="/teacher/dashboard" />
+            <BackButton href="/teacher/dashboard" variant="text">Back to Dashboard</BackButton>
 
           </div>
 

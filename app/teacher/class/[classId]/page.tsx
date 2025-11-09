@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Navbar from '@/components/shared/Navbar';
 import SlidingSidebar from '@/components/shared/SlidingSidebar';
-import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import GamesView from '@/components/dashboard/GamesView';
 import BackButton from '@/components/ui/BackButton';
 import Button from '@/components/ui/Button';

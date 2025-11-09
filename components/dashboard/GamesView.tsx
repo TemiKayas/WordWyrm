@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import GameCard from './GameCard';
 import Image from 'next/image';
 import { getTeacherQuizzes, deleteQuiz } from '@/app/actions/quiz';
+import { GameMode } from '@prisma/client';
 
 interface Game {
   id: string;
@@ -17,7 +18,7 @@ interface Game {
   shareCode?: string;
   hasGame: boolean;
   qrCodeUrl?: string | null;
-  gameMode?: string;
+  gameMode?: GameMode;
 }
 
 interface GamesViewProps {
@@ -60,7 +61,7 @@ export default function GamesView({ onCreateGame, classId, hideTitle = false }: 
           shareCode: quiz.shareCode,
           hasGame: quiz.hasGame,
           qrCodeUrl: quiz.qrCodeUrl || null,
-          gameMode: quiz.gameMode,
+          gameMode: quiz.gameMode as GameMode | undefined,
         }));
         setGames(formattedGames);
       }

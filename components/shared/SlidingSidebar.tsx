@@ -1,9 +1,11 @@
 'use client';
 
+import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Menu } from 'lucide-react';
+import ClassSelectionModal from './ClassSelectionModal';
 
 interface SlidingSidebarProps {
   isOpen: boolean;
@@ -13,6 +15,7 @@ interface SlidingSidebarProps {
 export default function SlidingSidebar({ isOpen, onClose }: SlidingSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const [showClassModal, setShowClassModal] = useState(false);
 
   // Determine role from pathname
   const isStudent = pathname.startsWith('/student');
@@ -46,8 +49,12 @@ export default function SlidingSidebar({ isOpen, onClose }: SlidingSidebarProps)
   };
 
   const handleCreateClick = () => {
-    router.push(`${rolePrefix}/upload`);
-    onClose();
+    if (!isStudent) {
+      setShowClassModal(true);
+    } else {
+      router.push(`${rolePrefix}/upload`);
+      onClose();
+    }
   };
 
   return (
@@ -162,6 +169,15 @@ export default function SlidingSidebar({ isOpen, onClose }: SlidingSidebarProps)
           </Link>
         </div>
       </div>
+
+      {/* Class Selection Modal */}
+      <ClassSelectionModal
+        isOpen={showClassModal}
+        onClose={() => {
+          setShowClassModal(false);
+          onClose();
+        }}
+      />
     </>
   );
 }

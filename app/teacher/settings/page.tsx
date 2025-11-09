@@ -14,7 +14,7 @@ export default function SettingsPage() {
           <h1 className="font-quicksand font-bold text-[#473025] text-[32px] md:text-[40px]">
             Settings
           </h1>
-          <BackButton href="/teacher/dashboard" />
+          <BackButton href="/teacher/dashboard" variant="text">Back to Dashboard</BackButton>
         </div>
 
         <div className="bg-white border-[4px] border-[#473025] rounded-[24px] p-8 shadow-lg">

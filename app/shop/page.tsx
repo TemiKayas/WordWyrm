@@ -1,27 +1,27 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Package, Sparkles, Star, Trophy, Lock, Coins, Crown } from 'lucide-react';
 import Button from '@/components/ui/Button';
-import BackButton from '@/components/ui/BackButton';
 import Image from 'next/image';
+import TeacherPageLayout from '@/components/shared/TeacherPageLayout';
 
-// Character data
+// Character data - using Floopa with different colors
 const CHARACTERS = [
-  { id: 1, name: 'Floopa', rarity: 'mythic', emoji: null, image: '/assets/dashboard/floopa-character.png', color: 'from-yellow-400 to-amber-500' },
-  { id: 2, name: 'Wizard Wyrm', rarity: 'legendary', emoji: '🧙', image: null, color: 'from-purple-500 to-pink-500' },
-  { id: 3, name: 'Dragon Wyrm', rarity: 'legendary', emoji: '🐲', image: null, color: 'from-red-500 to-orange-500' },
-  { id: 4, name: 'Knight Wyrm', rarity: 'epic', emoji: '⚔️', image: null, color: 'from-blue-500 to-cyan-500' },
-  { id: 5, name: 'Ninja Wyrm', rarity: 'epic', emoji: '🥷', image: null, color: 'from-gray-700 to-gray-900' },
-  { id: 6, name: 'Pirate Wyrm', rarity: 'epic', emoji: '🏴‍☠️', image: null, color: 'from-amber-700 to-yellow-600' },
-  { id: 7, name: 'Chef Wyrm', rarity: 'rare', emoji: '👨‍🍳', image: null, color: 'from-green-500 to-emerald-500' },
-  { id: 8, name: 'Detective Wyrm', rarity: 'rare', emoji: '🕵️', image: null, color: 'from-indigo-500 to-blue-500' },
-  { id: 9, name: 'Artist Wyrm', rarity: 'rare', emoji: '🎨', image: null, color: 'from-pink-500 to-rose-500' },
-  { id: 10, name: 'Scientist Wyrm', rarity: 'common', emoji: '🔬', image: null, color: 'from-teal-500 to-cyan-500' },
-  { id: 11, name: 'Astronaut Wyrm', rarity: 'common', emoji: '🚀', image: null, color: 'from-slate-600 to-gray-700' },
-  { id: 12, name: 'Cowboy Wyrm', rarity: 'common', emoji: '🤠', image: null, color: 'from-yellow-700 to-amber-800' },
-  { id: 13, name: 'Superhero Wyrm', rarity: 'common', emoji: '🦸', image: null, color: 'from-red-600 to-blue-600' },
+  { id: 1, name: 'Golden Floopa', rarity: 'mythic', image: '/assets/dashboard/floopa-character.png', color: 'from-yellow-400 to-amber-500' },
+  { id: 2, name: 'Purple Floopa', rarity: 'legendary', image: '/assets/dashboard/floopa-character.png', color: 'from-purple-500 to-pink-500' },
+  { id: 3, name: 'Red Floopa', rarity: 'legendary', image: '/assets/dashboard/floopa-character.png', color: 'from-red-500 to-orange-500' },
+  { id: 4, name: 'Blue Floopa', rarity: 'epic', image: '/assets/dashboard/floopa-character.png', color: 'from-blue-500 to-cyan-500' },
+  { id: 5, name: 'Dark Floopa', rarity: 'epic', image: '/assets/dashboard/floopa-character.png', color: 'from-gray-700 to-gray-900' },
+  { id: 6, name: 'Amber Floopa', rarity: 'epic', image: '/assets/dashboard/floopa-character.png', color: 'from-amber-700 to-yellow-600' },
+  { id: 7, name: 'Green Floopa', rarity: 'rare', image: '/assets/dashboard/floopa-character.png', color: 'from-green-500 to-emerald-500' },
+  { id: 8, name: 'Indigo Floopa', rarity: 'rare', image: '/assets/dashboard/floopa-character.png', color: 'from-indigo-500 to-blue-500' },
+  { id: 9, name: 'Pink Floopa', rarity: 'rare', image: '/assets/dashboard/floopa-character.png', color: 'from-pink-500 to-rose-500' },
+  { id: 10, name: 'Teal Floopa', rarity: 'common', image: '/assets/dashboard/floopa-character.png', color: 'from-teal-500 to-cyan-500' },
+  { id: 11, name: 'Gray Floopa', rarity: 'common', image: '/assets/dashboard/floopa-character.png', color: 'from-slate-600 to-gray-700' },
+  { id: 12, name: 'Brown Floopa', rarity: 'common', image: '/assets/dashboard/floopa-character.png', color: 'from-yellow-700 to-amber-800' },
+  { id: 13, name: 'Rainbow Floopa', rarity: 'common', image: '/assets/dashboard/floopa-character.png', color: 'from-red-600 to-blue-600' },
 ];
 
 const RARITY_COLORS = {
@@ -47,26 +47,47 @@ export default function ShopPage() {
   const [openingPack, setOpeningPack] = useState(false);
   const [revealedCharacters, setRevealedCharacters] = useState<typeof CHARACTERS>([]);
   const [showPackResult, setShowPackResult] = useState(false);
+  const [cardFlipIndex, setCardFlipIndex] = useState(-1);
+  const [showFullscreen, setShowFullscreen] = useState(false);
 
   const openPack = () => {
     if (coins < 100) return;
 
     setCoins(coins - 100);
     setOpeningPack(true);
+    setShowFullscreen(true);
 
-    // Simulate pack opening animation
+    // Draw single card
+    const newCharacters = drawCharacters(1);
+    setRevealedCharacters(newCharacters);
+
+    // Start flipping card after pack animation
     setTimeout(() => {
-      const newCharacters = drawCharacters(3);
-      setRevealedCharacters(newCharacters);
-
-      // Add new characters to unlocked list
-      const newIds = newCharacters.map(c => c.id).filter(id => !unlockedCharacters.includes(id));
-      setUnlockedCharacters([...unlockedCharacters, ...newIds]);
-
       setOpeningPack(false);
-      setShowPackResult(true);
-    }, 2000);
+      setCardFlipIndex(0);
+    }, 1200);
   };
+
+  // Auto-flip cards sequentially
+  useEffect(() => {
+    if (cardFlipIndex >= 0 && cardFlipIndex < revealedCharacters.length) {
+      const timer = setTimeout(() => {
+        setCardFlipIndex(cardFlipIndex + 1);
+      }, 800);
+      return () => clearTimeout(timer);
+    } else if (cardFlipIndex >= revealedCharacters.length && revealedCharacters.length > 0) {
+      // All cards flipped, wait then show result
+      const timer = setTimeout(() => {
+        setShowPackResult(true);
+        setShowFullscreen(false);
+
+        // Add new characters to unlocked list
+        const newIds = revealedCharacters.map(c => c.id).filter(id => !unlockedCharacters.includes(id));
+        setUnlockedCharacters([...unlockedCharacters, ...newIds]);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [cardFlipIndex, revealedCharacters, unlockedCharacters]);
 
   const drawCharacters = (count: number) => {
     const drawn: typeof CHARACTERS = [];
@@ -96,37 +117,30 @@ export default function ShopPage() {
   const closePackResult = () => {
     setShowPackResult(false);
     setRevealedCharacters([]);
+    setCardFlipIndex(-1);
   };
 
   return (
-    <div className="min-h-screen bg-[#fffaf2] pb-12">
-      {/* Back button */}
-      <div className="absolute top-6 left-6 z-10">
-        <BackButton onClick={() => router.back()} />
-      </div>
-
-      {/* Coin display */}
-      <div className="absolute top-6 right-6 z-10">
-        <div className="bg-[#fd9227] border-[3px] border-[#730f11] rounded-[15px] px-6 py-3 flex items-center gap-3 shadow-[0_6px_0_0_#730f11]">
-          <Coins size={24} className="text-white" />
-          <span className="font-quicksand font-bold text-white text-[20px]">{coins}</span>
-        </div>
-      </div>
-
-      {/* Main content */}
-      <div className="max-w-6xl mx-auto px-4 pt-24">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <h1 className="font-quicksand font-bold text-[#473025] text-[48px] sm:text-[56px] leading-tight mb-2">
-            Dragon Drops Shop
-          </h1>
-          <p className="font-quicksand text-[#473025]/70 text-[18px]">
-            Open packs to unlock new Wyrm characters!
-          </p>
+    <TeacherPageLayout>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Header with coins */}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="font-quicksand font-bold text-[#473025] text-[32px] md:text-[40px]">
+              Dragon Drops Shop
+            </h1>
+            <p className="font-quicksand text-[#473025]/70 text-[14px] md:text-[16px]">
+              Open packs to collect Floopa characters!
+            </p>
+          </div>
+          <div className="bg-[#fd9227] border-[3px] border-[#730f11] rounded-[15px] px-4 md:px-6 py-2 md:py-3 flex items-center gap-2 md:gap-3 shadow-[0_4px_0_0_#730f11]">
+            <Coins size={20} className="md:w-6 md:h-6 text-white" />
+            <span className="font-quicksand font-bold text-white text-[16px] md:text-[20px]">{coins}</span>
+          </div>
         </div>
 
         {/* Pack purchase section */}
-        <div className="bg-white rounded-[20px] shadow-lg border-[3px] border-[#473025]/20 p-8 mb-12">
+        <div className="bg-white rounded-[20px] shadow-lg border-[3px] border-[#473025]/20 p-6 mb-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-8">
             {/* Pack visual */}
             <div className="flex-shrink-0">
@@ -152,7 +166,7 @@ export default function ShopPage() {
             <div className="flex-1 text-center md:text-left">
               <h2 className="font-quicksand font-bold text-[#473025] text-[32px] mb-3">Dragon Pack</h2>
               <p className="font-quicksand text-[#473025]/70 text-[16px] mb-4">
-                Each pack contains 3 random Wyrm characters with varying rarities!
+                Each pack contains 1 random Floopa character with varying rarities!
               </p>
               <div className="flex flex-wrap gap-2 justify-center md:justify-start mb-6">
                 <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border-2 border-yellow-500 bg-yellow-500/10 font-quicksand font-bold text-[12px] text-yellow-700">
@@ -187,43 +201,37 @@ export default function ShopPage() {
         </div>
 
         {/* Character collection */}
-        <div className="bg-white rounded-[20px] shadow-lg border-[3px] border-[#473025]/20 p-8">
-          <h2 className="font-quicksand font-bold text-[#473025] text-[28px] mb-6">
+        <div className="bg-white rounded-[20px] shadow-lg border-[3px] border-[#473025]/20 p-6">
+          <h2 className="font-quicksand font-bold text-[#473025] text-[24px] mb-4">
             Your Collection ({unlockedCharacters.length}/{CHARACTERS.length})
           </h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-4">
             {CHARACTERS.map((char) => {
               const isUnlocked = unlockedCharacters.includes(char.id);
               return (
                 <div
                   key={char.id}
-                  className={`relative rounded-[15px] border-[3px] p-4 transition-all ${
+                  className={`relative rounded-[15px] border-[3px] p-3 transition-all ${
                     isUnlocked
-                      ? `${RARITY_COLORS[char.rarity as keyof typeof RARITY_COLORS]} hover:scale-105`
+                      ? `${RARITY_COLORS[char.rarity as keyof typeof RARITY_COLORS]} hover:scale-105 cursor-pointer`
                       : 'border-gray-300 bg-gray-100 opacity-50'
                   }`}
                 >
                   {isUnlocked ? (
-                    <>
-                      <div className="text-center mb-2">
-                        <div className={`w-16 h-16 mx-auto rounded-full bg-gradient-to-br ${char.color} flex items-center justify-center text-[32px] mb-2 overflow-hidden`}>
-                          {char.image ? (
-                            <Image src={char.image} alt={char.name} width={64} height={64} className="object-cover" />
-                          ) : (
-                            char.emoji
-                          )}
-                        </div>
-                        <p className="font-quicksand font-bold text-[#473025] text-[12px] line-clamp-2">
-                          {char.name}
-                        </p>
+                    <div className="text-center">
+                      <div className={`w-16 h-16 mx-auto rounded-full bg-gradient-to-br ${char.color} flex items-center justify-center mb-2 overflow-hidden border-2 border-white shadow-md`}>
+                        <Image src={char.image} alt={char.name} width={64} height={64} className="object-cover" />
                       </div>
-                    </>
+                      <p className="font-quicksand font-bold text-[#473025] text-[11px] line-clamp-2 leading-tight">
+                        {char.name}
+                      </p>
+                    </div>
                   ) : (
                     <div className="text-center">
                       <div className="w-16 h-16 mx-auto rounded-full bg-gray-300 flex items-center justify-center mb-2">
-                        <Lock size={28} className="text-gray-500" />
+                        <Lock size={24} className="text-gray-500" />
                       </div>
-                      <p className="font-quicksand font-bold text-gray-500 text-[12px]">Locked</p>
+                      <p className="font-quicksand font-bold text-gray-500 text-[11px]">Locked</p>
                     </div>
                   )}
                 </div>
@@ -231,18 +239,96 @@ export default function ShopPage() {
             })}
           </div>
         </div>
-      </div>
+
+      {/* Fullscreen pack opening animation */}
+      {showFullscreen && (
+        <div className="fixed inset-0 bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 z-50 flex items-center justify-center animate-fade-in">
+          {openingPack ? (
+            <div className="text-center">
+              <div className="w-[250px] h-[300px] mx-auto mb-8 relative animate-bounce">
+                <div className="absolute inset-0 bg-gradient-to-br from-[#ff9f22] to-[#fd9227] border-[6px] border-[#730f11] rounded-[30px] shadow-2xl">
+                  <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white to-transparent opacity-30 rounded-[24px] animate-pulse"></div>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Package size={120} className="text-white/90" />
+                  </div>
+                </div>
+                <div className="absolute -inset-4 bg-yellow-400/30 rounded-full blur-3xl animate-ping"></div>
+              </div>
+              <p className="font-quicksand font-bold text-white text-[32px] animate-pulse">
+                Opening Pack...
+              </p>
+            </div>
+          ) : (
+            <div className="w-full max-w-5xl px-4">
+              <div className="flex justify-center gap-8 perspective-1000">
+                {revealedCharacters.map((char, index) => {
+                  const isFlipped = index < cardFlipIndex;
+                  return (
+                    <div
+                      key={index}
+                      className="relative w-[200px] h-[300px] animate-slide-up"
+                      style={{
+                        animationDelay: `${index * 0.2}s`,
+                        transformStyle: 'preserve-3d',
+                        transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
+                        transition: 'transform 0.8s cubic-bezier(0.4, 0.0, 0.2, 1)',
+                      }}
+                    >
+                      {/* Card back */}
+                      <div
+                        className="absolute inset-0 backface-hidden"
+                        style={{ backfaceVisibility: 'hidden' }}
+                      >
+                        <div className="w-full h-full bg-gradient-to-br from-purple-600 to-pink-600 border-[4px] border-purple-800 rounded-[20px] shadow-2xl flex items-center justify-center">
+                          <Package size={80} className="text-white/80" />
+                        </div>
+                      </div>
+
+                      {/* Card front */}
+                      <div
+                        className="absolute inset-0 backface-hidden"
+                        style={{
+                          backfaceVisibility: 'hidden',
+                          transform: 'rotateY(180deg)',
+                        }}
+                      >
+                        <div className={`w-full h-full rounded-[20px] border-[4px] p-6 ${
+                          char.rarity === 'mythic' ? 'border-yellow-400 bg-gradient-to-br from-yellow-400 to-amber-500' :
+                          char.rarity === 'legendary' ? 'border-purple-400 bg-gradient-to-br from-purple-400 to-pink-500' :
+                          char.rarity === 'epic' ? 'border-blue-400 bg-gradient-to-br from-blue-400 to-cyan-500' :
+                          char.rarity === 'rare' ? 'border-green-400 bg-gradient-to-br from-green-400 to-emerald-500' :
+                          'border-gray-400 bg-gradient-to-br from-gray-400 to-gray-500'
+                        } shadow-2xl flex flex-col items-center justify-center`}>
+                          <div className={`w-32 h-32 rounded-full bg-gradient-to-br ${char.color} flex items-center justify-center mb-4 shadow-xl overflow-hidden border-4 border-white`}>
+                            <Image src={char.image} alt={char.name} width={128} height={128} className="object-cover" />
+                          </div>
+                          <p className="font-quicksand font-bold text-white text-[20px] text-center mb-2">
+                            {char.name}
+                          </p>
+                          <span className="inline-block px-4 py-1 rounded-full bg-white/90 text-[14px] font-quicksand font-bold uppercase">
+                            {char.rarity}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Pack result modal */}
       {showPackResult && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fade-in">
           <div className="bg-white rounded-[20px] shadow-2xl border-[3px] border-[#473025] p-8 max-w-2xl w-full animate-fade-in">
             <div className="text-center mb-6">
               <h2 className="font-quicksand font-bold text-[#473025] text-[32px] mb-2">Pack Opened!</h2>
               <p className="font-quicksand text-[#473025]/70 text-[16px]">You got:</p>
             </div>
 
-            <div className="grid grid-cols-3 gap-4 mb-6">
+            <div className="flex justify-center mb-6">
               {revealedCharacters.map((char, index) => {
                 const isNew = !unlockedCharacters.includes(char.id) ||
                              revealedCharacters.slice(0, index).some(c => c.id === char.id);
@@ -250,12 +336,8 @@ export default function ShopPage() {
                   <div key={index} className="relative">
                     <div className={`rounded-[15px] border-[3px] p-4 ${RARITY_COLORS[char.rarity as keyof typeof RARITY_COLORS]}`}>
                       <div className="text-center">
-                        <div className={`w-20 h-20 mx-auto rounded-full bg-gradient-to-br ${char.color} flex items-center justify-center text-[40px] mb-2 overflow-hidden`}>
-                          {char.image ? (
-                            <Image src={char.image} alt={char.name} width={80} height={80} className="object-cover" />
-                          ) : (
-                            char.emoji
-                          )}
+                        <div className={`w-20 h-20 mx-auto rounded-full bg-gradient-to-br ${char.color} flex items-center justify-center mb-2 overflow-hidden border-2 border-white shadow-md`}>
+                          <Image src={char.image} alt={char.name} width={80} height={80} className="object-cover" />
                         </div>
                         <p className="font-quicksand font-bold text-[#473025] text-[14px] mb-1">
                           {char.name}
@@ -281,6 +363,7 @@ export default function ShopPage() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </TeacherPageLayout>
   );
 }
