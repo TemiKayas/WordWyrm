@@ -2,11 +2,14 @@
 
 import { useState, useTransition, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { uploadAndProcessPDF } from '@/app/actions/pdf';
+import { uploadAndProcessMultiplePDFs } from '@/app/actions/pdf';
 import FileUploadDropZone from '@/components/fileupload/FileUploadDropZone';
 import StepIndicator from '@/components/fileupload/StepIndicator';
 import Button from '@/components/ui/Button';
 import { useToast } from '@/components/providers/ToastProvider';
+
+const MAX_TOTAL_SIZE_MB = 25;
+const MAX_TOTAL_SIZE_BYTES = MAX_TOTAL_SIZE_MB * 1024 * 1024;
 
 interface PDFUploadFormProps {
   onFileSelect?: (file: File | File[] | null) => void;
@@ -32,6 +35,17 @@ export default function PDFUploadForm({ onFileSelect }: PDFUploadFormProps) {
 
   async function handleFileSelect(file: File | File[]) {
     const files = Array.isArray(file) ? file : [file];
+
+    // Validate total file size
+    const totalSize = files.reduce((sum, f) => sum + f.size, 0);
+    if (totalSize > MAX_TOTAL_SIZE_BYTES) {
+      showToast(
+        `Total file size (${(totalSize / 1024 / 1024).toFixed(2)}MB) exceeds ${MAX_TOTAL_SIZE_MB}MB limit`,
+        'error'
+      );
+      return;
+    }
+
     setSelectedFiles(files);
     onFileSelect?.(file);
   }
@@ -48,41 +62,47 @@ export default function PDFUploadForm({ onFileSelect }: PDFUploadFormProps) {
       return;
     }
 
-    showToast(`Uploading ${selectedFiles.length} PDF(s)...`, 'info');
+    // Validate total size again before submission
+    const totalSize = selectedFiles.reduce((sum, f) => sum + f.size, 0);
+    if (totalSize > MAX_TOTAL_SIZE_BYTES) {
+      showToast(
+        `Total file size (${(totalSize / 1024 / 1024).toFixed(2)}MB) exceeds ${MAX_TOTAL_SIZE_MB}MB limit`,
+        'error'
+      );
+      return;
+    }
+
+    showToast(`Processing ${selectedFiles.length} PDF(s)...`, 'info');
 
     startTransition(async () => {
       try {
-        const quizIds: string[] = [];
+        const formData = new FormData();
 
-        // Process each PDF one by one
-        for (let i = 0; i < selectedFiles.length; i++) {
-          const file = selectedFiles[i];
-          showToast(`Processing ${file.name} (${i + 1}/${selectedFiles.length})...`, 'info');
+        // Add all files
+        selectedFiles.forEach(file => {
+          formData.append('pdfs', file);
+        });
 
-          const formData = new FormData();
-          formData.append('pdf', file);
-          formData.append('classId', classId);
-          formData.append('numQuestions', numQuestions.toString());
-          if (subject) {
-            formData.append('subject', subject);
-          }
+        // Add metadata
+        formData.append('classId', classId);
+        formData.append('numQuestions', numQuestions.toString());
+        if (subject) {
+          formData.append('subject', subject);
+        }
 
-          const result = await uploadAndProcessPDF(formData);
+        const result = await uploadAndProcessMultiplePDFs(formData);
 
-          if (!result.success) {
-            showToast(`Failed to process ${file.name}: ${result.error}`, 'error');
-            return;
-          }
-
-          quizIds.push(result.data.quizId);
+        if (!result.success) {
+          showToast(`Failed to process PDFs: ${result.error}`, 'error');
+          return;
         }
 
         showToast('All PDFs processed successfully! Redirecting...', 'success');
         // Redirect to game settings to review questions
         setTimeout(() => {
-          router.push(`/teacher/game-settings?quizId=${quizIds[0]}`);
+          router.push(`/teacher/game-settings?quizId=${result.data.quizId}`);
         }, 1500);
-      } catch {
+      } catch (error) {
         showToast('An unexpected error occurred', 'error');
       }
     });
@@ -108,9 +128,14 @@ export default function PDFUploadForm({ onFileSelect }: PDFUploadFormProps) {
       {/* Selected Files Info */}
       {selectedFiles.length > 0 && !isPending && (
         <div className="mb-3 p-2 bg-[#fff6e8] border-2 border-[#ff9f22] rounded-lg animate-fade-in">
-          <p className="text-[#473025] font-semibold text-xs mb-1">
-            Selected {selectedFiles.length} file(s):
-          </p>
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-[#473025] font-semibold text-xs">
+              Selected {selectedFiles.length} file(s)
+            </p>
+            <p className="text-[#473025] font-semibold text-xs">
+              Total: {(selectedFiles.reduce((sum, f) => sum + f.size, 0) / 1024 / 1024).toFixed(2)} / {MAX_TOTAL_SIZE_MB} MB
+            </p>
+          </div>
           <div className="space-y-1 max-h-[80px] overflow-y-auto">
             {selectedFiles.map((file, index) => (
               <div key={index} className="flex items-center justify-between text-xs">
@@ -181,7 +206,7 @@ export default function PDFUploadForm({ onFileSelect }: PDFUploadFormProps) {
         style={{ animationDelay: '0.4s' } as React.CSSProperties}
         isLoading={isPending}
       >
-        {selectedFiles.length > 1 ? `Generate ${selectedFiles.length} Quizzes` : 'Generate Quiz'}
+        {selectedFiles.length > 1 ? `Generate Combined Quiz (${selectedFiles.length} PDFs)` : 'Generate Quiz'}
       </Button>
     </div>
   );
