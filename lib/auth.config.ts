@@ -27,13 +27,15 @@ export const authConfig = {
       return session;
     },
     async redirect({ url, baseUrl }) {
-      // Handle callback URLs with explicit paths
+      // If URL is a relative path, combine with base URL
       if (url.startsWith('/')) return `${baseUrl}${url}`;
 
-      // Handle URLs on the same origin
-      if (new URL(url).origin === baseUrl) return url;
+      // If URL is on the same origin, use it directly
+      const urlObj = new URL(url);
+      if (urlObj.origin === baseUrl) return url;
 
-      // Default: redirect to base URL (will be handled by middleware)
+      // For external URLs or unexpected cases, redirect to base URL
+      // Middleware will handle role-based redirects from base URL
       return baseUrl;
     },
   },

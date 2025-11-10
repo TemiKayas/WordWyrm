@@ -21,17 +21,11 @@ export default function SignupPage() {
 
         if (!result.success) {
           setError(result.error);
-        } else {
-          // Redirect based on user role
-          if (result.data.role === 'TEACHER') {
-            router.push('/teacher/dashboard');
-          } else if (result.data.role === 'STUDENT') {
-            router.push('/student/dashboard');
-          } else {
-            router.push('/');
-          }
-          router.refresh();
+        } else if (result.data.message.includes('Please login')) {
+          // Auto-signin failed, redirect to login
+          router.push('/login');
         }
+        // No else needed - server action will redirect on successful auto-signin
       } catch (err) {
         console.error('Signup error:', err);
         setError('An unexpected error occurred');
