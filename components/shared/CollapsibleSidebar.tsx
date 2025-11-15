@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import ClassSelectionModal from './ClassSelectionModal';
 
 interface CollapsibleSidebarProps {
   isOpen: boolean;
@@ -20,6 +21,7 @@ export default function CollapsibleSidebar({
 }: CollapsibleSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const [showClassModal, setShowClassModal] = useState(false);
 
   const navItems = [
     {
@@ -55,9 +57,8 @@ export default function CollapsibleSidebar({
     if (onCreateClick) {
       onCreateClick();
     } else {
-      router.push('/teacher/upload');
+      setShowClassModal(true);
     }
-    onClose();
   };
 
   return (
@@ -207,6 +208,15 @@ export default function CollapsibleSidebar({
           </Link>
         </div>
       </div>
+
+      {/* Class Selection Modal */}
+      <ClassSelectionModal
+        isOpen={showClassModal}
+        onClose={() => {
+          setShowClassModal(false);
+          onClose();
+        }}
+      />
     </>
   );
 }

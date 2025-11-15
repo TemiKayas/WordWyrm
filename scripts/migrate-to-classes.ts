@@ -74,28 +74,28 @@ async function migrateToClasses() {
             createdBy: teacher.userId,
           },
         });
-        console.log(`  🎫 Generated invite code: ${inviteCode}`);
+        console.log(`  [Invite Code] Generated invite code: ${inviteCode}`);
       } else {
-        console.log(`  ✅ "Default" class already exists`);
+        console.log(`  [Info] "Default" class already exists`);
       }
 
       // Note: PDFs and Games now require classId in schema
       // This migration logic is preserved for reference but won't match any records
       // since classId is a required field
       if (teacher.pdfs.length > 0) {
-        console.log(`  📄 ${teacher.pdfs.length} PDFs already have class assignments`);
+        console.log(`  [PDFs] ${teacher.pdfs.length} PDFs already have class assignments`);
       }
 
       if (teacher.games.length > 0) {
-        console.log(`  🎮 ${teacher.games.length} Games already have class assignments`);
+        console.log(`  [Games] ${teacher.games.length} Games already have class assignments`);
       }
 
-      console.log(`  ✅ Teacher migration complete\n`);
+      console.log(`  [Success] Teacher migration complete\n`);
     }
 
-    console.log('✅ Migration completed successfully!');
+    console.log('[Success] Migration completed successfully!');
   } catch (error) {
-    console.error('❌ Migration failed:', error);
+    console.error('[Error] Migration failed:', error);
     throw error;
   } finally {
     await prisma.$disconnect();

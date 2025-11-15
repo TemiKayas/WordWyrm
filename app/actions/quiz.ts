@@ -29,6 +29,7 @@ export async function getTeacherQuizzes(classId?: string): Promise<
       pdfFilename?: string;
       qrCodeUrl?: string | null;
       gameMode?: string;
+      classId?: string;
     }>;
   }>
 > {

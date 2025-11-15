@@ -56,8 +56,10 @@ export default class SnakeScene extends Phaser.Scene {
 
   // Quiz data
   private quizData!: Quiz;
+  private originalQuizData!: Quiz; // Store original for reshuffling
   private currentQuestionIndex = 0;
   private currentQuestion?: QuizQuestion;
+  private shuffledOptions: Array<{ option: string; originalIndex: number; color: number }> = [];
 
   // Timing
   private lastMoveTime = 0;
@@ -69,7 +71,12 @@ export default class SnakeScene extends Phaser.Scene {
   // UI Elements
   private questionPanel?: Phaser.GameObjects.Container;
   private scoreText!: Phaser.GameObjects.Text;
+  private streakText!: Phaser.GameObjects.Text;
   private score = 0;
+  private displayedScore = 0; // For smooth score animation
+  private streak = 0; // Consecutive correct answers
+  private correctAnswers = 0; // Total correct answers
+  private exitButton!: Phaser.GameObjects.Rectangle;
 
   // Input
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
@@ -85,7 +92,14 @@ export default class SnakeScene extends Phaser.Scene {
   }
 
   init(data: { quiz: Quiz }) {
-    this.quizData = data.quiz;
+    // Store original quiz data for reshuffling on retry
+    this.originalQuizData = JSON.parse(JSON.stringify(data.quiz));
+
+    // Shuffle questions immediately for first playthrough
+    const shuffledQuestions = this.shuffleArray([...this.originalQuizData.questions]);
+    this.quizData = {
+      questions: shuffledQuestions
+    };
   }
 
   create() {
@@ -147,29 +161,29 @@ export default class SnakeScene extends Phaser.Scene {
       D: this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.D)
     };
 
-    // Exit button (top left)
-    const exitButton = this.add.rectangle(70, 30, 120, 40, 0xff4444);
-    exitButton.setInteractive({ useHandCursor: true });
+    // Exit button (top left) - always on top
+    this.exitButton = this.add.rectangle(70, 30, 120, 40, 0xff4444).setDepth(3000);
+    this.exitButton.setInteractive({ useHandCursor: true });
     const exitText = this.add.text(70, 30, 'Exit', {
       fontSize: '20px',
       color: '#ffffff',
       fontFamily: 'Quicksand, sans-serif',
       fontStyle: 'bold'
-    }).setOrigin(0.5);
+    }).setOrigin(0.5).setDepth(3001);
 
-    exitButton.on('pointerdown', () => {
+    this.exitButton.on('pointerdown', () => {
       // Navigate back
       if (typeof window !== 'undefined') {
         window.history.back();
       }
     });
 
-    exitButton.on('pointerover', () => {
-      exitButton.setFillStyle(0xcc3333);
+    this.exitButton.on('pointerover', () => {
+      this.exitButton.setFillStyle(0xcc3333);
     });
 
-    exitButton.on('pointerout', () => {
-      exitButton.setFillStyle(0xff4444);
+    this.exitButton.on('pointerout', () => {
+      this.exitButton.setFillStyle(0xff4444);
     });
 
     // Score display (top right of left panel area)
@@ -179,6 +193,14 @@ export default class SnakeScene extends Phaser.Scene {
       fontFamily: 'Quicksand, sans-serif',
       fontStyle: 'bold'
     }).setOrigin(1, 0);
+
+    // Streak display (bottom left)
+    this.streakText = this.add.text(20, height - 20, 'Streak: 0', {
+      fontSize: '24px',
+      color: '#ffffff',
+      fontFamily: 'Quicksand, sans-serif',
+      fontStyle: 'bold'
+    }).setOrigin(0, 1);
 
     // Draw initial snake
     this.drawSnake();
@@ -243,7 +265,7 @@ export default class SnakeScene extends Phaser.Scene {
     instructions.x = panelStartX + panelWidth / 2 - instructions.width / 2;
   }
 
-  showQuestion() {
+  showQuestion(wasCorrect?: boolean, pointsEarned?: number, currentStreak?: number, answeredQuestion?: QuizQuestion) {
     if (this.currentQuestionIndex >= this.quizData.questions.length) {
       this.winGame();
       return;
@@ -251,6 +273,15 @@ export default class SnakeScene extends Phaser.Scene {
 
     this.isPausedForQuestion = true;
     this.currentQuestion = this.quizData.questions[this.currentQuestionIndex];
+
+    // Shuffle answer options AND colors
+    const shuffledColors = this.shuffleArray([...ANSWER_COLORS]);
+    const optionsWithIndex = this.currentQuestion.options.map((option, index) => ({
+      option,
+      originalIndex: index,
+      color: shuffledColors[index]
+    }));
+    this.shuffledOptions = this.shuffleArray(optionsWithIndex);
 
     // Clear existing question UI
     if (this.questionPanel) {
@@ -294,60 +325,69 @@ export default class SnakeScene extends Phaser.Scene {
         fontFamily: 'Quicksand, sans-serif',
         fontStyle: 'bold',
         align: 'left',
-        wordWrap: { width: panelWidth - 40 }
+        wordWrap: { width: panelWidth - 40 },
+        lineSpacing: 3
       }
     ).setOrigin(0.5, 0);
     elements.push(questionText);
 
-    // Answer options with colored squares
-    const startY = 280;
-    const optionHeight = 60;
+    // Answer options with colored squares (using shuffled options)
+    // Start after question text with dynamic spacing
+    const startY = 200 + questionText.height + 30;
+    let currentY = startY;
 
-    this.currentQuestion.options.forEach((option, index) => {
-      const yPos = startY + (index * optionHeight);
-
-      // Color indicator square
+    this.shuffledOptions.forEach((shuffledOption, displayIndex) => {
+      // Color indicator square (use shuffled color)
       const colorBox = this.add.rectangle(
         panelStartX + 30,
-        yPos,
+        currentY + 15,
         30,
         30,
-        ANSWER_COLORS[index]
+        shuffledOption.color
       );
 
       // Answer letter
       const letter = this.add.text(
         panelStartX + 70,
-        yPos,
-        String.fromCharCode(65 + index) + ')',
+        currentY,
+        String.fromCharCode(65 + displayIndex) + ')',
         {
-          fontSize: '16px',
+          fontSize: '15px',
           color: '#473025',
           fontFamily: 'Quicksand, sans-serif',
           fontStyle: 'bold'
         }
-      ).setOrigin(0, 0.5);
+      ).setOrigin(0, 0);
 
       // Answer text
       const answerText = this.add.text(
         panelStartX + 100,
-        yPos,
-        option,
+        currentY,
+        shuffledOption.option,
         {
-          fontSize: '14px',
+          fontSize: '13px',
           color: '#473025',
           fontFamily: 'Quicksand, sans-serif',
-          wordWrap: { width: panelWidth - 120 }
+          wordWrap: { width: panelWidth - 120 },
+          lineSpacing: 2
         }
-      ).setOrigin(0, 0.5);
+      ).setOrigin(0, 0);
 
       elements.push(colorBox, letter, answerText);
+
+      // Calculate dynamic spacing based on text height
+      const textHeight = answerText.height;
+      const spacing = Math.max(textHeight + 20, 50); // At least 50px, or text height + 20px padding
+      currentY += spacing;
     });
+
+    // Position instructions below the last answer option with some spacing
+    const instructionsY = currentY + 30;
 
     // 5-second countdown
     const countdownText = this.add.text(
       panelStartX + panelWidth / 2,
-      520,
+      instructionsY,
       'Game starts in: 5',
       {
         fontSize: '20px',
@@ -359,6 +399,17 @@ export default class SnakeScene extends Phaser.Scene {
     elements.push(countdownText);
 
     this.questionPanel = this.add.container(0, 0, elements);
+
+    // Slide in animation from right
+    this.questionPanel.setAlpha(0);
+    this.questionPanel.x = 100; // Start 100px to the right
+    this.tweens.add({
+      targets: this.questionPanel,
+      alpha: 1,
+      x: 0,
+      duration: 500,
+      ease: 'Power3.easeOut'
+    });
 
     // Add pause overlay
     const screenWidth = this.scale.width;
@@ -374,40 +425,519 @@ export default class SnakeScene extends Phaser.Scene {
       size,
       0x000000,
       0.6
-    ).setDepth(1000); // High depth to always be on top
+    ).setDepth(1000).setAlpha(0); // High depth to always be on top
 
-    const pauseText = this.add.text(
+    // Fade in overlay
+    this.tweens.add({
+      targets: pauseOverlay,
+      alpha: 1,
+      duration: 300,
+      ease: 'Power2'
+    });
+
+    // Elements to clean up later
+    const overlayElements: Phaser.GameObjects.GameObject[] = [pauseOverlay];
+
+    if (wasCorrect !== undefined) {
+      // Show correct/incorrect feedback with Continue and Explanation buttons
+      if (wasCorrect) {
+        // "Correct!" text in green
+        const correctText = this.add.text(
+          this.gameOffsetX + (size / 2),
+          this.gameOffsetY + (size / 2) - 120,
+          'CORRECT!',
+          {
+            fontSize: '64px',
+            color: '#00b894',
+            fontFamily: 'Quicksand, sans-serif',
+            fontStyle: 'bold',
+            align: 'center'
+          }
+        ).setOrigin(0.5).setDepth(1001).setAlpha(0);
+        overlayElements.push(correctText);
+
+        // Fade in and scale animation
+        this.tweens.add({
+          targets: correctText,
+          alpha: 1,
+          scale: { from: 0.8, to: 1 },
+          duration: 400,
+          ease: 'Back.easeOut'
+        });
+
+        // Points earned
+        const pointsText = this.add.text(
+          this.gameOffsetX + (size / 2),
+          this.gameOffsetY + (size / 2) - 60,
+          `+${pointsEarned} points`,
+          {
+            fontSize: '28px',
+            color: '#ffffff',
+            fontFamily: 'Quicksand, sans-serif',
+            fontStyle: 'bold'
+          }
+        ).setOrigin(0.5).setDepth(1001).setAlpha(0);
+        overlayElements.push(pointsText);
+
+        // Fade in with delay
+        this.tweens.add({
+          targets: pointsText,
+          alpha: 1,
+          duration: 300,
+          delay: 200,
+          ease: 'Power2'
+        });
+
+        // Streak
+        const streakDisplayText = this.add.text(
+          this.gameOffsetX + (size / 2),
+          this.gameOffsetY + (size / 2) - 30,
+          `Streak: ${currentStreak}`,
+          {
+            fontSize: '24px',
+            color: '#ffffff',
+            fontFamily: 'Quicksand, sans-serif',
+            fontStyle: 'bold'
+          }
+        ).setOrigin(0.5).setDepth(1001).setAlpha(0);
+        overlayElements.push(streakDisplayText);
+
+        // Fade in with delay
+        this.tweens.add({
+          targets: streakDisplayText,
+          alpha: 1,
+          duration: 300,
+          delay: 300,
+          ease: 'Power2'
+        });
+      }
+
+      // Read the question prompt
+      const readPromptText = this.add.text(
+        this.gameOffsetX + (size / 2),
+        this.gameOffsetY + (size / 2) + 20,
+        'Read the next question!',
+        {
+          fontSize: '32px',
+          color: '#ffffff',
+          fontFamily: 'Quicksand, sans-serif',
+          fontStyle: 'bold',
+          align: 'center'
+        }
+      ).setOrigin(0.5).setDepth(1001).setAlpha(0);
+      overlayElements.push(readPromptText);
+
+      // Fade in prompt
+      this.tweens.add({
+        targets: readPromptText,
+        alpha: 1,
+        duration: 300,
+        delay: 400,
+        ease: 'Power2'
+      });
+
+      // Continue button
+      const continueButton = this.add.rectangle(
+        this.gameOffsetX + (size / 2) - 110,
+        this.gameOffsetY + (size / 2) + 90,
+        200,
+        50,
+        0x95b607
+      ).setDepth(1001).setAlpha(0).setScale(0.9);
+      continueButton.setInteractive({ useHandCursor: true });
+      overlayElements.push(continueButton);
+
+      const continueText = this.add.text(
+        this.gameOffsetX + (size / 2) - 110,
+        this.gameOffsetY + (size / 2) + 90,
+        'Continue',
+        {
+          fontSize: '24px',
+          color: '#ffffff',
+          fontFamily: 'Quicksand, sans-serif',
+          fontStyle: 'bold'
+        }
+      ).setOrigin(0.5).setDepth(1002).setAlpha(0).setScale(0.9);
+      overlayElements.push(continueText);
+
+      // Animate buttons in
+      this.tweens.add({
+        targets: [continueButton, continueText],
+        alpha: 1,
+        scale: 1,
+        duration: 300,
+        delay: 500,
+        ease: 'Back.easeOut'
+      });
+
+      // Explanation button
+      const explainButton = this.add.rectangle(
+        this.gameOffsetX + (size / 2) + 110,
+        this.gameOffsetY + (size / 2) + 90,
+        200,
+        50,
+        0x3498db
+      ).setDepth(1001).setAlpha(0).setScale(0.9);
+      explainButton.setInteractive({ useHandCursor: true });
+      overlayElements.push(explainButton);
+
+      const explainText = this.add.text(
+        this.gameOffsetX + (size / 2) + 110,
+        this.gameOffsetY + (size / 2) + 90,
+        'Explanation',
+        {
+          fontSize: '24px',
+          color: '#ffffff',
+          fontFamily: 'Quicksand, sans-serif',
+          fontStyle: 'bold'
+        }
+      ).setOrigin(0.5).setDepth(1002).setAlpha(0).setScale(0.9);
+      overlayElements.push(explainText);
+
+      // Animate buttons in
+      this.tweens.add({
+        targets: [explainButton, explainText],
+        alpha: 1,
+        scale: 1,
+        duration: 300,
+        delay: 550,
+        ease: 'Back.easeOut'
+      });
+
+      // Button hover effects
+      continueButton.on('pointerover', () => continueButton.setFillStyle(0x7a9405));
+      continueButton.on('pointerout', () => continueButton.setFillStyle(0x95b607));
+      explainButton.on('pointerover', () => explainButton.setFillStyle(0x2980b9));
+      explainButton.on('pointerout', () => explainButton.setFillStyle(0x3498db));
+
+      // Continue button click
+      continueButton.on('pointerdown', () => {
+        overlayElements.forEach(el => el.destroy());
+        this.startRound();
+      });
+
+      // Explanation button click
+      // Use answeredQuestion if provided (for correct answers), otherwise use currentQuestion (for wrong answers)
+      const questionForExplanation = answeredQuestion || this.currentQuestion!;
+      explainButton.on('pointerdown', () => {
+        this.showExplanation(overlayElements, questionForExplanation, true, questionForExplanation.answer);
+      });
+
+    } else {
+      // First question - show pause with Continue button (no countdown)
+      const pauseText = this.add.text(
+        this.gameOffsetX + (size / 2),
+        this.gameOffsetY + (size / 2) - 40,
+        'Read the question!',
+        {
+          fontSize: '48px',
+          color: '#ffffff',
+          fontFamily: 'Quicksand, sans-serif',
+          fontStyle: 'bold',
+          align: 'center'
+        }
+      ).setOrigin(0.5).setDepth(1001).setAlpha(0);
+      overlayElements.push(pauseText);
+
+      // Fade in with scale
+      this.tweens.add({
+        targets: pauseText,
+        alpha: 1,
+        scale: { from: 0.9, to: 1 },
+        duration: 400,
+        ease: 'Back.easeOut'
+      });
+
+      // Continue button
+      const continueButton = this.add.rectangle(
+        this.gameOffsetX + (size / 2),
+        this.gameOffsetY + (size / 2) + 60,
+        200,
+        50,
+        0x95b607
+      ).setDepth(1001).setAlpha(0).setScale(0.9);
+      continueButton.setInteractive({ useHandCursor: true });
+      overlayElements.push(continueButton);
+
+      const continueText = this.add.text(
+        this.gameOffsetX + (size / 2),
+        this.gameOffsetY + (size / 2) + 60,
+        'Start',
+        {
+          fontSize: '24px',
+          color: '#ffffff',
+          fontFamily: 'Quicksand, sans-serif',
+          fontStyle: 'bold'
+        }
+      ).setOrigin(0.5).setDepth(1002).setAlpha(0).setScale(0.9);
+      overlayElements.push(continueText);
+
+      // Animate button in
+      this.tweens.add({
+        targets: [continueButton, continueText],
+        alpha: 1,
+        scale: 1,
+        duration: 300,
+        delay: 300,
+        ease: 'Back.easeOut'
+      });
+
+      // Button hover
+      continueButton.on('pointerover', () => continueButton.setFillStyle(0x7a9405));
+      continueButton.on('pointerout', () => continueButton.setFillStyle(0x95b607));
+
+      // Continue click
+      continueButton.on('pointerdown', () => {
+        overlayElements.forEach(el => el.destroy());
+        this.startRound();
+      });
+    }
+  }
+
+  showCorrectFeedback(pointsEarned: number, currentStreak: number) {
+    // Save the question we just answered BEFORE incrementing
+    const answeredQuestion = this.currentQuestion!;
+
+    // Check if this was the last question
+    const isLastQuestion = this.currentQuestionIndex >= this.quizData.questions.length - 1;
+
+    // Increment to next question
+    this.currentQuestionIndex++;
+
+    if (!isLastQuestion) {
+      // Not last question - show next question with correct feedback
+      // Pass the answered question so Explanation button shows correct info
+      this.showQuestion(true, pointsEarned, currentStreak, answeredQuestion);
+    } else {
+      // Last question - show correct feedback then transition to win screen
+      const screenWidth = this.scale.width;
+      const screenHeight = this.scale.height;
+      const panel = 400;
+      const available = screenWidth - panel;
+      const size = Math.min(available, screenHeight);
+
+      const pauseOverlay = this.add.rectangle(
+        this.gameOffsetX + (size / 2),
+        this.gameOffsetY + (size / 2),
+        size,
+        size,
+        0x000000,
+        0.6
+      ).setDepth(1000).setAlpha(0);
+
+      // Fade in overlay
+      this.tweens.add({
+        targets: pauseOverlay,
+        alpha: 1,
+        duration: 300,
+        ease: 'Power2'
+      });
+
+      const overlayElements: Phaser.GameObjects.GameObject[] = [pauseOverlay];
+
+      // "Correct!" text in green
+      const correctText = this.add.text(
+        this.gameOffsetX + (size / 2),
+        this.gameOffsetY + (size / 2) - 120,
+        'CORRECT!',
+        {
+          fontSize: '64px',
+          color: '#00b894',
+          fontFamily: 'Quicksand, sans-serif',
+          fontStyle: 'bold'
+        }
+      ).setOrigin(0.5).setDepth(1001).setAlpha(0);
+      overlayElements.push(correctText);
+
+      // Fade in and scale animation
+      this.tweens.add({
+        targets: correctText,
+        alpha: 1,
+        scale: { from: 0.8, to: 1 },
+        duration: 400,
+        ease: 'Back.easeOut'
+      });
+
+      // Points earned
+      const pointsText = this.add.text(
+        this.gameOffsetX + (size / 2),
+        this.gameOffsetY + (size / 2) - 60,
+        `+${pointsEarned} points`,
+        {
+          fontSize: '28px',
+          color: '#ffffff',
+          fontFamily: 'Quicksand, sans-serif',
+          fontStyle: 'bold'
+        }
+      ).setOrigin(0.5).setDepth(1001).setAlpha(0);
+      overlayElements.push(pointsText);
+
+      // Fade in with delay
+      this.tweens.add({
+        targets: pointsText,
+        alpha: 1,
+        duration: 300,
+        delay: 200,
+        ease: 'Power2'
+      });
+
+      // Streak
+      const streakDisplayText = this.add.text(
+        this.gameOffsetX + (size / 2),
+        this.gameOffsetY + (size / 2) - 30,
+        `Streak: ${currentStreak}`,
+        {
+          fontSize: '24px',
+          color: '#ffffff',
+          fontFamily: 'Quicksand, sans-serif',
+          fontStyle: 'bold'
+        }
+      ).setOrigin(0.5).setDepth(1001).setAlpha(0);
+      overlayElements.push(streakDisplayText);
+
+      // Fade in with delay
+      this.tweens.add({
+        targets: streakDisplayText,
+        alpha: 1,
+        duration: 300,
+        delay: 300,
+        ease: 'Power2'
+      });
+
+      // Completion message
+      const completionText = this.add.text(
+        this.gameOffsetX + (size / 2),
+        this.gameOffsetY + (size / 2) + 20,
+        'Quiz Complete!',
+        {
+          fontSize: '32px',
+          color: '#ffffff',
+          fontFamily: 'Quicksand, sans-serif',
+          fontStyle: 'bold'
+        }
+      ).setOrigin(0.5).setDepth(1001).setAlpha(0);
+      overlayElements.push(completionText);
+
+      // Fade in with delay
+      this.tweens.add({
+        targets: completionText,
+        alpha: 1,
+        duration: 300,
+        delay: 400,
+        ease: 'Power2'
+      });
+
+      // Continue button
+      const continueButton = this.add.rectangle(
+        this.gameOffsetX + (size / 2),
+        this.gameOffsetY + (size / 2) + 90,
+        200,
+        50,
+        0x95b607
+      ).setDepth(1001).setAlpha(0).setScale(0.9);
+      continueButton.setInteractive({ useHandCursor: true });
+      overlayElements.push(continueButton);
+
+      const continueText = this.add.text(
+        this.gameOffsetX + (size / 2),
+        this.gameOffsetY + (size / 2) + 90,
+        'View Results',
+        {
+          fontSize: '24px',
+          color: '#ffffff',
+          fontFamily: 'Quicksand, sans-serif',
+          fontStyle: 'bold'
+        }
+      ).setOrigin(0.5).setDepth(1002).setAlpha(0).setScale(0.9);
+      overlayElements.push(continueText);
+
+      // Animate button in
+      this.tweens.add({
+        targets: [continueButton, continueText],
+        alpha: 1,
+        scale: 1,
+        duration: 300,
+        delay: 500,
+        ease: 'Back.easeOut'
+      });
+
+      // Button hover
+      continueButton.on('pointerover', () => continueButton.setFillStyle(0x7a9405));
+      continueButton.on('pointerout', () => continueButton.setFillStyle(0x95b607));
+
+      // Continue click - go to win screen
+      continueButton.on('pointerdown', () => {
+        overlayElements.forEach(el => el.destroy());
+        this.winGame();
+      });
+    }
+  }
+
+  showCorrectOverlay(pointsEarned: number, currentStreak: number) {
+    const screenWidth = this.scale.width;
+    const screenHeight = this.scale.height;
+    const panel = 400;
+    const available = screenWidth - panel;
+    const size = Math.min(available, screenHeight);
+
+    // Green overlay
+    const correctOverlay = this.add.rectangle(
       this.gameOffsetX + (size / 2),
       this.gameOffsetY + (size / 2),
-      'PAUSED\nRead the question!',
+      size,
+      size,
+      0x00b894,
+      0.7
+    ).setDepth(1000);
+
+    // "Correct!" text
+    const correctText = this.add.text(
+      this.gameOffsetX + (size / 2),
+      this.gameOffsetY + (size / 2) - 40,
+      'CORRECT!',
       {
-        fontSize: '48px',
+        fontSize: '72px',
         color: '#ffffff',
         fontFamily: 'Quicksand, sans-serif',
         fontStyle: 'bold',
         align: 'center'
       }
-    ).setOrigin(0.5).setDepth(1001); // Even higher depth than overlay
+    ).setOrigin(0.5).setDepth(1001);
 
-    // Countdown timer
-    let countdown = 5;
-    const timer = this.time.addEvent({
-      delay: 1000,
-      repeat: 4,
-      callback: () => {
-        countdown--;
-        if (countdown > 0) {
-          countdownText.setText(`Game starts in: ${countdown}`);
-        } else {
-          countdownText.setText('GO!');
-          // Remove pause overlay
-          pauseOverlay.destroy();
-          pauseText.destroy();
-          this.time.delayedCall(500, () => {
-            this.startRound();
-          });
-        }
+    // Points earned text
+    const pointsText = this.add.text(
+      this.gameOffsetX + (size / 2),
+      this.gameOffsetY + (size / 2) + 40,
+      `+${pointsEarned} points`,
+      {
+        fontSize: '32px',
+        color: '#ffffff',
+        fontFamily: 'Quicksand, sans-serif',
+        fontStyle: 'bold',
+        align: 'center'
       }
+    ).setOrigin(0.5).setDepth(1001);
+
+    // Streak text
+    const streakDisplayText = this.add.text(
+      this.gameOffsetX + (size / 2),
+      this.gameOffsetY + (size / 2) + 80,
+      `Streak: ${currentStreak}`,
+      {
+        fontSize: '28px',
+        color: '#ffffff',
+        fontFamily: 'Quicksand, sans-serif',
+        fontStyle: 'bold',
+        align: 'center'
+      }
+    ).setOrigin(0.5).setDepth(1001);
+
+    // Remove overlay after 1.5 seconds
+    this.time.delayedCall(1500, () => {
+      correctOverlay.destroy();
+      correctText.destroy();
+      pointsText.destroy();
+      streakDisplayText.destroy();
     });
   }
 
@@ -415,13 +945,16 @@ export default class SnakeScene extends Phaser.Scene {
     this.isPausedForQuestion = false;
     this.gameStarted = true;
 
+    // Re-enable exit button
+    this.exitButton.setInteractive({ useHandCursor: true });
+
     // Spawn colored apples
     this.spawnApples();
   }
 
   spawnApples() {
-    // Spawn one apple for each answer option
-    this.currentQuestion!.options.forEach((_, index) => {
+    // Spawn one apple for each shuffled answer option
+    this.shuffledOptions.forEach((shuffledOption, index) => {
       let position: GridPosition;
       let attempts = 0;
 
@@ -439,19 +972,28 @@ export default class SnakeScene extends Phaser.Scene {
         attempts < 100
       );
 
-      // Create apple graphics
+      // Create apple graphics (use shuffled color)
       const graphics = this.add.rectangle(
         this.gameOffsetX + position.x * this.GRID_SIZE + this.GRID_SIZE / 2,
         this.gameOffsetY + position.y * this.GRID_SIZE + this.GRID_SIZE / 2,
         this.GRID_SIZE - 4,
         this.GRID_SIZE - 4,
-        ANSWER_COLORS[index]
-      );
+        shuffledOption.color
+      ).setScale(0);
+
+      // Animate apple spawning with staggered delay
+      this.tweens.add({
+        targets: graphics,
+        scale: 1,
+        duration: 300,
+        delay: index * 100,
+        ease: 'Back.easeOut'
+      });
 
       this.apples.push({
         position,
-        color: ANSWER_COLORS[index],
-        answerIndex: index,
+        color: shuffledOption.color,
+        answerIndex: shuffledOption.originalIndex,
         graphics
       });
     });
@@ -526,20 +1068,22 @@ export default class SnakeScene extends Phaser.Scene {
         break;
     }
 
-    // Check wall collision
-    if (
-      newHead.x < 0 ||
-      newHead.x >= this.gridWidth ||
-      newHead.y < 0 ||
-      newHead.y >= this.gridHeight
-    ) {
-      this.endGame('Hit the wall!');
-      return;
+    // Wrap around walls (instead of collision)
+    if (newHead.x < 0) {
+      newHead.x = this.gridWidth - 1; // Left wall → Right side
+    } else if (newHead.x >= this.gridWidth) {
+      newHead.x = 0; // Right wall → Left side
+    }
+
+    if (newHead.y < 0) {
+      newHead.y = this.gridHeight - 1; // Top wall → Bottom side
+    } else if (newHead.y >= this.gridHeight) {
+      newHead.y = 0; // Bottom wall → Top side
     }
 
     // Check self collision
     if (this.isPositionOnSnake(newHead)) {
-      this.endGame('Hit yourself!');
+      this.handleSelfCollision();
       return;
     }
 
@@ -556,8 +1100,47 @@ export default class SnakeScene extends Phaser.Scene {
 
       if (eatenApple.answerIndex === correctAnswerIndex) {
         // Correct answer!
-        this.score += 10;
-        this.scoreText.setText(`Score: ${this.score}`);
+        this.streak++;
+        this.correctAnswers++;
+
+        // Calculate score with streak bonus: base 10 + (streak - 1) * 5
+        const baseScore = 10;
+        const streakBonus = (this.streak - 1) * 5;
+        const pointsEarned = baseScore + streakBonus;
+
+        const oldScore = this.score;
+        this.score += pointsEarned;
+
+        // Animate score counting up
+        this.tweens.add({
+          targets: this,
+          displayedScore: this.score,
+          duration: 500,
+          ease: 'Power2',
+          onUpdate: () => {
+            this.scoreText.setText(`Score: ${Math.floor(this.displayedScore)}`);
+          }
+        });
+
+        // Pulse animation on score text
+        this.tweens.add({
+          targets: this.scoreText,
+          scale: { from: 1, to: 1.2 },
+          duration: 200,
+          yoyo: true,
+          ease: 'Power2'
+        });
+
+        this.streakText.setText(`Streak: ${this.streak}`);
+
+        // Pulse animation on streak text
+        this.tweens.add({
+          targets: this.streakText,
+          scale: { from: 1, to: 1.15 },
+          duration: 200,
+          yoyo: true,
+          ease: 'Power2'
+        });
 
         // Add new head (snake grows)
         this.snake.unshift(newHead);
@@ -566,13 +1149,19 @@ export default class SnakeScene extends Phaser.Scene {
         eatenApple.graphics.destroy();
         this.apples = this.apples.filter(a => a !== eatenApple);
 
-        // Next question
-        this.currentQuestionIndex++;
+        // Remove all other apples
+        this.apples.forEach(apple => apple.graphics.destroy());
+        this.apples = [];
+
+        // Show feedback (even for last question)
         this.gameStarted = false;
-        this.showQuestion();
+        this.showCorrectFeedback(pointsEarned, this.streak);
       } else {
         // Wrong answer!
-        this.endGame(`Wrong answer! Correct: ${this.currentQuestion!.answer}`);
+        const studentAnswer = this.currentQuestion!.options[eatenApple.answerIndex];
+        this.streak = 0; // Reset streak
+        this.streakText.setText(`Streak: ${this.streak}`);
+        this.wrongAnswer(`Wrong answer! Correct: ${this.currentQuestion!.answer}`, studentAnswer);
       }
     } else {
       // Normal movement (no apple eaten)
@@ -599,8 +1188,661 @@ export default class SnakeScene extends Phaser.Scene {
     return distance < 3;
   }
 
+  handleSelfCollision() {
+    // Calculate penalty (20% of current score, don't go negative)
+    const penalty = Math.floor(this.score * 0.2);
+    this.score = Math.max(0, this.score - penalty);
+    this.displayedScore = this.score; // Update displayed score immediately
+
+    // Reset streak
+    this.streak = 0;
+
+    // Update UI
+    this.scoreText.setText(`Score: ${this.score}`);
+    this.streakText.setText(`Streak: ${this.streak}`);
+
+    // Pulse score text red to show penalty
+    this.tweens.add({
+      targets: this.scoreText,
+      scale: { from: 1, to: 1.3 },
+      duration: 150,
+      yoyo: true,
+      ease: 'Power2'
+    });
+
+    // Find safe position for snake (not on apples, not near apples)
+    let safePosition: GridPosition;
+    let attempts = 0;
+    const maxAttempts = 100;
+
+    do {
+      safePosition = {
+        x: Math.floor(Math.random() * this.gridWidth),
+        y: Math.floor(Math.random() * this.gridHeight)
+      };
+      attempts++;
+
+      // Check if position is safe (not on any apple and not too close to any apple)
+      const tooCloseToApple = this.apples.some(apple => {
+        const distance = Math.abs(apple.position.x - safePosition.x) +
+                        Math.abs(apple.position.y - safePosition.y);
+        return distance < 4; // At least 4 cells away from any apple
+      });
+
+      if (!this.isPositionOnApple(safePosition) && !tooCloseToApple) {
+        break;
+      }
+    } while (attempts < maxAttempts);
+
+    // Keep current snake length, just reposition it
+    const currentLength = this.snake.length;
+    this.snake = [];
+
+    // Rebuild snake with same length starting from safe position
+    for (let i = 0; i < currentLength; i++) {
+      this.snake.push({
+        x: safePosition.x - i,
+        y: safePosition.y
+      });
+    }
+
+    // Reset direction to right
+    this.direction = Direction.RIGHT;
+    this.nextDirection = Direction.RIGHT;
+
+    // Redraw snake
+    this.drawSnake();
+
+    // Show brief warning message
+    const screenWidth = this.scale.width;
+    const screenHeight = this.scale.height;
+    const panel = 400;
+    const available = screenWidth - panel;
+    const size = Math.min(available, screenHeight);
+
+    const warningText = this.add.text(
+      this.gameOffsetX + (size / 2),
+      this.gameOffsetY + (size / 2),
+      penalty > 0 ? `Watch out!\n-${penalty} points` : 'Watch out!',
+      {
+        fontSize: '32px',
+        color: '#ff6b6b',
+        fontFamily: 'Quicksand, sans-serif',
+        fontStyle: 'bold',
+        align: 'center'
+      }
+    ).setOrigin(0.5).setDepth(3000).setAlpha(0);
+
+    // Fade in and out
+    this.tweens.add({
+      targets: warningText,
+      alpha: 1,
+      duration: 200,
+      yoyo: true,
+      hold: 800,
+      onComplete: () => {
+        warningText.destroy();
+      }
+    });
+  }
+
+  wrongAnswer(reason: string, studentAnswer: string) {
+    this.gameStarted = false;
+    this.isPausedForQuestion = true;
+
+    // Remove all apples
+    this.apples.forEach(apple => apple.graphics.destroy());
+    this.apples = [];
+
+    const screenWidth = this.scale.width;
+    const screenHeight = this.scale.height;
+    const panel = 400;
+    const available = screenWidth - panel;
+    const size = Math.min(available, screenHeight);
+
+    // Dark pause-style overlay (matching correct answer style - game area only)
+    const wrongOverlay = this.add.rectangle(
+      this.gameOffsetX + (size / 2),
+      this.gameOffsetY + (size / 2),
+      size,
+      size,
+      0x000000,
+      0.6
+    ).setDepth(1000).setAlpha(0);
+
+    // Fade in overlay
+    this.tweens.add({
+      targets: wrongOverlay,
+      alpha: 1,
+      duration: 300,
+      ease: 'Power2'
+    });
+
+    // Track elements for cleanup
+    const overlayElements: Phaser.GameObjects.GameObject[] = [wrongOverlay];
+
+    // Wrong text (red)
+    const wrongText = this.add.text(
+      this.gameOffsetX + (size / 2),
+      this.gameOffsetY + (size / 2) - 120,
+      'INCORRECT!',
+      {
+        fontSize: '64px',
+        color: '#ff6b6b',
+        fontFamily: 'Quicksand, sans-serif',
+        fontStyle: 'bold'
+      }
+    ).setOrigin(0.5).setDepth(1001).setAlpha(0);
+    overlayElements.push(wrongText);
+
+    // Fade in first
+    this.tweens.add({
+      targets: wrongText,
+      alpha: 1,
+      duration: 200,
+      ease: 'Power2'
+    });
+
+    // Then shake animation (separate from fade)
+    this.tweens.add({
+      targets: wrongText,
+      x: wrongText.x + 10,
+      duration: 50,
+      yoyo: true,
+      repeat: 3,
+      ease: 'Power2',
+      onComplete: () => {
+        wrongText.x = this.gameOffsetX + (size / 2);
+      }
+    });
+
+    // Reason (with word wrap to prevent overflow) - top aligned
+    const reasonStartY = this.gameOffsetY + (size / 2) - 60;
+    const reasonText = this.add.text(
+      this.gameOffsetX + (size / 2),
+      reasonStartY,
+      reason,
+      {
+        fontSize: '16px',
+        color: '#ffffff',
+        fontFamily: 'Quicksand, sans-serif',
+        align: 'center',
+        wordWrap: { width: size - 100 },
+        lineSpacing: 4
+      }
+    ).setOrigin(0.5, 0).setDepth(1001).setAlpha(0);
+    overlayElements.push(reasonText);
+
+    // Fade in
+    this.tweens.add({
+      targets: reasonText,
+      alpha: 1,
+      duration: 300,
+      delay: 200,
+      ease: 'Power2'
+    });
+
+    // Calculate dynamic Y positions based on reason text height
+    const scoreY = reasonStartY + reasonText.height + 20;
+    const promptY = scoreY + 50;
+    const buttonsY = promptY + 60;
+
+    // Current score
+    const scoreDisplay = this.add.text(
+      this.gameOffsetX + (size / 2),
+      scoreY,
+      `Score: ${this.score}`,
+      {
+        fontSize: '22px',
+        color: '#ffffff',
+        fontFamily: 'Quicksand, sans-serif',
+        fontStyle: 'bold'
+      }
+    ).setOrigin(0.5).setDepth(1001).setAlpha(0);
+    overlayElements.push(scoreDisplay);
+
+    // Fade in
+    this.tweens.add({
+      targets: scoreDisplay,
+      alpha: 1,
+      duration: 300,
+      delay: 300,
+      ease: 'Power2'
+    });
+
+    // Read the question prompt
+    const readPromptText = this.add.text(
+      this.gameOffsetX + (size / 2),
+      promptY,
+      'Read the next question!',
+      {
+        fontSize: '28px',
+        color: '#ffffff',
+        fontFamily: 'Quicksand, sans-serif',
+        fontStyle: 'bold',
+        align: 'center'
+      }
+    ).setOrigin(0.5).setDepth(1001).setAlpha(0);
+    overlayElements.push(readPromptText);
+
+    // Fade in
+    this.tweens.add({
+      targets: readPromptText,
+      alpha: 1,
+      duration: 300,
+      delay: 400,
+      ease: 'Power2'
+    });
+
+    // Continue button (left side)
+    const continueButton = this.add.rectangle(
+      this.gameOffsetX + (size / 2) - 110,
+      buttonsY,
+      200,
+      50,
+      0x95b607
+    ).setDepth(1001).setAlpha(0).setScale(0.9);
+    continueButton.setInteractive({ useHandCursor: true });
+    overlayElements.push(continueButton);
+
+    const continueText = this.add.text(
+      this.gameOffsetX + (size / 2) - 110,
+      buttonsY,
+      'Continue',
+      {
+        fontSize: '24px',
+        color: '#ffffff',
+        fontFamily: 'Quicksand, sans-serif',
+        fontStyle: 'bold'
+      }
+    ).setOrigin(0.5).setDepth(1002).setAlpha(0).setScale(0.9);
+    overlayElements.push(continueText);
+
+    // Animate buttons in
+    this.tweens.add({
+      targets: [continueButton, continueText],
+      alpha: 1,
+      scale: 1,
+      duration: 300,
+      delay: 500,
+      ease: 'Back.easeOut'
+    });
+
+    // Explanation button (right side)
+    const explainButton = this.add.rectangle(
+      this.gameOffsetX + (size / 2) + 110,
+      buttonsY,
+      200,
+      50,
+      0x3498db
+    ).setDepth(1001).setAlpha(0).setScale(0.9);
+    explainButton.setInteractive({ useHandCursor: true });
+    overlayElements.push(explainButton);
+
+    const explainText = this.add.text(
+      this.gameOffsetX + (size / 2) + 110,
+      buttonsY,
+      'Explanation',
+      {
+        fontSize: '24px',
+        color: '#ffffff',
+        fontFamily: 'Quicksand, sans-serif',
+        fontStyle: 'bold'
+      }
+    ).setOrigin(0.5).setDepth(1002).setAlpha(0).setScale(0.9);
+    overlayElements.push(explainText);
+
+    // Animate buttons in
+    this.tweens.add({
+      targets: [explainButton, explainText],
+      alpha: 1,
+      scale: 1,
+      duration: 300,
+      delay: 550,
+      ease: 'Back.easeOut'
+    });
+
+    // Button hover effects
+    continueButton.on('pointerover', () => continueButton.setFillStyle(0x7a9405));
+    continueButton.on('pointerout', () => continueButton.setFillStyle(0x95b607));
+    explainButton.on('pointerover', () => explainButton.setFillStyle(0x2980b9));
+    explainButton.on('pointerout', () => explainButton.setFillStyle(0x3498db));
+
+    // Continue button click
+    continueButton.on('pointerdown', () => {
+      // Remove overlay and buttons
+      overlayElements.forEach(el => el.destroy());
+
+      // Move to next question
+      this.currentQuestionIndex++;
+      if (this.currentQuestionIndex >= this.quizData.questions.length) {
+        // If no more questions, end game
+        this.winGame();
+      } else {
+        // Show next question
+        this.showQuestion();
+      }
+    });
+
+    // Explanation button click
+    explainButton.on('pointerdown', () => {
+      this.showExplanation(overlayElements, this.currentQuestion!, false, studentAnswer);
+    });
+  }
+
+  async showExplanation(previousOverlayElements: Phaser.GameObjects.GameObject[], questionData: QuizQuestion, wasCorrect: boolean = true, studentAnswer?: string) {
+    // Hide previous overlay elements temporarily
+    previousOverlayElements.forEach(el => el.setVisible(false));
+
+    const screenWidth = this.scale.width;
+    const screenHeight = this.scale.height;
+    const panel = 400;
+    const available = screenWidth - panel;
+    const size = Math.min(available, screenHeight);
+
+    // Create explanation overlay (match pause overlay style)
+    const explainOverlay = this.add.rectangle(
+      this.gameOffsetX + (size / 2),
+      this.gameOffsetY + (size / 2),
+      size,
+      size,
+      0x000000,
+      0.6
+    ).setDepth(2000).setAlpha(0);
+
+    // Fade in overlay
+    this.tweens.add({
+      targets: explainOverlay,
+      alpha: 1,
+      duration: 300,
+      ease: 'Power2'
+    });
+
+    // Loading text
+    const loadingText = this.add.text(
+      this.gameOffsetX + (size / 2),
+      this.gameOffsetY + (size / 2),
+      'Loading explanation...',
+      {
+        fontSize: '24px',
+        color: '#ffffff',
+        fontFamily: 'Quicksand, sans-serif',
+        fontStyle: 'bold'
+      }
+    ).setOrigin(0.5).setDepth(2001).setAlpha(0);
+
+    // Fade in loading text
+    this.tweens.add({
+      targets: loadingText,
+      alpha: 1,
+      duration: 300,
+      ease: 'Power2'
+    });
+
+    try {
+      // Generate AI explanation for the specific question
+      const explanation = await this.generateExplanation(questionData, wasCorrect, studentAnswer);
+
+      // Fade out loading text
+      this.tweens.add({
+        targets: loadingText,
+        alpha: 0,
+        duration: 200,
+        onComplete: () => {
+          loadingText.destroy();
+        }
+      });
+
+      // Title (white, not blue)
+      const titleY = this.gameOffsetY + 80;
+      const titleText = this.add.text(
+        this.gameOffsetX + (size / 2),
+        titleY,
+        'Explanation',
+        {
+          fontSize: '40px',
+          color: '#ffffff',
+          fontFamily: 'Quicksand, sans-serif',
+          fontStyle: 'bold'
+        }
+      ).setOrigin(0.5).setDepth(2001).setAlpha(0);
+
+      // Fade in title
+      this.tweens.add({
+        targets: titleText,
+        alpha: 1,
+        scale: { from: 0.9, to: 1 },
+        duration: 400,
+        delay: 200,
+        ease: 'Back.easeOut'
+      });
+
+      // Correct Answer label
+      let currentY = titleY + 60;
+      const correctAnswerLabel = this.add.text(
+        this.gameOffsetX + (size / 2),
+        currentY,
+        'Correct Answer:',
+        {
+          fontSize: '16px',
+          color: '#00b894',
+          fontFamily: 'Quicksand, sans-serif',
+          fontStyle: 'bold'
+        }
+      ).setOrigin(0.5, 0).setDepth(2001).setAlpha(0);
+
+      currentY += 25;
+      const correctAnswerText = this.add.text(
+        this.gameOffsetX + (size / 2),
+        currentY,
+        questionData.answer,
+        {
+          fontSize: '15px',
+          color: '#ffffff',
+          fontFamily: 'Quicksand, sans-serif',
+          align: 'center',
+          wordWrap: { width: size - 120 }
+        }
+      ).setOrigin(0.5, 0).setDepth(2001).setAlpha(0);
+
+      // Fade in correct answer
+      this.tweens.add({
+        targets: [correctAnswerLabel, correctAnswerText],
+        alpha: 1,
+        duration: 300,
+        delay: 300,
+        ease: 'Power2'
+      });
+
+      // Your answer label
+      currentY += correctAnswerText.height + 20;
+      const yourAnswerLabel = this.add.text(
+        this.gameOffsetX + (size / 2),
+        currentY,
+        'You Chose:',
+        {
+          fontSize: '16px',
+          color: wasCorrect ? '#00b894' : '#ff6b6b',
+          fontFamily: 'Quicksand, sans-serif',
+          fontStyle: 'bold'
+        }
+      ).setOrigin(0.5, 0).setDepth(2001).setAlpha(0);
+
+      currentY += 25;
+      const yourAnswerText = this.add.text(
+        this.gameOffsetX + (size / 2),
+        currentY,
+        studentAnswer || questionData.answer,
+        {
+          fontSize: '15px',
+          color: '#ffffff',
+          fontFamily: 'Quicksand, sans-serif',
+          align: 'center',
+          wordWrap: { width: size - 120 }
+        }
+      ).setOrigin(0.5, 0).setDepth(2001).setAlpha(0);
+
+      // Fade in your answer
+      this.tweens.add({
+        targets: [yourAnswerLabel, yourAnswerText],
+        alpha: 1,
+        duration: 300,
+        delay: 350,
+        ease: 'Power2'
+      });
+
+      // Explanation text (positioned after answer labels)
+      currentY += yourAnswerText.height + 25;
+      const explanationText = this.add.text(
+        this.gameOffsetX + (size / 2),
+        currentY,
+        explanation,
+        {
+          fontSize: '15px',
+          color: '#ffffff',
+          fontFamily: 'Quicksand, sans-serif',
+          align: 'left',
+          wordWrap: { width: size - 120 },
+          lineSpacing: 3
+        }
+      ).setOrigin(0.5, 0).setDepth(2001).setAlpha(0);
+
+      // Fade in explanation
+      this.tweens.add({
+        targets: explanationText,
+        alpha: 1,
+        duration: 400,
+        delay: 400,
+        ease: 'Power2'
+      });
+
+      // Back button
+      const backButton = this.add.rectangle(
+        this.gameOffsetX + (size / 2),
+        this.gameOffsetY + size - 80,
+        200,
+        50,
+        0x95b607
+      ).setDepth(2001).setAlpha(0).setScale(0.9);
+      backButton.setInteractive({ useHandCursor: true });
+
+      const backText = this.add.text(
+        this.gameOffsetX + (size / 2),
+        this.gameOffsetY + size - 80,
+        'Back',
+        {
+          fontSize: '24px',
+          color: '#ffffff',
+          fontFamily: 'Quicksand, sans-serif',
+          fontStyle: 'bold'
+        }
+      ).setOrigin(0.5).setDepth(2002).setAlpha(0).setScale(0.9);
+
+      // Animate button in
+      this.tweens.add({
+        targets: [backButton, backText],
+        alpha: 1,
+        scale: 1,
+        duration: 300,
+        delay: 600,
+        ease: 'Back.easeOut'
+      });
+
+      // Hover effect
+      backButton.on('pointerover', () => backButton.setFillStyle(0x7a9405));
+      backButton.on('pointerout', () => backButton.setFillStyle(0x95b607));
+
+      // Back button click
+      backButton.on('pointerdown', () => {
+        // Destroy explanation overlay and all elements
+        explainOverlay.destroy();
+        titleText.destroy();
+        correctAnswerLabel.destroy();
+        correctAnswerText.destroy();
+        yourAnswerLabel.destroy();
+        yourAnswerText.destroy();
+        explanationText.destroy();
+        backButton.destroy();
+        backText.destroy();
+
+        // Restore previous overlay
+        previousOverlayElements.forEach(el => el.setVisible(true));
+      });
+
+    } catch (error) {
+      loadingText.setText('Failed to load explanation. Click Back to return.');
+      console.error('Explanation error:', error);
+
+      // Back button for error state
+      const backButton = this.add.rectangle(
+        this.gameOffsetX + (size / 2),
+        this.gameOffsetY + (size / 2) + 60,
+        200,
+        50,
+        0x95b607
+      ).setDepth(2001);
+      backButton.setInteractive({ useHandCursor: true });
+
+      const backText = this.add.text(
+        this.gameOffsetX + (size / 2),
+        this.gameOffsetY + (size / 2) + 60,
+        'Back',
+        {
+          fontSize: '24px',
+          color: '#ffffff',
+          fontFamily: 'Quicksand, sans-serif',
+          fontStyle: 'bold'
+        }
+      ).setOrigin(0.5).setDepth(2002);
+
+      backButton.on('pointerdown', () => {
+        explainOverlay.destroy();
+        loadingText.destroy();
+        backButton.destroy();
+        backText.destroy();
+        previousOverlayElements.forEach(el => el.setVisible(true));
+      });
+    }
+  }
+
+  async generateExplanation(questionData: QuizQuestion, wasCorrect: boolean, studentAnswer?: string): Promise<string> {
+    const question = questionData.question;
+    const correctAnswer = questionData.answer;
+    const options = questionData.options;
+
+    try {
+      const response = await fetch('/api/explain', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          question,
+          options,
+          correctAnswer,
+          wasCorrect,
+          studentAnswer
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.explanation;
+    } catch (error) {
+      console.error('Failed to fetch explanation:', error);
+      // Fallback explanation if API fails
+      return `The correct answer is "${correctAnswer}".\n\nUnable to load detailed explanation at this time. Please try again later.`;
+    }
+  }
+
   endGame(reason: string) {
     this.gameOver = true;
+
+    // Disable exit button
+    this.exitButton.disableInteractive();
 
     const width = this.scale.width;
     const height = this.scale.height;
@@ -630,10 +1872,35 @@ export default class SnakeScene extends Phaser.Scene {
       fontFamily: 'Quicksand, sans-serif',
       fontStyle: 'bold'
     }).setOrigin(0.5);
+
+    // Retry button
+    const retryButton = this.add.rectangle(width / 2, height / 2 + 130, 200, 50, 0x95b607);
+    retryButton.setInteractive({ useHandCursor: true });
+    const retryText = this.add.text(width / 2, height / 2 + 130, 'Play Again', {
+      fontSize: '24px',
+      color: '#ffffff',
+      fontFamily: 'Quicksand, sans-serif',
+      fontStyle: 'bold'
+    }).setOrigin(0.5);
+
+    retryButton.on('pointerdown', () => {
+      this.resetGame();
+    });
+
+    retryButton.on('pointerover', () => {
+      retryButton.setFillStyle(0x7a9405);
+    });
+
+    retryButton.on('pointerout', () => {
+      retryButton.setFillStyle(0x95b607);
+    });
   }
 
   winGame() {
     this.gameOver = true;
+
+    // Disable exit button
+    this.exitButton.disableInteractive();
 
     const width = this.scale.width;
     const height = this.scale.height;
@@ -641,27 +1908,137 @@ export default class SnakeScene extends Phaser.Scene {
     // Overlay
     this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.7);
 
-    // Victory text
-    this.add.text(width / 2, height / 2 - 80, 'YOU WIN!', {
-      fontSize: '64px',
-      color: '#00b894',
+    // Determine completion message based on performance
+    const totalQuestions = this.quizData.questions.length;
+    const percentage = (this.correctAnswers / totalQuestions) * 100;
+
+    let completionText = 'QUIZ COMPLETE!';
+    let completionColor = '#ffffff';
+
+    if (percentage === 100) {
+      completionText = 'PERFECT SCORE!';
+      completionColor = '#00b894'; // Green
+    } else if (percentage >= 80) {
+      completionText = 'GREAT JOB!';
+      completionColor = '#00b894'; // Green
+    } else if (percentage >= 60) {
+      completionText = 'GOOD EFFORT!';
+      completionColor = '#3498db'; // Blue
+    } else if (percentage >= 40) {
+      completionText = 'KEEP TRYING!';
+      completionColor = '#f39c12'; // Orange
+    } else {
+      completionText = 'NEED MORE PRACTICE';
+      completionColor = '#ff6b6b'; // Red
+    }
+
+    // Completion text
+    this.add.text(width / 2, height / 2 - 80, completionText, {
+      fontSize: '56px',
+      color: completionColor,
       fontFamily: 'Quicksand, sans-serif',
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
-    // Completion message
-    this.add.text(width / 2, height / 2, 'All questions answered correctly!', {
-      fontSize: '24px',
+    // Questions correct
+    this.add.text(width / 2, height / 2 - 20, `${this.correctAnswers}/${this.quizData.questions.length} Questions Correct`, {
+      fontSize: '28px',
       color: '#ffffff',
-      fontFamily: 'Quicksand, sans-serif'
+      fontFamily: 'Quicksand, sans-serif',
+      fontStyle: 'bold'
     }).setOrigin(0.5);
 
     // Final score
-    this.add.text(width / 2, height / 2 + 60, `Final Score: ${this.score}`, {
+    this.add.text(width / 2, height / 2 + 40, `Final Score: ${this.score}`, {
       fontSize: '32px',
       color: '#95b607',
       fontFamily: 'Quicksand, sans-serif',
       fontStyle: 'bold'
     }).setOrigin(0.5);
+
+    // Retry button
+    const retryButton = this.add.rectangle(width / 2, height / 2 + 130, 200, 50, 0x95b607);
+    retryButton.setInteractive({ useHandCursor: true });
+    const retryText = this.add.text(width / 2, height / 2 + 130, 'Play Again', {
+      fontSize: '24px',
+      color: '#ffffff',
+      fontFamily: 'Quicksand, sans-serif',
+      fontStyle: 'bold'
+    }).setOrigin(0.5);
+
+    retryButton.on('pointerdown', () => {
+      this.resetGame();
+    });
+
+    retryButton.on('pointerover', () => {
+      retryButton.setFillStyle(0x7a9405);
+    });
+
+    retryButton.on('pointerout', () => {
+      retryButton.setFillStyle(0x95b607);
+    });
+  }
+
+  /**
+   * Shuffle array using Fisher-Yates algorithm
+   */
+  private shuffleArray<T>(array: T[]): T[] {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  }
+
+  /**
+   * Reset game state and shuffle questions for retry
+   */
+  private resetGame() {
+    // Shuffle questions
+    const shuffledQuestions = this.shuffleArray(this.originalQuizData.questions);
+    this.quizData = {
+      questions: shuffledQuestions
+    };
+
+    // Reset game state
+    this.currentQuestionIndex = 0;
+    this.score = 0;
+    this.displayedScore = 0;
+    this.streak = 0;
+    this.correctAnswers = 0;
+    this.gameOver = false;
+    this.gameStarted = false;
+    this.isPausedForQuestion = false;
+    this.direction = Direction.RIGHT;
+    this.nextDirection = Direction.RIGHT;
+
+    // Clear existing graphics
+    this.snakeGraphics.forEach(g => g.destroy());
+    this.snakeGraphics = [];
+    this.apples.forEach(apple => apple.graphics.destroy());
+    this.apples = [];
+    if (this.questionPanel) {
+      this.questionPanel.destroy();
+    }
+
+    // Reset snake to center
+    const centerX = Math.floor(this.gridWidth / 2);
+    const centerY = Math.floor(this.gridHeight / 2);
+    this.snake = [
+      { x: centerX, y: centerY },
+      { x: centerX - 1, y: centerY },
+      { x: centerX - 2, y: centerY }
+    ];
+
+    // Update score and streak displays
+    this.scoreText.setText('Score: 0');
+    this.streakText.setText('Streak: 0');
+
+    // Redraw snake
+    this.drawSnake();
+
+    // Restart scene (clean slate)
+    this.scene.restart({ quiz: this.quizData });
   }
 }

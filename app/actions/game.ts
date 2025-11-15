@@ -4,7 +4,8 @@ import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { generateUniqueShareCode } from '@/lib/utils/share-code';
 import { generateGameQRCode } from '@/lib/utils/qr-code';
-import type { Game, Quiz, ProcessedContent, PDF, Subject, GameMode } from '@prisma/client';
+import type { Game, Quiz, ProcessedContent, PDF, Subject } from '@prisma/client';
+import { GameMode } from '@prisma/client';
 
 //type of server action results, success or fail, T is the type of return.
 type ActionResult<T> =
@@ -572,7 +573,7 @@ export async function getPublicGames(
       take: 50, // Limit to 50 games
     });
 
-    console.log('🔍 Public Games Query Results:', {
+    console.log('[Public Games Query]', {
       totalFound: games.length,
       games: games.map(g => ({
         id: g.id,

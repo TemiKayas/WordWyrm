@@ -2,14 +2,24 @@ import Phaser from 'phaser';
 import { Quiz, QuizQuestion } from '@/lib/processors/ai-generator';
 
 // Enemy type definitions
-// RED: Low HP, slow (25 HP, 50 speed, 0.85 size)
-// BLUE: Medium HP, medium speed (50 HP, 55 speed, 1.0 size)
-// YELLOW: High HP, fast (75 HP, 60.5 speed, 1.2 size)
-// BOSS: Spawns every 5 waves with quiz integration (300 + 50*wave HP, 57.75 speed, 1.7 size)
+// RED: Low HP, slow (25 HP, 50 speed, 0.85 size, 1 gold)
+// BLUE: Medium HP, medium speed (50 HP, 55 speed, 1.0 size, 2 gold)
+// YELLOW: High HP, fast (75 HP, 60.5 speed, 1.2 size, 3 gold)
+// SPEEDY: Low HP, very fast (20 HP, 80 speed, 0.7 size, 2 gold) - intro wave 7
+// ARMORED: High HP, slow, 35% dmg reduction (80 HP, 45 speed, 1.1 size, 5 gold) - intro wave 11
+// HEALER: Medium HP, heals 3 HP/s in 80px (50 HP, 50 speed, 1.0 size, 6 gold) - intro wave 16, priority target
+// COMMANDER: Medium HP, +20% speed aura 100px (60 HP, 48 speed, 1.15 size, 7 gold) - intro wave 21, priority target
+// MINI_BOSS: Spawns every 5 waves (120 + 15*wave HP, 55 speed, 1.3 size, 15 gold) - waves 5, 15, 25, 35, 45
+// BOSS: Spawns every 10 waves with quiz (300 + 50*wave HP, 57.75 speed, 1.7 size, 50 gold) - waves 20, 40
 enum EnemyType {
   RED = 'RED',
   BLUE = 'BLUE',
   YELLOW = 'YELLOW',
+  SPEEDY = 'SPEEDY',
+  ARMORED = 'ARMORED',
+  HEALER = 'HEALER',
+  COMMANDER = 'COMMANDER',
+  MINI_BOSS = 'MINI_BOSS',
   BOSS = 'BOSS',
 }
 
@@ -17,7 +27,8 @@ enum EnemyType {
 interface Enemy {
   x: number;
   y: number;
-  speed: number; // pixels per second
+  speed: number; // pixels per second (affected by commander aura)
+  baseSpeed: number; // original speed before buffs
   health: number;
   maxHealth: number;
   type: EnemyType;
@@ -26,31 +37,53 @@ interface Enemy {
   size: number; // scale multiplier for visual size
   healthBarBg?: Phaser.GameObjects.Graphics; // health bar background
   healthBarFill?: Phaser.GameObjects.Graphics; // health bar fill
+  goldValue: number; // gold reward for killing this enemy
+  isPriorityTarget?: boolean; // true for HEALER and COMMANDER
+  lastHealTime?: number; // timestamp for healer healing tick
 }
 
 // Tower entity - attacks enemies in range
 // Ballista (basic): Fast fire, 50 gold, 150 range
 // Trebuchet (sniper): Slow fire, 75 gold, 300 range
-// Melee: Very fast fire, 25 gold, 60 range
+// Knight (melee): Very fast fire, 25 gold, 60 range
+// Training Camp (fact): Support tower, 40 gold, 200 buff radius (doesn't attack)
+// Archmage (wizard): Spell rotation, 100 gold, 170 range (requires 5+ correct answers)
 interface Tower {
   x: number;
   y: number;
-  range: number; // attack radius
+  range: number; // attack radius (or buff radius for Training Camp)
   fireRate: number; // ms between attacks
   damage: number;
   cost: number; // purchase price
   lastFired: number; // timestamp of last attack
-  type: 'basic' | 'sniper' | 'melee';
+  type: 'basic' | 'sniper' | 'melee' | 'fact' | 'wizard';
   graphics: Phaser.GameObjects.Rectangle;
   upgrades: {
     explosive?: boolean; // Trebuchet: AoE damage
     dotArrows?: boolean; // Ballista: damage over time
     fasterFireRate?: boolean; // Ballista: -15% fire rate
-    moreDamage?: boolean; // Melee: +10% damage
+    moreDamage?: boolean; // Knight: +10% damage
+    lightningDebuff?: boolean; // Archmage Path A: Lightning applies 5% damage debuff
+    knowledgeScaling?: boolean; // Archmage Path B: +1% dmg/fire rate per correct answer
+    aoeCharge?: boolean; // Archmage Path A Tier 2: 15s charge AoE blast
   };
   baseDamage: number; // original damage (for buff calculations)
   baseFireRate: number; // original fire rate (for buff calculations)
   size: number; // visual scale multiplier
+
+  // Fact tower specific properties
+  buffRadius?: number; // Only for fact towers
+  factText?: string; // Educational fact displayed on hover
+  boosted?: boolean; // If Question ability buff is active
+  boostedUntil?: number; // Timestamp when boost expires
+  baseBuffRadius?: number; // Original buff radius before Question ability
+
+  // Wizard tower specific properties
+  currentSpell?: 'fire' | 'ice' | 'lightning'; // Current spell in rotation
+  nextSpell?: 'fire' | 'ice' | 'lightning'; // Next spell (shown as glow)
+  spellGlow?: Phaser.GameObjects.Arc; // Visual glow indicator
+  correctAnswersWhenPlaced?: number; // For knowledge scaling tracking
+  lastChargeBlast?: number; // Timestamp of last AoE charge blast
 }
 
 // Damage over time effect (from Ballista upgrade)
@@ -107,7 +140,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
   private pauseOverlay?: Phaser.GameObjects.Container;
 
   // Tower placement/selection
-  private selectedTowerType: 'basic' | 'sniper' | 'melee' | null = 'basic';
+  private selectedTowerType: 'basic' | 'sniper' | 'melee' | 'fact' | 'wizard' | null = 'basic';
   private selectedTower: Tower | null = null; // selected for upgrades
   private clickedOnTower: boolean = false; // prevent double-click placement
 
@@ -115,6 +148,79 @@ export default class TowerDefenseScene extends Phaser.Scene {
   private quizData!: Quiz;
   private currentQuestionIndex: number = 0;
   private waitingForQuestion: boolean = false;
+
+  // Tower purchase quiz gate system
+  private towerPurchaseCount: { basic: number; sniper: number; melee: number; fact: number; wizard: number } = {
+    basic: 0,
+    sniper: 0,
+    melee: 0,
+    fact: 0,
+    wizard: 0
+  };
+  private towerPurchasePrice: { basic: number; sniper: number; melee: number; fact: number; wizard: number } = {
+    basic: 50,
+    sniper: 75,
+    melee: 25,
+    fact: 40,
+    wizard: 100
+  };
+  private pendingTowerPlacement: { x: number; y: number; type: 'basic' | 'sniper' | 'melee' | 'fact' | 'wizard' } | null = null;
+  private towerPurchaseQuestionPopup?: Phaser.GameObjects.Container;
+  private totalCorrectAnswers: number = 0; // Track all correct answers for wizard unlock
+
+  // Upgrade knowledge check system
+  private upgradeUnlocked: {
+    dotArrows: boolean;
+    fasterFireRate: boolean;
+    explosive: boolean;
+    moreDamage: boolean;
+  } = {
+    dotArrows: false,
+    fasterFireRate: false,
+    explosive: false,
+    moreDamage: false
+  };
+  private upgradePrices: {
+    dotArrows: number;
+    fasterFireRate: number;
+    explosive: number;
+    moreDamage: number;
+  } = {
+    dotArrows: 15,
+    fasterFireRate: 15,
+    explosive: 15,
+    moreDamage: 15
+  };
+  private pendingUpgrade: { type: 'explosive' | 'dotArrows' | 'fasterFireRate' | 'moreDamage' } | null = null;
+  private upgradeQuestionPopup?: Phaser.GameObjects.Container;
+
+  // Active ability system
+  private lightningStrikeCooldown: number = 0; // ms remaining
+  private freezeCooldown: number = 0; // ms remaining
+  private questionAbilityCooldown: number = 0; // ms remaining
+  private questionAbilityUnlocked: boolean = false; // Unlocked after placing first Training Camp
+  private lightningStrikeActive: boolean = false; // Waiting for enemy selection
+  private pendingLightningTarget: Enemy | null = null;
+  private abilityQuestionPopup?: Phaser.GameObjects.Container;
+  private abilityButtons?: Phaser.GameObjects.Container;
+  private frozenEnemies: Set<Enemy> = new Set(); // Track frozen enemies
+  private incorrectQuestionIndices: Set<number> = new Set(); // Track incorrect questions for Training Camp tooltips
+  private factTowerTooltip?: Phaser.GameObjects.Container;
+  private pausedCooldowns: { question: number; timestamp: number } = { question: 0, timestamp: 0 }; // Store Question ability cooldown when wave ends
+
+  // Challenge round system (every 10 waves: rounds 10, 20, 30, etc.)
+  // 3 challenging questions, rewards based on score (3/3 = buff choice, 2/3 = 100g, 1/3 = 2 upgrades, 0/3 = nothing)
+  private challengeRoundActive: boolean = false;
+  private challengeQuestionIndex: number = 0; // Current question (0-2)
+  private challengeCorrectCount: number = 0; // Number correct so far
+  private challengeQuestions: QuizQuestion[] = []; // The 3 selected questions
+  private challengeIncorrectIndices: Set<number> = new Set(); // Track incorrect from challenges for spaced repetition
+  private challengeQuestionPopup?: Phaser.GameObjects.Container;
+  private buffSelectionPopup?: Phaser.GameObjects.Container;
+
+  // Challenge round buffs (last 10 rounds each)
+  private activeBuff: 'aoe' | 'gold' | 'cooldown' | null = null;
+  private buffRoundsRemaining: number = 0;
 
   // Boss system (every 5 waves)
   // Correct answer: boss -10% HP, towers +15% damage/fire rate
@@ -136,6 +242,8 @@ export default class TowerDefenseScene extends Phaser.Scene {
   private basicTowerBtn!: Phaser.GameObjects.DOMElement;
   private sniperTowerBtn!: Phaser.GameObjects.DOMElement;
   private meleeTowerBtn!: Phaser.GameObjects.DOMElement;
+  private factTowerBtn!: Phaser.GameObjects.DOMElement;
+  private wizardTowerBtn!: Phaser.GameObjects.DOMElement;
   private waveButton!: Phaser.GameObjects.DOMElement;
   private backButton!: Phaser.GameObjects.DOMElement;
   private upgradeContainer?: Phaser.GameObjects.Container;
@@ -274,11 +382,11 @@ export default class TowerDefenseScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     // gold display in sidebar - clean minimal design
-    const goldBg = this.add.rectangle(width - sidebarWidth/2, 495, sidebarWidth - 20, 40, 0xffffff, 0.95);
+    const goldBg = this.add.rectangle(width - sidebarWidth/2, 710, sidebarWidth - 20, 40, 0xffffff, 0.95);
     goldBg.setOrigin(0.5);
     goldBg.setStrokeStyle(2, 0xc4a46f);
 
-    this.goldText = this.add.text(width - sidebarWidth/2, 495, `Gold: ${this.gold}`, {
+    this.goldText = this.add.text(width - sidebarWidth/2, 710, `Gold: ${this.gold}`, {
       fontSize: '18px',
       color: '#ff9f22',
       fontFamily: 'Quicksand, sans-serif',
@@ -434,8 +542,8 @@ export default class TowerDefenseScene extends Phaser.Scene {
       el.style.background = '#95b607';
     });
 
-    // Melee Tower (Orange with dark border)
-    this.meleeTowerBtn = createTowerButton(420, 'Melee Tower', 'Rapid Fire • 25g',
+    // Knight (Orange with dark border)
+    this.meleeTowerBtn = createTowerButton(420, 'Knight', 'Rapid Fire • 25g',
       '#fd9227', '#730f11');
 
     this.meleeTowerBtn.addListener('click');
@@ -460,7 +568,67 @@ export default class TowerDefenseScene extends Phaser.Scene {
       el.style.background = '#fd9227';
     });
 
+    // Training Camp (Blue with dark border) - Support tower
+    this.factTowerBtn = createTowerButton(520, 'Training Camp', 'Support • 40g',
+      '#3498db', '#2c3e50');
+
+    this.factTowerBtn.addListener('click');
+    this.factTowerBtn.on('click', () => {
+      this.selectedTowerType = this.selectedTowerType === 'fact' ? null : 'fact';
+      this.updateTowerSelection();
+    });
+
+    this.factTowerBtn.addListener('mouseenter');
+    this.factTowerBtn.on('mouseenter', () => {
+      const el = this.factTowerBtn.node as HTMLElement;
+      el.style.transform = 'scale(0.98)';
+      el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.25)';
+      el.style.background = '#2980b9';
+    });
+
+    this.factTowerBtn.addListener('mouseleave');
+    this.factTowerBtn.on('mouseleave', () => {
+      const el = this.factTowerBtn.node as HTMLElement;
+      el.style.transform = 'scale(1)';
+      el.style.boxShadow = 'none';
+      el.style.background = '#3498db';
+    });
+
+    // Archmage (Purple with dark border) - Spell rotation (requires 5+ correct answers)
+    this.wizardTowerBtn = createTowerButton(620, 'Archmage', 'Spells • 100g',
+      '#9c27b0', '#4a148c');
+
+    this.wizardTowerBtn.addListener('click');
+    this.wizardTowerBtn.on('click', () => {
+      // Check if wizard is unlocked (5+ correct answers)
+      if (this.totalCorrectAnswers < 5) {
+        this.showErrorMessage(`Archmage locked! Need 5 correct answers (${this.totalCorrectAnswers}/5)`);
+        return;
+      }
+      this.selectedTowerType = this.selectedTowerType === 'wizard' ? null : 'wizard';
+      this.updateTowerSelection();
+    });
+
+    this.wizardTowerBtn.addListener('mouseenter');
+    this.wizardTowerBtn.on('mouseenter', () => {
+      const el = this.wizardTowerBtn.node as HTMLElement;
+      el.style.transform = 'scale(0.98)';
+      el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.25)';
+      el.style.background = '#7b1fa2';
+    });
+
+    this.wizardTowerBtn.addListener('mouseleave');
+    this.wizardTowerBtn.on('mouseleave', () => {
+      const el = this.wizardTowerBtn.node as HTMLElement;
+      el.style.transform = 'scale(1)';
+      el.style.boxShadow = 'none';
+      el.style.background = '#9c27b0';
+    });
+
     this.updateTowerSelection();
+
+    // Create ability buttons at bottom center
+    this.createAbilityButtons();
 
     // enable click to place towers
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
@@ -538,7 +706,10 @@ export default class TowerDefenseScene extends Phaser.Scene {
         ease: 'Power2',
         onComplete: () => {
           this.startGameButton?.destroy();
-          this.showQuestion();
+          // Give starting gold and start game immediately
+          this.gold = 50;
+          this.goldText.setText(`Gold: ${this.gold}`);
+          this.gameStarted = true;
         }
       });
     });
@@ -802,7 +973,8 @@ export default class TowerDefenseScene extends Phaser.Scene {
     const buttons = [
       { btn: this.basicTowerBtn, type: 'basic' },
       { btn: this.sniperTowerBtn, type: 'sniper' },
-      { btn: this.meleeTowerBtn, type: 'melee' }
+      { btn: this.meleeTowerBtn, type: 'melee' },
+      { btn: this.factTowerBtn, type: 'fact' }
     ];
 
     buttons.forEach(({ btn, type }) => {
@@ -818,6 +990,231 @@ export default class TowerDefenseScene extends Phaser.Scene {
         }
       }
     });
+  }
+
+  // Create ability UI buttons at bottom center of game area
+  createAbilityButtons() {
+    const width = this.scale.width;
+    const height = this.scale.height;
+    const sidebarWidth = Math.min(220, width * 0.15);
+    const gameWidth = width - sidebarWidth;
+    const centerX = gameWidth / 2;
+    const bottomY = height - 60; // 60px from bottom
+
+    const buttonWidth = 140;
+    const buttonHeight = 50;
+    const buttonSpacing = 20;
+    const totalWidth = (buttonWidth * 3) + (buttonSpacing * 2);
+    const startX = centerX - totalWidth / 2;
+
+    const elements: Phaser.GameObjects.GameObject[] = [];
+
+    // Lightning Strike Button (40g + quiz, 45s cooldown)
+    const lightningX = startX + buttonWidth / 2;
+    const lightningShadow = this.add.rectangle(lightningX + 2, bottomY + 2, buttonWidth, buttonHeight, 0x000000, 0.3);
+    const lightningBg = this.add.rectangle(lightningX, bottomY, buttonWidth, buttonHeight, 0xff9f22);
+    lightningBg.setStrokeStyle(2, 0x730f11);
+    lightningBg.setInteractive({ useHandCursor: true });
+
+    const lightningTitle = this.add.text(lightningX, bottomY - 10, '⚡ Lightning', {
+      fontSize: '14px',
+      color: '#ffffff',
+      fontFamily: 'Quicksand, sans-serif',
+      fontStyle: 'bold',
+      resolution: 2
+    }).setOrigin(0.5);
+
+    const lightningInfo = this.add.text(lightningX, bottomY + 10, '40g • 45s CD', {
+      fontSize: '11px',
+      color: '#ffffff',
+      fontFamily: 'Quicksand, sans-serif',
+      fontStyle: '600',
+      resolution: 2
+    }).setOrigin(0.5);
+
+    lightningBg.on('pointerover', () => {
+      if (this.lightningStrikeCooldown <= 0 && this.gold >= 40) {
+        lightningBg.setFillStyle(0xe6832b);
+        lightningBg.setScale(1.05);
+        lightningTitle.setScale(1.05);
+        lightningInfo.setScale(1.05);
+      }
+    });
+
+    lightningBg.on('pointerout', () => {
+      lightningBg.setFillStyle(0xff9f22);
+      lightningBg.setScale(1);
+      lightningTitle.setScale(1);
+      lightningInfo.setScale(1);
+    });
+
+    lightningBg.on('pointerdown', () => {
+      if (this.lightningStrikeCooldown <= 0 && this.gold >= 40 && this.gameStarted) {
+        this.showAbilityQuestion('lightning');
+      }
+    });
+
+    elements.push(lightningShadow, lightningBg, lightningTitle, lightningInfo);
+
+    // Freeze Button (60g + quiz, 60s cooldown)
+    const freezeX = startX + buttonWidth * 1.5 + buttonSpacing;
+    const freezeShadow = this.add.rectangle(freezeX + 2, bottomY + 2, buttonWidth, buttonHeight, 0x000000, 0.3);
+    const freezeBg = this.add.rectangle(freezeX, bottomY, buttonWidth, buttonHeight, 0x3498db);
+    freezeBg.setStrokeStyle(2, 0x2c3e50);
+    freezeBg.setInteractive({ useHandCursor: true });
+
+    const freezeTitle = this.add.text(freezeX, bottomY - 10, '❄ Freeze', {
+      fontSize: '14px',
+      color: '#ffffff',
+      fontFamily: 'Quicksand, sans-serif',
+      fontStyle: 'bold',
+      resolution: 2
+    }).setOrigin(0.5);
+
+    const freezeInfo = this.add.text(freezeX, bottomY + 10, '60g • 60s CD', {
+      fontSize: '11px',
+      color: '#ffffff',
+      fontFamily: 'Quicksand, sans-serif',
+      fontStyle: '600',
+      resolution: 2
+    }).setOrigin(0.5);
+
+    freezeBg.on('pointerover', () => {
+      if (this.freezeCooldown <= 0 && this.gold >= 60) {
+        freezeBg.setFillStyle(0x2980b9);
+        freezeBg.setScale(1.05);
+        freezeTitle.setScale(1.05);
+        freezeInfo.setScale(1.05);
+      }
+    });
+
+    freezeBg.on('pointerout', () => {
+      freezeBg.setFillStyle(0x3498db);
+      freezeBg.setScale(1);
+      freezeTitle.setScale(1);
+      freezeInfo.setScale(1);
+    });
+
+    freezeBg.on('pointerdown', () => {
+      if (this.freezeCooldown <= 0 && this.gold >= 60 && this.gameStarted) {
+        this.showAbilityQuestion('freeze');
+      }
+    });
+
+    elements.push(freezeShadow, freezeBg, freezeTitle, freezeInfo);
+
+    // Question Button (unlocked by Training Camp, free, 90s cooldown)
+    const questionX = startX + buttonWidth * 2.5 + buttonSpacing * 2;
+    const questionShadow = this.add.rectangle(questionX + 2, bottomY + 2, buttonWidth, buttonHeight, 0x000000, 0.3);
+    const questionBg = this.add.rectangle(questionX, bottomY, buttonWidth, buttonHeight, 0x96b902);
+    questionBg.setStrokeStyle(2, 0x006029);
+    questionBg.setInteractive({ useHandCursor: true });
+
+    const questionTitle = this.add.text(questionX, bottomY - 10, '? Question', {
+      fontSize: '14px',
+      color: '#ffffff',
+      fontFamily: 'Quicksand, sans-serif',
+      fontStyle: 'bold',
+      resolution: 2
+    }).setOrigin(0.5);
+
+    const questionInfo = this.add.text(questionX, bottomY + 10, 'LOCKED', {
+      fontSize: '11px',
+      color: '#ffffff',
+      fontFamily: 'Quicksand, sans-serif',
+      fontStyle: '600',
+      resolution: 2
+    }).setOrigin(0.5);
+
+    questionBg.on('pointerover', () => {
+      if (this.questionAbilityUnlocked && this.questionAbilityCooldown <= 0) {
+        questionBg.setFillStyle(0x7a9700);
+        questionBg.setScale(1.05);
+        questionTitle.setScale(1.05);
+        questionInfo.setScale(1.05);
+      }
+    });
+
+    questionBg.on('pointerout', () => {
+      questionBg.setFillStyle(0x96b902);
+      questionBg.setScale(1);
+      questionTitle.setScale(1);
+      questionInfo.setScale(1);
+    });
+
+    questionBg.on('pointerdown', () => {
+      if (this.questionAbilityUnlocked && this.questionAbilityCooldown <= 0 && this.gameStarted) {
+        this.showAbilityQuestion('question');
+      }
+    });
+
+    elements.push(questionShadow, questionBg, questionTitle, questionInfo);
+
+    this.abilityButtons = this.add.container(0, 0, elements);
+  }
+
+  // Update ability button states (cooldowns, locked status, affordability)
+  updateAbilityButtons() {
+    if (!this.abilityButtons) return;
+
+    const elements = this.abilityButtons.list;
+
+    // Lightning Strike button (indices 1-3: bg, title, info)
+    const lightningBg = elements[1] as Phaser.GameObjects.Rectangle;
+    const lightningInfo = elements[3] as Phaser.GameObjects.Text;
+
+    if (this.lightningStrikeCooldown > 0) {
+      const secondsLeft = Math.ceil(this.lightningStrikeCooldown / 1000);
+      lightningInfo.setText(`CD: ${secondsLeft}s`);
+      lightningBg.setFillStyle(0x666666);
+      lightningBg.disableInteractive();
+    } else if (this.gold < 40) {
+      lightningInfo.setText('40g • 45s CD');
+      lightningBg.setFillStyle(0x888888);
+      lightningBg.disableInteractive();
+    } else {
+      lightningInfo.setText('40g • 45s CD');
+      lightningBg.setFillStyle(0xff9f22);
+      lightningBg.setInteractive({ useHandCursor: true });
+    }
+
+    // Freeze button (indices 5-7: bg, title, info)
+    const freezeBg = elements[5] as Phaser.GameObjects.Rectangle;
+    const freezeInfo = elements[7] as Phaser.GameObjects.Text;
+
+    if (this.freezeCooldown > 0) {
+      const secondsLeft = Math.ceil(this.freezeCooldown / 1000);
+      freezeInfo.setText(`CD: ${secondsLeft}s`);
+      freezeBg.setFillStyle(0x666666);
+      freezeBg.disableInteractive();
+    } else if (this.gold < 60) {
+      freezeInfo.setText('60g • 60s CD');
+      freezeBg.setFillStyle(0x888888);
+      freezeBg.disableInteractive();
+    } else {
+      freezeInfo.setText('60g • 60s CD');
+      freezeBg.setFillStyle(0x3498db);
+      freezeBg.setInteractive({ useHandCursor: true });
+    }
+
+    // Question button (indices 9-11: bg, title, info)
+    const questionBg = elements[9] as Phaser.GameObjects.Rectangle;
+    const questionInfo = elements[11] as Phaser.GameObjects.Text;
+
+    if (!this.questionAbilityUnlocked) {
+      questionInfo.setText('LOCKED');
+      questionBg.setFillStyle(0x666666);
+      questionBg.disableInteractive();
+    } else if (this.questionAbilityCooldown > 0) {
+      const secondsLeft = Math.ceil(this.questionAbilityCooldown / 1000);
+      questionInfo.setText(`CD: ${secondsLeft}s`);
+      questionBg.setFillStyle(0x666666);
+      questionBg.disableInteractive();
+    } else {
+      questionInfo.setText('Free • 90s CD');
+      questionBg.setFillStyle(0x96b902);
+      questionBg.setInteractive({ useHandCursor: true });
+    }
   }
 
   startWave() {
@@ -870,6 +1267,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
 
   // Place a tower at clicked position with validation
   // Checks: gold cost, path distance, tower spacing, UI bounds
+  // Shows quiz gate for 2nd+ tower purchase
   placeTower(x: number, y: number) {
     if (!this.gameStarted || this.waitingForQuestion || this.selectedTowerType === null) return;
 
@@ -906,7 +1304,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
         cost: 75,
         size: 1.2 // Trebuchet - 20% larger
       };
-    } else { // melee
+    } else if (this.selectedTowerType === 'melee') {
       towerStats = {
         color: 0xf44336,
         range: 60,
@@ -914,6 +1312,15 @@ export default class TowerDefenseScene extends Phaser.Scene {
         damage: 8,
         cost: 25,
         size: 0.85 // Melee - 15% smaller
+      };
+    } else { // fact
+      towerStats = {
+        color: 0x3498db, // Blue color
+        range: 200, // Buff radius, not attack range
+        fireRate: 0, // Doesn't attack
+        damage: 0, // Doesn't deal damage
+        cost: 40,
+        size: 1.0 // Same as Ballista
       };
     }
 
@@ -938,15 +1345,96 @@ export default class TowerDefenseScene extends Phaser.Scene {
       return;
     }
 
-    // check if player has enough gold
-    if (this.gold < towerStats.cost) {
+    // check if player has enough gold (use dynamic price)
+    const currentPrice = this.towerPurchasePrice[this.selectedTowerType];
+    if (this.gold < currentPrice) {
       this.showErrorMessage('Not enough gold!');
       return;
     }
 
-    // deduct gold
-    this.gold -= towerStats.cost;
+    // Quiz gate: First tower of each type is free, 2nd+ requires quiz
+    if (this.towerPurchaseCount[this.selectedTowerType] === 0) {
+      // First tower of this type - place immediately
+      this.completeTowerPlacement(x, y, this.selectedTowerType);
+    } else {
+      // 2nd+ tower - show quiz gate
+      this.pendingTowerPlacement = { x, y, type: this.selectedTowerType };
+      this.showTowerPurchaseQuestion(this.selectedTowerType);
+    }
+  }
+
+  // Complete tower placement after validation/quiz
+  completeTowerPlacement(x: number, y: number, towerType: 'basic' | 'sniper' | 'melee' | 'fact' | 'wizard') {
+    // Get tower stats
+    let towerStats: { color: number; range: number; fireRate: number; damage: number; size: number };
+    if (towerType === 'basic') {
+      towerStats = {
+        color: 0x3498db,
+        range: 150,
+        fireRate: 500,
+        damage: 12.5,
+        size: 1.0
+      };
+    } else if (towerType === 'sniper') {
+      towerStats = {
+        color: 0xff9800,
+        range: 300,
+        fireRate: 3500,
+        damage: 50,
+        size: 1.2
+      };
+    } else if (towerType === 'melee') {
+      towerStats = {
+        color: 0xf44336,
+        range: 60,
+        fireRate: 100,
+        damage: 8,
+        size: 0.85
+      };
+    } else if (towerType === 'fact') {
+      towerStats = {
+        color: 0x3498db,
+        range: 200,
+        fireRate: 0,
+        damage: 0,
+        size: 1.0
+      };
+    } else { // wizard
+      towerStats = {
+        color: 0x9c27b0, // Purple for wizard
+        range: 170,
+        fireRate: 2500,
+        damage: 20, // Base damage (varies by spell)
+        size: 1.1
+      };
+    }
+
+    // Deduct gold at current price
+    const currentPrice = this.towerPurchasePrice[towerType];
+    this.gold -= currentPrice;
     this.goldText.setText(`Gold: ${this.gold}`);
+    this.updateAbilityButtons(); // Update ability affordability
+
+    // Increment purchase count
+    this.towerPurchaseCount[towerType]++;
+
+    // Reset price to base after successful purchase
+    if (towerType === 'basic') {
+      this.towerPurchasePrice.basic = 50;
+    } else if (towerType === 'sniper') {
+      this.towerPurchasePrice.sniper = 75;
+    } else if (towerType === 'melee') {
+      this.towerPurchasePrice.melee = 25;
+    } else {
+      this.towerPurchasePrice.fact = 40;
+    }
+    this.updateTowerButtonPrices();
+
+    // Unlock Question ability when first Fact tower is placed
+    if (towerType === 'fact' && this.towerPurchaseCount.fact === 1) {
+      this.questionAbilityUnlocked = true;
+      this.updateAbilityButtons();
+    }
 
     // Update upgrade UI colors if tower is selected
     if (this.selectedTower) {
@@ -954,9 +1442,22 @@ export default class TowerDefenseScene extends Phaser.Scene {
     }
 
     const towerGraphics = this.add.rectangle(x, y, 40, 40, towerStats.color);
-    towerGraphics.setScale(towerStats.size); // Apply size scaling
-    towerGraphics.setStrokeStyle(0); // Initialize with no stroke
+    towerGraphics.setScale(towerStats.size);
+    towerGraphics.setStrokeStyle(0);
     towerGraphics.setInteractive({ useHandCursor: true });
+
+    // Select fact text for tooltip (from incorrect questions or random)
+    let factText = '';
+    if (towerType === 'fact') {
+      if (this.incorrectQuestionIndices.size > 0) {
+        const incorrectIndex = Array.from(this.incorrectQuestionIndices)[Math.floor(Math.random() * this.incorrectQuestionIndices.size)];
+        const question = this.quizData.questions[incorrectIndex];
+        factText = question.explanation || question.question;
+      } else {
+        const randomQuestion = this.quizData.questions[Math.floor(Math.random() * this.quizData.questions.length)];
+        factText = randomQuestion.explanation || randomQuestion.question;
+      }
+    }
 
     const tower: Tower = {
       x: x,
@@ -964,29 +1465,66 @@ export default class TowerDefenseScene extends Phaser.Scene {
       range: towerStats.range,
       fireRate: towerStats.fireRate,
       damage: towerStats.damage,
-      cost: towerStats.cost,
+      cost: currentPrice, // Store actual paid price
       lastFired: 0,
-      type: this.selectedTowerType,
+      type: towerType,
       graphics: towerGraphics,
       upgrades: {},
       baseDamage: towerStats.damage,
       baseFireRate: towerStats.fireRate,
-      size: towerStats.size
+      size: towerStats.size,
+      // Fact tower specific properties
+      buffRadius: towerType === 'fact' ? 200 : undefined,
+      baseBuffRadius: towerType === 'fact' ? 200 : undefined,
+      factText: towerType === 'fact' ? factText : undefined,
+      boosted: false,
+      boostedUntil: 0,
+      // Wizard tower specific properties
+      currentSpell: towerType === 'wizard' ? 'fire' : undefined,
+      nextSpell: towerType === 'wizard' ? 'ice' : undefined,
+      correctAnswersWhenPlaced: towerType === 'wizard' ? this.totalCorrectAnswers : undefined,
+      lastChargeBlast: towerType === 'wizard' ? 0 : undefined
     };
 
-    // Add click handler to select tower for upgrades
+    // Add click handler to select tower for upgrades or Question ability
     towerGraphics.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      this.clickedOnTower = true; // Mark that we clicked on a tower
+      this.clickedOnTower = true;
       pointer.event.stopPropagation();
-      // Deselect tower spawn button when clicking on existing tower
+
+      // Check if we're in Training Camp selection mode for Question ability
+      if (tower.type === 'fact' && this.questionAbilityCooldown > 0 && this.questionAbilityCooldown < 90000) {
+        this.boostFactTower(tower);
+        return;
+      }
+
+      // Normal tower selection for upgrades
       this.selectedTowerType = null;
       this.updateTowerSelection();
       this.selectTowerForUpgrade(tower);
     });
 
-    // draw range circle
+    // Add hover tooltip for Training Camps
+    if (towerType === 'fact' && factText) {
+      towerGraphics.on('pointerover', () => {
+        this.showFactTowerTooltip(tower);
+      });
+
+      towerGraphics.on('pointerout', () => {
+        this.hideFactTowerTooltip();
+      });
+    }
+
+    // Draw range circle
     const rangeCircle = this.add.circle(x, y, tower.range, towerStats.color, 0.1);
     rangeCircle.setStrokeStyle(2, towerStats.color, 0.3);
+
+    // Add spell glow indicator for Wizard tower
+    if (towerType === 'wizard' && tower.nextSpell) {
+      const glowColor = tower.nextSpell === 'fire' ? 0xff0000 : (tower.nextSpell === 'ice' ? 0x00ffff : 0xffff00);
+      const glow = this.add.circle(x, y, 25 * towerStats.size, glowColor, 0.25);
+      glow.setStrokeStyle(2, glowColor, 0.3);
+      tower.spellGlow = glow;
+    }
 
     this.towers.push(tower);
   }
@@ -1024,75 +1562,174 @@ export default class TowerDefenseScene extends Phaser.Scene {
   }
 
   // Spawn a single enemy based on wave number
-  // Boss: Every 5 waves (5, 10, 15...) as the 5th enemy spawn
-  // Regular enemies: Type probability scales with wave number
+  // 50-wave spawn progression system with 9 enemy types
+  // Mini-boss: Every 5 waves (5, 15, 25, 35, 45)
+  // Boss: Every 10 waves (10, 20, 30, 40, 50) - spawns with quiz
+  // Challenge: Every 10 waves (10, 30, 50) - handled separately
   spawnEnemy() {
     const startPoint = this.pathPoints[0];
 
-    // Boss spawn logic: every 5 waves, spawn as 5th enemy
-    const isBossWave = this.waveNumber % 5 === 0;
     const enemiesSpawned = Math.min(40, Math.floor(8 + (3 * this.waveNumber))) - this.enemiesToSpawn;
-    const shouldSpawnBoss = isBossWave && enemiesSpawned === 4; // 5th enemy (0-indexed)
+
+    // Determine if this should be a special spawn
+    const isBossWave = this.waveNumber % 10 === 0;
+    const isMiniBossWave = this.waveNumber % 5 === 0 && !isBossWave;
+    const shouldSpawnBoss = isBossWave && enemiesSpawned === 4; // 5th enemy
+    const shouldSpawnMiniBoss = isMiniBossWave && enemiesSpawned === 4; // 5th enemy
 
     let type: EnemyType;
     let health: number;
+    let baseHealth: number;
     let speed: number;
     let color: number;
     let size: number;
+    let goldValue: number;
+    let isPriorityTarget: boolean = false;
 
     if (shouldSpawnBoss) {
-      // Boss spawns with quiz question popup
+      // Boss spawns every 10 waves with quiz question
       type = EnemyType.BOSS;
-      health = 300 + (50 * this.waveNumber); // Scales with wave
-      speed = 57.75; // Between blue and yellow
-      color = 0x6a0dad; // Deep purple
-      size = 1.7; // 2x red enemy size
+      baseHealth = 300 + (50 * this.waveNumber);
+      speed = 57.75;
+      color = 0x6a0dad; // Purple
+      size = 1.7;
+      goldValue = 25;
 
       this.bossActive = true;
-      this.showBossQuestion(health); // Triggers quiz popup
+      this.showBossQuestion(baseHealth);
+    } else if (shouldSpawnMiniBoss) {
+      // Mini-boss spawns every 5 waves (except boss waves)
+      type = EnemyType.MINI_BOSS;
+      baseHealth = 120 + (15 * this.waveNumber);
+      speed = 55;
+      color = 0x800000; // Maroon
+      size = 1.3;
+      goldValue = 15;
     } else {
-      // Regular enemy spawn - HARDER SCALING
+      // Regular enemy spawn based on wave progression
       const rand = Math.random();
 
-      if (this.waveNumber < 3) {
-        // Waves 1-2: Only red
-        type = EnemyType.RED;
-      } else if (this.waveNumber < 6) {
-        // Waves 3-5: 60% red, 40% blue (more blues)
-        type = rand < 0.6 ? EnemyType.RED : EnemyType.BLUE;
+      if (this.waveNumber < 7) {
+        // Waves 1-6: Only RED and BLUE/YELLOW
+        if (this.waveNumber < 3) {
+          type = EnemyType.RED;
+        } else if (this.waveNumber < 6) {
+          type = rand < 0.6 ? EnemyType.RED : EnemyType.BLUE;
+        } else {
+          if (rand < 0.4) type = EnemyType.RED;
+          else if (rand < 0.8) type = EnemyType.BLUE;
+          else type = EnemyType.YELLOW;
+        }
+      } else if (this.waveNumber < 11) {
+        // Waves 7-10: Introduce SPEEDY (15%)
+        if (rand < 0.15) type = EnemyType.SPEEDY;
+        else if (rand < 0.45) type = EnemyType.RED;
+        else if (rand < 0.75) type = EnemyType.BLUE;
+        else type = EnemyType.YELLOW;
+      } else if (this.waveNumber < 16) {
+        // Waves 11-15: Introduce ARMORED (20%), increase SPEEDY (20%)
+        if (rand < 0.20) type = EnemyType.ARMORED;
+        else if (rand < 0.40) type = EnemyType.SPEEDY;
+        else if (rand < 0.60) type = EnemyType.RED;
+        else if (rand < 0.80) type = EnemyType.BLUE;
+        else type = EnemyType.YELLOW;
+      } else if (this.waveNumber < 21) {
+        // Waves 16-20: Introduce HEALER (10%), balanced mix
+        if (rand < 0.10) type = EnemyType.HEALER;
+        else if (rand < 0.30) type = EnemyType.ARMORED;
+        else if (rand < 0.50) type = EnemyType.SPEEDY;
+        else if (rand < 0.65) type = EnemyType.RED;
+        else if (rand < 0.80) type = EnemyType.BLUE;
+        else type = EnemyType.YELLOW;
       } else {
-        // Wave 6+: 40% red, 40% blue, 20% yellow (balanced difficulty)
-        if (rand < 0.4) type = EnemyType.RED;
-        else if (rand < 0.8) type = EnemyType.BLUE;
+        // Waves 21+: Full roster with COMMANDER (8%)
+        if (rand < 0.08) type = EnemyType.COMMANDER;
+        else if (rand < 0.16) type = EnemyType.HEALER;
+        else if (rand < 0.40) type = EnemyType.ARMORED;
+        else if (rand < 0.60) type = EnemyType.SPEEDY;
+        else if (rand < 0.72) type = EnemyType.RED;
+        else if (rand < 0.84) type = EnemyType.BLUE;
         else type = EnemyType.YELLOW;
       }
 
-      // Set stats based on enemy type - balanced for early game
-      if (type === EnemyType.RED) {
-        health = 25;
-        speed = 50;
-        color = 0xff0000;
-        size = 0.85;
-      } else if (type === EnemyType.BLUE) {
-        health = 50;
-        speed = 55;
-        color = 0x0000ff;
-        size = 1.0;
-      } else { // YELLOW
-        health = 75;
-        speed = 60.5;
-        color = 0xffff00;
-        size = 1.2;
+      // Set base stats based on enemy type
+      switch (type) {
+        case EnemyType.RED:
+          baseHealth = 25;
+          speed = 50;
+          color = 0xff0000;
+          size = 0.85;
+          goldValue = 1;
+          break;
+        case EnemyType.BLUE:
+          baseHealth = 50;
+          speed = 55;
+          color = 0x0000ff;
+          size = 1.0;
+          goldValue = 2;
+          break;
+        case EnemyType.YELLOW:
+          baseHealth = 75;
+          speed = 60.5;
+          color = 0xffff00;
+          size = 1.2;
+          goldValue = 3;
+          break;
+        case EnemyType.SPEEDY:
+          baseHealth = 20;
+          speed = 80;
+          color = 0x00ff00; // Green
+          size = 0.7;
+          goldValue = 2;
+          break;
+        case EnemyType.ARMORED:
+          baseHealth = 80;
+          speed = 45;
+          color = 0x808080; // Gray
+          size = 1.1;
+          goldValue = 5;
+          break;
+        case EnemyType.HEALER:
+          baseHealth = 50;
+          speed = 50;
+          color = 0x90ee90; // Light green
+          size = 1.0;
+          goldValue = 6;
+          isPriorityTarget = true;
+          break;
+        case EnemyType.COMMANDER:
+          baseHealth = 60;
+          speed = 48;
+          color = 0xffa500; // Orange
+          size = 1.15;
+          goldValue = 7;
+          isPriorityTarget = true;
+          break;
+        default:
+          baseHealth = 25;
+          speed = 50;
+          color = 0xff0000;
+          size = 0.85;
+          goldValue = 1;
       }
+    }
+
+    // Apply HP scaling for waves 20+
+    if (this.waveNumber >= 20 && type !== EnemyType.BOSS && type !== EnemyType.MINI_BOSS) {
+      const scalingFactor = 1 + ((this.waveNumber - 20) / 20);
+      health = Math.floor(baseHealth * scalingFactor);
+    } else {
+      health = baseHealth;
     }
 
     // Create visual representation
     const graphics = this.add.graphics();
-    graphics.fillStyle(color);
-    graphics.beginPath();
 
-    if (type === EnemyType.BOSS) {
-      // Hexagon shape for boss
+    // Draw different shapes based on enemy type
+    if (type === EnemyType.BOSS || type === EnemyType.MINI_BOSS) {
+      // Hexagon shape for bosses
+      graphics.fillStyle(color);
+      graphics.beginPath();
       const radius = 20;
       for (let i = 0; i < 6; i++) {
         const angle = (Math.PI / 3) * i - Math.PI / 2;
@@ -1103,8 +1740,50 @@ export default class TowerDefenseScene extends Phaser.Scene {
       }
       graphics.closePath();
       graphics.fillPath();
+    } else if (type === EnemyType.HEALER) {
+      // Star shape for healer (5-pointed)
+      graphics.fillStyle(color);
+      graphics.beginPath();
+      const spikes = 5;
+      const outerRadius = 15;
+      const innerRadius = 7;
+      for (let i = 0; i < spikes * 2; i++) {
+        const angle = (Math.PI / spikes) * i - Math.PI / 2;
+        const radius = i % 2 === 0 ? outerRadius : innerRadius;
+        const x = radius * Math.cos(angle);
+        const y = radius * Math.sin(angle);
+        if (i === 0) graphics.moveTo(x, y);
+        else graphics.lineTo(x, y);
+      }
+      graphics.closePath();
+      graphics.fillPath();
+    } else if (type === EnemyType.COMMANDER) {
+      // Diamond shape for commander
+      graphics.fillStyle(color);
+      graphics.beginPath();
+      graphics.moveTo(0, -15);
+      graphics.lineTo(12, 0);
+      graphics.lineTo(0, 15);
+      graphics.lineTo(-12, 0);
+      graphics.closePath();
+      graphics.fillPath();
+    } else if (type === EnemyType.ARMORED) {
+      // Triangle with thick metallic border for armored
+      graphics.fillStyle(color);
+      graphics.beginPath();
+      graphics.moveTo(0, -15);
+      graphics.lineTo(15, 10);
+      graphics.lineTo(-15, 10);
+      graphics.closePath();
+      graphics.fillPath();
+
+      // Add thick armored border
+      graphics.lineStyle(4, 0x4a4a4a, 1); // Dark gray metallic border
+      graphics.strokeTriangle(0, -15, 15, 10, -15, 10);
     } else {
-      // Triangle shape for regular enemies
+      // Triangle shape for regular enemies (RED, BLUE, YELLOW, SPEEDY)
+      graphics.fillStyle(color);
+      graphics.beginPath();
       graphics.moveTo(0, -15);
       graphics.lineTo(15, 10);
       graphics.lineTo(-15, 10);
@@ -1114,6 +1793,12 @@ export default class TowerDefenseScene extends Phaser.Scene {
 
     graphics.setPosition(startPoint.x, startPoint.y);
     graphics.setScale(size);
+
+    // Make enemy interactive for Lightning Strike ability
+    // Graphics objects need an explicit hit area defined
+    const hitRadius = (type === EnemyType.BOSS || type === EnemyType.MINI_BOSS) ? 20 : 15;
+    graphics.setInteractive(new Phaser.Geom.Circle(0, 0, hitRadius), Phaser.Geom.Circle.Contains);
+    graphics.input!.cursor = 'pointer';
 
     // Create health bar background
     const healthBarBg = this.add.graphics();
@@ -1131,11 +1816,12 @@ export default class TowerDefenseScene extends Phaser.Scene {
     healthBarFill.fillRect(-healthBarWidth / 2, healthBarY, healthBarWidth, healthBarHeight);
     healthBarFill.setPosition(startPoint.x, startPoint.y);
 
-    // Create enemy entity
+    // Create enemy entity with new properties
     const enemy: Enemy = {
       x: startPoint.x,
       y: startPoint.y,
       speed: speed,
+      baseSpeed: speed, // Store original speed for aura calculations
       health: health,
       maxHealth: health,
       type: type,
@@ -1143,15 +1829,39 @@ export default class TowerDefenseScene extends Phaser.Scene {
       graphics: graphics,
       size: size,
       healthBarBg: healthBarBg,
-      healthBarFill: healthBarFill
+      healthBarFill: healthBarFill,
+      goldValue: goldValue,
+      isPriorityTarget: isPriorityTarget,
+      lastHealTime: type === EnemyType.HEALER ? Date.now() : undefined
     };
 
     this.enemies.push(enemy);
+
+    // Add Lightning Strike click handler
+    graphics.on('pointerdown', () => {
+      if (this.lightningStrikeActive) {
+        this.executeLightningStrike(enemy);
+      }
+    });
 
     // Store boss reference for buff/debuff application
     if (type === EnemyType.BOSS) {
       this.bossEnemy = enemy;
     }
+  }
+
+  // Apply damage to enemy with armor reduction
+  // ARMORED enemies take 35% less damage, except from DoT sources
+  applyDamageToEnemy(enemy: Enemy, damage: number, isDoT: boolean = false): number {
+    let finalDamage = damage;
+
+    // Apply armor damage reduction (except for DoT)
+    if (enemy.type === EnemyType.ARMORED && !isDoT) {
+      finalDamage = damage * 0.65; // 35% damage reduction
+    }
+
+    enemy.health -= finalDamage;
+    return finalDamage; // Return actual damage dealt
   }
 
   // Phaser lifecycle: Main game loop (runs ~60 times per second)
@@ -1189,6 +1899,38 @@ export default class TowerDefenseScene extends Phaser.Scene {
     }
 
     const scaledDelta = delta * this.gameSpeed; // 2x speed when toggled
+
+    // Apply cooldown buff (25% faster cooldowns)
+    const cooldownMultiplier = this.activeBuff === 'cooldown' ? 1.25 : 1.0;
+
+    // Update ability cooldowns (use real time, not scaled)
+    if (this.lightningStrikeCooldown > 0) {
+      this.lightningStrikeCooldown = Math.max(0, this.lightningStrikeCooldown - (delta * cooldownMultiplier));
+    }
+    if (this.freezeCooldown > 0) {
+      this.freezeCooldown = Math.max(0, this.freezeCooldown - (delta * cooldownMultiplier));
+    }
+    // Question ability cooldown is paused between waves
+    if (this.waveActive && this.questionAbilityCooldown > 0) {
+      this.questionAbilityCooldown = Math.max(0, this.questionAbilityCooldown - (delta * cooldownMultiplier));
+    }
+
+    // Update ability button UI to reflect cooldown changes
+    this.updateAbilityButtons();
+
+    // Check for Training Camp boost expiration (2 minute duration)
+    this.towers.forEach(tower => {
+      if (tower.type === 'fact' && tower.boosted && tower.boostedUntil) {
+        if (Date.now() > tower.boostedUntil) {
+          tower.boosted = false;
+          tower.boostedUntil = undefined;
+          // Restore original buff radius (reduce by 10%)
+          if (tower.buffRadius && tower.baseBuffRadius) {
+            tower.buffRadius = tower.baseBuffRadius;
+          }
+        }
+      }
+    });
 
     // Boss question timer (30 seconds, uses real time not game speed)
     if (this.bossQuestionPopup && this.bossQuestion) {
@@ -1242,8 +1984,20 @@ export default class TowerDefenseScene extends Phaser.Scene {
         }
       }
 
-      // Show between-wave quiz question
-      this.showQuestion();
+      // Check for challenge round (every 10 waves: 10, 20, 30, etc.)
+      if (this.waveNumber % 10 === 0) {
+        this.startChallengeRound();
+      }
+
+      // Decrement buff rounds remaining (if buff is active)
+      if (this.activeBuff && this.buffRoundsRemaining > 0) {
+        this.buffRoundsRemaining--;
+        if (this.buffRoundsRemaining === 0) {
+          this.activeBuff = null; // Buff expired
+        }
+      }
+
+      // No more between-wave questions - waves can start immediately
     }
 
     // update enemies
@@ -1314,15 +2068,17 @@ export default class TowerDefenseScene extends Phaser.Scene {
 
       // remove if dead
       if (enemy.health <= 0) {
-        // Award gold based on enemy type
-        let goldReward = 0;
-        if (enemy.type === EnemyType.RED) goldReward = 0;
-        else if (enemy.type === EnemyType.BLUE) goldReward = 1;
-        else if (enemy.type === EnemyType.YELLOW) goldReward = 2;
-        else if (enemy.type === EnemyType.BOSS) goldReward = 50;
+        // Award gold based on enemy's goldValue property
+        let goldReward = enemy.goldValue;
+
+        // Apply gold buff (+1 gold per kill)
+        if (this.activeBuff === 'gold') {
+          goldReward += 1;
+        }
 
         this.gold += goldReward;
         this.goldText.setText(`Gold: ${this.gold}`);
+        this.updateAbilityButtons(); // Update ability affordability
 
         enemy.graphics.destroy();
         enemy.healthBarBg?.destroy();
@@ -1341,10 +2097,113 @@ export default class TowerDefenseScene extends Phaser.Scene {
       }
     }
 
+    // HEALER healing aura logic (3 HP/s, 80px radius, no stacking)
+    this.enemies.forEach(healer => {
+      if (healer.type !== EnemyType.HEALER || healer.health <= 0) return;
+
+      // Heal every 1 second (1000ms)
+      const healTickRate = 1000 / this.gameSpeed;
+      const now = Date.now();
+
+      if (healer.lastHealTime && now - healer.lastHealTime < healTickRate) return;
+
+      healer.lastHealTime = now;
+
+      // Find enemies in healing range (80px radius)
+      const healRadius = 80;
+      this.enemies.forEach(target => {
+        if (target === healer) return; // Don't heal self
+        if (target.health >= target.maxHealth) return; // Already at full health
+        if (target.type === EnemyType.HEALER || target.type === EnemyType.COMMANDER) return; // No aura stacking
+
+        const dx = target.x - healer.x;
+        const dy = target.y - healer.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < healRadius) {
+          // Heal 3 HP/s
+          target.health = Math.min(target.health + 3, target.maxHealth);
+
+          // Visual heal effect (small green text)
+          const healText = this.add.text(target.x, target.y - 20, `+3`, {
+            fontSize: '10px',
+            color: '#00ff00',
+            fontFamily: 'Quicksand, sans-serif',
+            fontStyle: 'bold',
+            stroke: '#000000',
+            strokeThickness: 1
+          }).setOrigin(0.5);
+
+          this.tweens.add({
+            targets: healText,
+            y: target.y - 35,
+            alpha: 0,
+            duration: 500,
+            onComplete: () => healText.destroy()
+          });
+        }
+      });
+    });
+
+    // COMMANDER speed aura logic (+20% speed, 100px radius, no stacking)
+    // First, reset all enemy speeds to base speed
+    this.enemies.forEach(enemy => {
+      enemy.speed = enemy.baseSpeed;
+    });
+
+    // Then apply commander aura buffs
+    this.enemies.forEach(commander => {
+      if (commander.type !== EnemyType.COMMANDER || commander.health <= 0) return;
+
+      const auraRadius = 100;
+      this.enemies.forEach(target => {
+        if (target === commander) return; // Don't buff self
+        if (target.type === EnemyType.HEALER || target.type === EnemyType.COMMANDER) return; // No aura stacking
+
+        const dx = target.x - commander.x;
+        const dy = target.y - commander.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < auraRadius) {
+          // Apply +20% speed boost (only from strongest commander, no stacking)
+          target.speed = Math.max(target.speed, target.baseSpeed * 1.20);
+        }
+      });
+    });
+
     // Tower shooting logic (applies global boss buff if active)
     this.towers.forEach(tower => {
+      // Skip Training Camps (they don't attack)
+      if (tower.type === 'fact') return;
+
+      // Calculate Training Camp buffs (5% or 15% if boosted, strongest only, don't stack)
+      let factTowerDamageBuff = 1.0;
+      let factTowerSpeedBuff = 1.0;
+
+      this.towers.forEach(factTower => {
+        if (factTower.type !== 'fact') return;
+
+        const dx = tower.x - factTower.x;
+        const dy = tower.y - factTower.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        const buffRadius = factTower.buffRadius || 200;
+
+        if (distance < buffRadius) {
+          if (factTower.boosted) {
+            // Boosted: 15% damage and speed
+            factTowerDamageBuff = Math.max(factTowerDamageBuff, 1.15);
+            factTowerSpeedBuff = Math.max(factTowerSpeedBuff, 0.85); // Lower = faster
+          } else {
+            // Normal: 5% damage and speed
+            factTowerDamageBuff = Math.max(factTowerDamageBuff, 1.05);
+            factTowerSpeedBuff = Math.max(factTowerSpeedBuff, 0.95); // Lower = faster
+          }
+        }
+      });
+
       // Calculate fire rate with buffs
       let effectiveFireRate = tower.fireRate;
+      effectiveFireRate *= factTowerSpeedBuff; // Training Camp buff
       if (this.towerGlobalBuffActive) {
         effectiveFireRate *= 0.85; // Boss buff: 15% faster
       }
@@ -1355,12 +2214,27 @@ export default class TowerDefenseScene extends Phaser.Scene {
         if (target) {
           // Calculate damage with buffs
           let effectiveDamage = tower.damage;
+          effectiveDamage *= factTowerDamageBuff; // Training Camp buff
           if (this.towerGlobalBuffActive) {
             effectiveDamage *= 1.15; // Boss buff: 15% more damage
           }
 
           if (tower.type === 'melee') {
-            target.health -= effectiveDamage; // Hitscan (instant)
+            this.applyDamageToEnemy(target, effectiveDamage); // Hitscan (instant)
+
+            // Apply AoE buff for melee attacks too
+            if (this.activeBuff === 'aoe') {
+              const aoeRadius = 7.5; // 0.5x red enemy hitbox (15px)
+              this.enemies.forEach(enemy => {
+                if (enemy === target) return; // Already damaged
+                const ex = enemy.x - target.x;
+                const ey = enemy.y - target.y;
+                const enemyDist = Math.sqrt(ex * ex + ey * ey);
+                if (enemyDist < aoeRadius) {
+                  this.applyDamageToEnemy(enemy, effectiveDamage);
+                }
+              });
+            }
           } else {
             this.shootProjectile(tower, target, effectiveDamage); // Projectile
           }
@@ -1384,8 +2258,22 @@ export default class TowerDefenseScene extends Phaser.Scene {
       const dist = Math.sqrt(dx * dx + dy * dy);
 
       if (dist < 10) {
-        // hit target - apply direct damage
-        proj.target.health -= proj.damage;
+        // hit target - apply direct damage with armor reduction
+        this.applyDamageToEnemy(proj.target, proj.damage);
+
+        // Apply AoE buff (all tower attacks deal small AoE damage)
+        if (this.activeBuff === 'aoe') {
+          const aoeRadius = 7.5; // 0.5x red enemy hitbox (15px)
+          this.enemies.forEach(enemy => {
+            if (enemy === proj.target) return; // Already damaged
+            const ex = enemy.x - proj.target.x;
+            const ey = enemy.y - proj.target.y;
+            const enemyDist = Math.sqrt(ex * ex + ey * ey);
+            if (enemyDist < aoeRadius) {
+              this.applyDamageToEnemy(enemy, proj.damage);
+            }
+          });
+        }
 
         // Check for explosive upgrade (trebuchet/sniper)
         if (proj.sourceTower.upgrades.explosive) {
@@ -1398,7 +2286,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
             const ey = enemy.y - proj.target.y;
             const enemyDist = Math.sqrt(ex * ex + ey * ey);
             if (enemyDist < explosionRadius) {
-              enemy.health -= proj.damage;
+              this.applyDamageToEnemy(enemy, proj.damage);
             }
           });
 
@@ -1451,7 +2339,8 @@ export default class TowerDefenseScene extends Phaser.Scene {
       // Tick every 500ms (adjusted for game speed)
       const dotTickRate = 500 / this.gameSpeed;
       if (time - dot.lastTick > dotTickRate) {
-        dot.enemy.health -= dot.damagePerTick;
+        // DoT bypasses armor
+        this.applyDamageToEnemy(dot.enemy, dot.damagePerTick, true);
         dot.ticksRemaining--;
         dot.lastTick = time;
 
@@ -1482,6 +2371,8 @@ export default class TowerDefenseScene extends Phaser.Scene {
   }
 
   findClosestEnemy(tower: Tower): Enemy | null {
+    let closestPriority: Enemy | null = null;
+    let minPriorityDist = tower.range;
     let closest: Enemy | null = null;
     let minDist = tower.range;
 
@@ -1492,13 +2383,21 @@ export default class TowerDefenseScene extends Phaser.Scene {
       const dy = enemy.y - tower.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
 
+      // Check for priority targets (HEALER/COMMANDER)
+      if (enemy.isPriorityTarget && dist < minPriorityDist) {
+        minPriorityDist = dist;
+        closestPriority = enemy;
+      }
+
+      // Track closest regular enemy as fallback
       if (dist < minDist) {
         minDist = dist;
         closest = enemy;
       }
     });
 
-    return closest;
+    // Return priority target if found, otherwise closest regular enemy
+    return closestPriority || closest;
   }
 
   shootProjectile(tower: Tower, target: Enemy, damage?: number) {
@@ -1570,13 +2469,13 @@ export default class TowerDefenseScene extends Phaser.Scene {
 
     const elements: Phaser.GameObjects.GameObject[] = [];
     this.upgradeButtons = [];
-    const UPGRADE_COST = 15;
 
     // Ballista (basic) upgrades: DOT and Fire Rate
     if (this.selectedTower.type === 'basic') {
       // DOT upgrade box - modern rounded style
       const dotPurchased = this.selectedTower.upgrades.dotArrows;
-      const canAffordDot = this.gold >= UPGRADE_COST;
+      const dotPrice = this.upgradePrices.dotArrows;
+      const canAffordDot = this.gold >= dotPrice;
       const dotBox = this.add.rectangle(towerX - 30, upgradeY, 60, 50, dotPurchased ? 0x96b902 : (canAffordDot ? 0xff9f22 : 0xcccccc), 0.95);
       dotBox.setStrokeStyle(2, dotPurchased ? 0x7a9700 : (canAffordDot ? 0xff8800 : 0x999999));
       if (!dotPurchased) {
@@ -1589,14 +2488,15 @@ export default class TowerDefenseScene extends Phaser.Scene {
         const checkmark = this.add.image(towerX - 30, upgradeY + 8, 'checkmark').setScale(0.8);
         elements.push(dotBox, dotText, checkmark);
       } else {
-        const dotCost = this.add.text(towerX - 30, upgradeY + 8, '15g', { fontSize: '9px', color: '#473025', fontFamily: 'Quicksand, sans-serif', fontStyle: '600', resolution: 2 }).setOrigin(0.5);
+        const dotCost = this.add.text(towerX - 30, upgradeY + 8, `${dotPrice}g`, { fontSize: '9px', color: '#473025', fontFamily: 'Quicksand, sans-serif', fontStyle: '600', resolution: 2 }).setOrigin(0.5);
         elements.push(dotBox, dotText, dotCost);
         this.upgradeButtons.push(dotBox);
       }
 
       // Fire rate upgrade box
       const firePurchased = this.selectedTower.upgrades.fasterFireRate;
-      const canAffordFire = this.gold >= UPGRADE_COST;
+      const firePrice = this.upgradePrices.fasterFireRate;
+      const canAffordFire = this.gold >= firePrice;
       const fireBox = this.add.rectangle(towerX + 30, upgradeY, 60, 50, firePurchased ? 0x96b902 : (canAffordFire ? 0xff9f22 : 0xcccccc), 0.95);
       fireBox.setStrokeStyle(2, firePurchased ? 0x7a9700 : (canAffordFire ? 0xff8800 : 0x999999));
       if (!firePurchased) {
@@ -1609,7 +2509,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
         const checkmark = this.add.image(towerX + 30, upgradeY + 8, 'checkmark').setScale(0.8);
         elements.push(fireBox, fireText, checkmark);
       } else {
-        const fireCost = this.add.text(towerX + 30, upgradeY + 8, '15g', { fontSize: '9px', color: '#473025', fontFamily: 'Quicksand, sans-serif', fontStyle: '600', resolution: 2 }).setOrigin(0.5);
+        const fireCost = this.add.text(towerX + 30, upgradeY + 8, `${firePrice}g`, { fontSize: '9px', color: '#473025', fontFamily: 'Quicksand, sans-serif', fontStyle: '600', resolution: 2 }).setOrigin(0.5);
         elements.push(fireBox, fireText, fireCost);
         this.upgradeButtons.push(fireBox);
       }
@@ -1618,7 +2518,8 @@ export default class TowerDefenseScene extends Phaser.Scene {
     // Trebuchet (sniper) upgrade: Explosive
     if (this.selectedTower.type === 'sniper') {
       const explosivePurchased = this.selectedTower.upgrades.explosive;
-      const canAffordExplosive = this.gold >= UPGRADE_COST;
+      const explosivePrice = this.upgradePrices.explosive;
+      const canAffordExplosive = this.gold >= explosivePrice;
       const explosiveBox = this.add.rectangle(towerX, upgradeY, 80, 50, explosivePurchased ? 0x96b902 : (canAffordExplosive ? 0xff9f22 : 0xcccccc), 0.95);
       explosiveBox.setStrokeStyle(2, explosivePurchased ? 0x7a9700 : (canAffordExplosive ? 0xff8800 : 0x999999));
       if (!explosivePurchased) {
@@ -1631,7 +2532,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
         const checkmark = this.add.image(towerX, upgradeY + 8, 'checkmark').setScale(0.8);
         elements.push(explosiveBox, explosiveText, checkmark);
       } else {
-        const explosiveCost = this.add.text(towerX, upgradeY + 8, '15g', { fontSize: '9px', color: '#473025', fontFamily: 'Quicksand, sans-serif', fontStyle: '600', resolution: 2 }).setOrigin(0.5);
+        const explosiveCost = this.add.text(towerX, upgradeY + 8, `${explosivePrice}g`, { fontSize: '9px', color: '#473025', fontFamily: 'Quicksand, sans-serif', fontStyle: '600', resolution: 2 }).setOrigin(0.5);
         elements.push(explosiveBox, explosiveText, explosiveCost);
         this.upgradeButtons.push(explosiveBox);
       }
@@ -1640,7 +2541,8 @@ export default class TowerDefenseScene extends Phaser.Scene {
     // Melee upgrade: Damage
     if (this.selectedTower.type === 'melee') {
       const damagePurchased = this.selectedTower.upgrades.moreDamage;
-      const canAffordDamage = this.gold >= UPGRADE_COST;
+      const damagePrice = this.upgradePrices.moreDamage;
+      const canAffordDamage = this.gold >= damagePrice;
       const damageBox = this.add.rectangle(towerX, upgradeY, 80, 50, damagePurchased ? 0x96b902 : (canAffordDamage ? 0xff9f22 : 0xcccccc), 0.95);
       damageBox.setStrokeStyle(2, damagePurchased ? 0x7a9700 : (canAffordDamage ? 0xff8800 : 0x999999));
       if (!damagePurchased) {
@@ -1653,7 +2555,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
         const checkmark = this.add.image(towerX, upgradeY + 8, 'checkmark').setScale(0.8);
         elements.push(damageBox, damageText, checkmark);
       } else {
-        const damageCost = this.add.text(towerX, upgradeY + 8, '15g', { fontSize: '9px', color: '#473025', fontFamily: 'Quicksand, sans-serif', fontStyle: '600', resolution: 2 }).setOrigin(0.5);
+        const damageCost = this.add.text(towerX, upgradeY + 8, `${damagePrice}g`, { fontSize: '9px', color: '#473025', fontFamily: 'Quicksand, sans-serif', fontStyle: '600', resolution: 2 }).setOrigin(0.5);
         elements.push(damageBox, damageText, damageCost);
         this.upgradeButtons.push(damageBox);
       }
@@ -1665,53 +2567,42 @@ export default class TowerDefenseScene extends Phaser.Scene {
   updateUpgradeColors() {
     if (!this.selectedTower || !this.upgradeButtons || this.upgradeButtons.length === 0) return;
 
-    const UPGRADE_COST = 15;
-    const canAfford = this.gold >= UPGRADE_COST;
-
-    // Update all unpurchased upgrade button colors with modern site colors
-    this.upgradeButtons.forEach(button => {
-      button.setFillStyle(canAfford ? 0xff9f22 : 0xcccccc, 0.95);
-      button.setStrokeStyle(2, canAfford ? 0xff8800 : 0x999999);
-    });
+    // Just refresh the entire UI to show updated prices and colors
+    this.showUpgradeUI();
   }
 
-  // Purchase tower upgrade (15 gold each)
+  // Purchase tower upgrade with knowledge check quiz gate
   // Ballista: DoT arrows, faster fire rate
   // Trebuchet: Explosive projectiles
   // Melee: More damage
   purchaseUpgrade(upgradeType: 'explosive' | 'dotArrows' | 'fasterFireRate' | 'moreDamage') {
     if (!this.selectedTower) return;
 
-    const UPGRADE_COST = 15;
+    // Use dynamic price
+    const currentPrice = this.upgradePrices[upgradeType];
 
-    if (this.gold < UPGRADE_COST) {
+    if (this.gold < currentPrice) {
       this.showErrorMessage('Not enough gold for upgrade!');
       return;
     }
 
     if (this.selectedTower.upgrades[upgradeType]) {
-      return; // Already purchased
+      return; // Already purchased on this tower
     }
 
-    // Deduct cost
-    this.gold -= UPGRADE_COST;
-    this.goldText.setText(`Gold: ${this.gold}`);
+    // Check if upgrade type is unlocked globally
+    if (this.upgradeUnlocked[upgradeType]) {
+      // Already unlocked - purchase directly
+      this.completeUpgradePurchase(upgradeType);
+    } else {
+      // Not unlocked yet - show quiz gate
+      // Deduct gold first (will be refunded if wrong answer)
+      this.gold -= currentPrice;
+      this.goldText.setText(`Gold: ${this.gold}`);
 
-    // Mark as purchased
-    this.selectedTower.upgrades[upgradeType] = true;
-
-    // Apply stat changes (projectile effects handled on hit)
-    switch (upgradeType) {
-      case 'fasterFireRate':
-        this.selectedTower.fireRate = this.selectedTower.baseFireRate * 0.85; // -15%
-        break;
-      case 'moreDamage':
-        this.selectedTower.damage = this.selectedTower.baseDamage * 1.1; // +10%
-        break;
-      // explosive and dotArrows apply on projectile impact
+      this.pendingUpgrade = { type: upgradeType };
+      this.showUpgradeQuestion(upgradeType);
     }
-
-    this.showUpgradeUI(); // Refresh UI
   }
 
   // Select boss question using spaced repetition
@@ -1878,5 +2769,1674 @@ export default class TowerDefenseScene extends Phaser.Scene {
         strokeThickness: 4
       }).setOrigin(0.5);
     }
+  }
+
+  // Show tower purchase quiz gate popup
+  // Requires answering a question correctly to purchase tower (from 2nd purchase onward)
+  // Wrong answer increases tower price by 25% and re-prompts
+  showTowerPurchaseQuestion(towerType: 'basic' | 'sniper' | 'melee' | 'fact' | 'wizard') {
+    // Pick a random question from quiz pool
+    const question = this.quizData.questions[Math.floor(Math.random() * this.quizData.questions.length)];
+
+    // Get current tower price
+    const currentPrice = this.towerPurchasePrice[towerType];
+    const towerNames = { basic: 'Ballista', sniper: 'Trebuchet', melee: 'Knight', fact: 'Training Camp', wizard: 'Archmage' };
+
+    // Responsive dimensions - center in game area (excluding sidebar)
+    const width = this.scale.width;
+    const height = this.scale.height;
+    const sidebarWidth = Math.min(220, width * 0.15);
+    const gameWidth = width - sidebarWidth;
+    const centerX = gameWidth / 2;
+    const centerY = height / 2;
+    const panelWidth = Math.min(700, gameWidth * 0.85);
+    const panelHeight = Math.min(540, height * 0.75);
+
+    // Popup background overlay
+    const overlay = this.add.rectangle(centerX, centerY, gameWidth, height, 0x000000, 0);
+    this.tweens.add({
+      targets: overlay,
+      alpha: 0.85,
+      duration: 200,
+      ease: 'Power1'
+    });
+
+    // Popup panel with shadow
+    const shadow = this.add.rectangle(centerX + 4, centerY + 4, panelWidth, panelHeight, 0x000000, 0.3);
+    const panel = this.add.rectangle(centerX, centerY, panelWidth, panelHeight, 0xfffaf2);
+    panel.setStrokeStyle(4, 0xc4a46f);
+
+    // Scale animation
+    panel.setScale(0.9);
+    shadow.setScale(0.9);
+    this.tweens.add({
+      targets: [panel, shadow],
+      scaleX: 1,
+      scaleY: 1,
+      duration: 200,
+      ease: 'Power2'
+    });
+
+    // Header background
+    const headerY = centerY - panelHeight/2 + 60;
+    const headerBg = this.add.rectangle(centerX, headerY, panelWidth, 90, 0xff9f22);
+    const headerLine = this.add.rectangle(centerX, headerY + 45, panelWidth - 40, 4, 0xc4a46f);
+
+    // Tower purchase indicator
+    const towerInfoText = this.add.text(centerX, headerY - 20, `Purchasing: ${towerNames[towerType]} (${currentPrice}g)`, {
+      fontSize: '16px',
+      color: '#ffffff',
+      fontFamily: 'Quicksand, sans-serif',
+      fontStyle: 'bold',
+      resolution: 2
+    }).setOrigin(0.5);
+
+    // Question text
+    const questionText = this.add.text(centerX, headerY + 15, question.question, {
+      fontSize: '20px',
+      color: '#ffffff',
+      fontFamily: 'Quicksand, sans-serif',
+      fontStyle: 'bold',
+      align: 'center',
+      wordWrap: { width: panelWidth - 60 },
+      resolution: 2
+    }).setOrigin(0.5);
+
+    const answerButtons: Phaser.GameObjects.Container[] = [];
+
+    // Create answer buttons
+    const buttonWidth = panelWidth - 50;
+    const buttonHeight = 60;
+    const startY = centerY - panelHeight/2 + 170;
+
+    question.options.forEach((option, index) => {
+      const yPos = startY + (index * 68);
+      const isCorrect = option === question.answer;
+
+      // Drop shadow
+      const btnShadow = this.add.rectangle(centerX + 4, yPos + 4, buttonWidth, buttonHeight, 0x000000, 0.15);
+      // Main button
+      const btnBg = this.add.rectangle(centerX, yPos, buttonWidth, buttonHeight, 0xfff6e8);
+      btnBg.setInteractive({ useHandCursor: true });
+      btnBg.setStrokeStyle(3, 0xc4a46f);
+
+      const btnText = this.add.text(centerX, yPos, option, {
+        fontSize: '17px',
+        color: '#473025',
+        fontFamily: 'Quicksand, sans-serif',
+        fontStyle: 'bold',
+        align: 'center',
+        wordWrap: { width: buttonWidth - 40 },
+        resolution: 2
+      }).setOrigin(0.5);
+
+      const button = this.add.container(0, 0, [btnShadow, btnBg, btnText]);
+      answerButtons.push(button);
+
+      btnBg.on('pointerover', () => {
+        btnBg.setFillStyle(0x96b902);
+        btnBg.setStrokeStyle(4, 0x7a9700);
+        btnText.setColor('#ffffff');
+        btnBg.setScale(1.02);
+        btnText.setScale(1.02);
+      });
+
+      btnBg.on('pointerout', () => {
+        btnBg.setFillStyle(0xfff6e8);
+        btnBg.setStrokeStyle(3, 0xc4a46f);
+        btnText.setColor('#473025');
+        btnBg.setScale(1);
+        btnText.setScale(1);
+      });
+
+      btnBg.on('pointerdown', () => {
+        btnBg.setScale(0.98);
+        btnText.setScale(0.98);
+        this.handleTowerPurchaseAnswer(isCorrect, towerType, overlay, panel, shadow, headerBg, headerLine, towerInfoText, questionText, answerButtons);
+      });
+    });
+
+    this.towerPurchaseQuestionPopup = this.add.container(0, 0, [overlay, shadow, panel, headerBg, headerLine, towerInfoText, questionText, ...answerButtons]);
+  }
+
+  // Handle tower purchase quiz answer
+  // Correct: Place tower, increment counter, reset price
+  // Incorrect: Increase price by 25%, re-prompt
+  handleTowerPurchaseAnswer(
+    isCorrect: boolean,
+    towerType: 'basic' | 'sniper' | 'melee' | 'fact' | 'wizard',
+    overlay: Phaser.GameObjects.Rectangle,
+    panel: Phaser.GameObjects.Rectangle,
+    shadow: Phaser.GameObjects.Rectangle,
+    headerBg: Phaser.GameObjects.Rectangle,
+    headerLine: Phaser.GameObjects.Rectangle,
+    towerInfoText: Phaser.GameObjects.Text,
+    questionText: Phaser.GameObjects.Text,
+    answerButtons: Phaser.GameObjects.Container[]
+  ) {
+    // Disable all buttons
+    answerButtons.forEach(btn => {
+      const bg = btn.list[1] as Phaser.GameObjects.Rectangle;
+      bg.removeInteractive();
+    });
+
+    if (isCorrect) {
+      // Correct answer: Place tower and proceed
+      const width = this.scale.width;
+      const height = this.scale.height;
+      const sidebarWidth = Math.min(220, width * 0.15);
+      const gameWidth = width - sidebarWidth;
+      const centerX = gameWidth / 2;
+      const centerY = height / 2;
+      const panelHeight = Math.min(540, height * 0.75);
+      const panelBottom = centerY + panelHeight / 2;
+      const feedbackY = panelBottom - 80;
+
+      const feedback = this.add.text(centerX, feedbackY, 'Correct! Placing tower...', {
+        fontSize: '28px',
+        color: '#96b902',
+        fontFamily: 'Quicksand, sans-serif',
+        fontStyle: 'bold',
+        resolution: 2
+      }).setOrigin(0.5).setAlpha(0);
+
+      this.tweens.add({
+        targets: feedback,
+        alpha: 1,
+        duration: 150,
+        ease: 'Power2'
+      });
+
+      // Close popup and place tower
+      this.time.delayedCall(1000, () => {
+        const fadeTargets = [overlay, panel, shadow, headerBg, headerLine, towerInfoText, questionText, feedback, ...answerButtons];
+        this.tweens.add({
+          targets: fadeTargets,
+          alpha: 0,
+          duration: 150,
+          onComplete: () => {
+            // Destroy container first (this will destroy all children)
+            this.towerPurchaseQuestionPopup?.destroy();
+            this.towerPurchaseQuestionPopup = undefined;
+
+            // Now actually place the tower
+            if (this.pendingTowerPlacement) {
+              this.completeTowerPlacement(this.pendingTowerPlacement.x, this.pendingTowerPlacement.y, this.pendingTowerPlacement.type);
+              this.pendingTowerPlacement = null;
+            }
+          }
+        });
+      });
+    } else {
+      // Incorrect answer: Increase price by 25% and re-prompt
+      this.towerPurchasePrice[towerType] = Math.round(this.towerPurchasePrice[towerType] * 1.25);
+      this.updateTowerButtonPrices();
+
+      const width = this.scale.width;
+      const height = this.scale.height;
+      const sidebarWidth = Math.min(220, width * 0.15);
+      const gameWidth = width - sidebarWidth;
+      const centerX = gameWidth / 2;
+      const centerY = height / 2;
+      const panelHeight = Math.min(540, height * 0.75);
+      const panelBottom = centerY + panelHeight / 2;
+      const feedbackY = panelBottom - 80;
+
+      const feedback = this.add.text(centerX, feedbackY, `Incorrect! Price increased to ${this.towerPurchasePrice[towerType]}g`, {
+        fontSize: '24px',
+        color: '#ef4444',
+        fontFamily: 'Quicksand, sans-serif',
+        fontStyle: 'bold',
+        resolution: 2
+      }).setOrigin(0.5).setAlpha(0);
+
+      this.tweens.add({
+        targets: feedback,
+        alpha: 1,
+        duration: 150,
+        ease: 'Power2'
+      });
+
+      // Close popup and re-prompt
+      this.time.delayedCall(1500, () => {
+        const fadeTargets = [overlay, panel, shadow, headerBg, headerLine, towerInfoText, questionText, feedback, ...answerButtons];
+        this.tweens.add({
+          targets: fadeTargets,
+          alpha: 0,
+          duration: 150,
+          onComplete: () => {
+            // Destroy container first (this will destroy all children)
+            this.towerPurchaseQuestionPopup?.destroy();
+            this.towerPurchaseQuestionPopup = undefined;
+
+            // Check if player can still afford it
+            if (this.gold >= this.towerPurchasePrice[towerType]) {
+              // Re-show question with new price
+              this.showTowerPurchaseQuestion(towerType);
+            } else {
+              // Can't afford anymore
+              this.showErrorMessage(`Not enough gold! Need ${this.towerPurchasePrice[towerType]}g`);
+              this.pendingTowerPlacement = null;
+            }
+          }
+        });
+      });
+    }
+  }
+
+  // Update tower button prices in UI
+  updateTowerButtonPrices() {
+    // Update Ballista price
+    const basicTitle = this.basicTowerBtn.node.querySelector('div:first-child') as HTMLElement;
+    if (basicTitle) {
+      basicTitle.nextElementSibling!.textContent = `Fast Fire • ${this.towerPurchasePrice.basic}g`;
+    }
+
+    // Update Trebuchet price
+    const sniperTitle = this.sniperTowerBtn.node.querySelector('div:first-child') as HTMLElement;
+    if (sniperTitle) {
+      sniperTitle.nextElementSibling!.textContent = `Slow Fire • ${this.towerPurchasePrice.sniper}g`;
+    }
+
+    // Update Knight price
+    const meleeTitle = this.meleeTowerBtn.node.querySelector('div:first-child') as HTMLElement;
+    if (meleeTitle) {
+      meleeTitle.nextElementSibling!.textContent = `Rapid Fire • ${this.towerPurchasePrice.melee}g`;
+    }
+  }
+
+  // Show upgrade knowledge check quiz popup
+  // Requires answering a question correctly to unlock upgrade type
+  // Wrong answer refunds gold, increases price by 25%, and re-prompts
+  showUpgradeQuestion(upgradeType: 'explosive' | 'dotArrows' | 'fasterFireRate' | 'moreDamage') {
+    // Pick a random question from quiz pool
+    const question = this.quizData.questions[Math.floor(Math.random() * this.quizData.questions.length)];
+
+    // Get current upgrade price
+    const currentPrice = this.upgradePrices[upgradeType];
+    const upgradeNames = {
+      dotArrows: 'DOT Arrows',
+      fasterFireRate: 'Faster Fire Rate',
+      explosive: 'Explosive',
+      moreDamage: 'More Damage'
+    };
+
+    // Responsive dimensions - center in game area (excluding sidebar)
+    const width = this.scale.width;
+    const height = this.scale.height;
+    const sidebarWidth = Math.min(220, width * 0.15);
+    const gameWidth = width - sidebarWidth;
+    const centerX = gameWidth / 2;
+    const centerY = height / 2;
+    const panelWidth = Math.min(700, gameWidth * 0.85);
+    const panelHeight = Math.min(540, height * 0.75);
+
+    // Popup background overlay
+    const overlay = this.add.rectangle(centerX, centerY, gameWidth, height, 0x000000, 0);
+    this.tweens.add({
+      targets: overlay,
+      alpha: 0.85,
+      duration: 200,
+      ease: 'Power1'
+    });
+
+    // Popup panel with shadow
+    const shadow = this.add.rectangle(centerX + 4, centerY + 4, panelWidth, panelHeight, 0x000000, 0.3);
+    const panel = this.add.rectangle(centerX, centerY, panelWidth, panelHeight, 0xfffaf2);
+    panel.setStrokeStyle(4, 0xc4a46f);
+
+    // Scale animation
+    panel.setScale(0.9);
+    shadow.setScale(0.9);
+    this.tweens.add({
+      targets: [panel, shadow],
+      scaleX: 1,
+      scaleY: 1,
+      duration: 200,
+      ease: 'Power2'
+    });
+
+    // Header background - purple for upgrades
+    const headerY = centerY - panelHeight/2 + 60;
+    const headerBg = this.add.rectangle(centerX, headerY, panelWidth, 90, 0xA8277F);
+    const headerLine = this.add.rectangle(centerX, headerY + 45, panelWidth - 40, 4, 0xc4a46f);
+
+    // Upgrade unlock indicator
+    const upgradeInfoText = this.add.text(centerX, headerY - 20, `Unlocking: ${upgradeNames[upgradeType]} (${currentPrice}g)`, {
+      fontSize: '16px',
+      color: '#ffffff',
+      fontFamily: 'Quicksand, sans-serif',
+      fontStyle: 'bold',
+      resolution: 2
+    }).setOrigin(0.5);
+
+    // Question text
+    const questionText = this.add.text(centerX, headerY + 15, question.question, {
+      fontSize: '20px',
+      color: '#ffffff',
+      fontFamily: 'Quicksand, sans-serif',
+      fontStyle: 'bold',
+      align: 'center',
+      wordWrap: { width: panelWidth - 60 },
+      resolution: 2
+    }).setOrigin(0.5);
+
+    const answerButtons: Phaser.GameObjects.Container[] = [];
+
+    // Create answer buttons
+    const buttonWidth = panelWidth - 50;
+    const buttonHeight = 60;
+    const startY = centerY - panelHeight/2 + 170;
+
+    question.options.forEach((option, index) => {
+      const yPos = startY + (index * 68);
+      const isCorrect = option === question.answer;
+
+      // Drop shadow
+      const btnShadow = this.add.rectangle(centerX + 4, yPos + 4, buttonWidth, buttonHeight, 0x000000, 0.15);
+      // Main button
+      const btnBg = this.add.rectangle(centerX, yPos, buttonWidth, buttonHeight, 0xfff6e8);
+      btnBg.setInteractive({ useHandCursor: true });
+      btnBg.setStrokeStyle(3, 0xc4a46f);
+
+      const btnText = this.add.text(centerX, yPos, option, {
+        fontSize: '17px',
+        color: '#473025',
+        fontFamily: 'Quicksand, sans-serif',
+        fontStyle: 'bold',
+        align: 'center',
+        wordWrap: { width: buttonWidth - 40 },
+        resolution: 2
+      }).setOrigin(0.5);
+
+      const button = this.add.container(0, 0, [btnShadow, btnBg, btnText]);
+      answerButtons.push(button);
+
+      btnBg.on('pointerover', () => {
+        btnBg.setFillStyle(0x96b902);
+        btnBg.setStrokeStyle(4, 0x7a9700);
+        btnText.setColor('#ffffff');
+        btnBg.setScale(1.02);
+        btnText.setScale(1.02);
+      });
+
+      btnBg.on('pointerout', () => {
+        btnBg.setFillStyle(0xfff6e8);
+        btnBg.setStrokeStyle(3, 0xc4a46f);
+        btnText.setColor('#473025');
+        btnBg.setScale(1);
+        btnText.setScale(1);
+      });
+
+      btnBg.on('pointerdown', () => {
+        btnBg.setScale(0.98);
+        btnText.setScale(0.98);
+        this.handleUpgradeAnswer(isCorrect, upgradeType, overlay, panel, shadow, headerBg, headerLine, upgradeInfoText, questionText, answerButtons);
+      });
+    });
+
+    this.upgradeQuestionPopup = this.add.container(0, 0, [overlay, shadow, panel, headerBg, headerLine, upgradeInfoText, questionText, ...answerButtons]);
+  }
+
+  // Handle upgrade quiz answer
+  // Correct: Unlock upgrade, apply to tower, deduct gold, reset price
+  // Incorrect: Refund gold, increase price by 25%, re-prompt
+  handleUpgradeAnswer(
+    isCorrect: boolean,
+    upgradeType: 'explosive' | 'dotArrows' | 'fasterFireRate' | 'moreDamage',
+    overlay: Phaser.GameObjects.Rectangle,
+    panel: Phaser.GameObjects.Rectangle,
+    shadow: Phaser.GameObjects.Rectangle,
+    headerBg: Phaser.GameObjects.Rectangle,
+    headerLine: Phaser.GameObjects.Rectangle,
+    upgradeInfoText: Phaser.GameObjects.Text,
+    questionText: Phaser.GameObjects.Text,
+    answerButtons: Phaser.GameObjects.Container[]
+  ) {
+    // Disable all buttons
+    answerButtons.forEach(btn => {
+      const bg = btn.list[1] as Phaser.GameObjects.Rectangle;
+      bg.removeInteractive();
+    });
+
+    const width = this.scale.width;
+    const height = this.scale.height;
+    const sidebarWidth = Math.min(220, width * 0.15);
+    const gameWidth = width - sidebarWidth;
+    const centerX = gameWidth / 2;
+    const centerY = height / 2;
+    const panelHeight = Math.min(540, height * 0.75);
+    const panelBottom = centerY + panelHeight / 2;
+    const feedbackY = panelBottom - 80;
+
+    if (isCorrect) {
+      // Correct answer: Unlock upgrade globally and apply to selected tower
+      this.upgradeUnlocked[upgradeType] = true;
+
+      const feedback = this.add.text(centerX, feedbackY, 'Correct! Upgrade unlocked!', {
+        fontSize: '28px',
+        color: '#96b902',
+        fontFamily: 'Quicksand, sans-serif',
+        fontStyle: 'bold',
+        resolution: 2
+      }).setOrigin(0.5).setAlpha(0);
+
+      this.tweens.add({
+        targets: feedback,
+        alpha: 1,
+        duration: 150,
+        ease: 'Power2'
+      });
+
+      // Close popup and complete upgrade
+      this.time.delayedCall(1000, () => {
+        const fadeTargets = [overlay, panel, shadow, headerBg, headerLine, upgradeInfoText, questionText, feedback, ...answerButtons];
+        this.tweens.add({
+          targets: fadeTargets,
+          alpha: 0,
+          duration: 150,
+          onComplete: () => {
+            // Destroy container first (this will destroy all children)
+            this.upgradeQuestionPopup?.destroy();
+            this.upgradeQuestionPopup = undefined;
+
+            // Complete the upgrade purchase
+            if (this.pendingUpgrade) {
+              this.completeUpgradePurchase(this.pendingUpgrade.type);
+              this.pendingUpgrade = null;
+            }
+          }
+        });
+      });
+    } else {
+      // Incorrect answer: Refund gold, increase price, re-prompt
+      // Refund the gold that was deducted
+      const currentPrice = this.upgradePrices[upgradeType];
+      this.gold += currentPrice;
+      this.goldText.setText(`Gold: ${this.gold}`);
+
+      // Increase price by 25%
+      this.upgradePrices[upgradeType] = Math.round(this.upgradePrices[upgradeType] * 1.25);
+
+      const feedback = this.add.text(centerX, feedbackY, `Incorrect! Gold refunded. Price now ${this.upgradePrices[upgradeType]}g`, {
+        fontSize: '22px',
+        color: '#ef4444',
+        fontFamily: 'Quicksand, sans-serif',
+        fontStyle: 'bold',
+        resolution: 2
+      }).setOrigin(0.5).setAlpha(0);
+
+      this.tweens.add({
+        targets: feedback,
+        alpha: 1,
+        duration: 150,
+        ease: 'Power2'
+      });
+
+      // Close popup and re-prompt
+      this.time.delayedCall(1500, () => {
+        const fadeTargets = [overlay, panel, shadow, headerBg, headerLine, upgradeInfoText, questionText, feedback, ...answerButtons];
+        this.tweens.add({
+          targets: fadeTargets,
+          alpha: 0,
+          duration: 150,
+          onComplete: () => {
+            // Destroy container first (this will destroy all children)
+            this.upgradeQuestionPopup?.destroy();
+            this.upgradeQuestionPopup = undefined;
+
+            // Check if player can still afford it
+            if (this.gold >= this.upgradePrices[upgradeType]) {
+              // Re-show question with new price
+              this.showUpgradeQuestion(upgradeType);
+            } else {
+              // Can't afford anymore
+              this.showErrorMessage(`Not enough gold! Need ${this.upgradePrices[upgradeType]}g`);
+              this.pendingUpgrade = null;
+              // Refresh upgrade UI to show updated prices
+              if (this.selectedTower) {
+                this.showUpgradeUI();
+              }
+            }
+          }
+        });
+      });
+    }
+  }
+
+  // Complete upgrade purchase after quiz success
+  // Deducts gold, marks upgrade as purchased on tower, applies stat changes, resets price
+  completeUpgradePurchase(upgradeType: 'explosive' | 'dotArrows' | 'fasterFireRate' | 'moreDamage') {
+    if (!this.selectedTower) return;
+
+    const currentPrice = this.upgradePrices[upgradeType];
+
+    // Deduct gold
+    this.gold -= currentPrice;
+    this.goldText.setText(`Gold: ${this.gold}`);
+
+    // Mark as purchased on this tower
+    this.selectedTower.upgrades[upgradeType] = true;
+
+    // Apply stat changes
+    switch (upgradeType) {
+      case 'fasterFireRate':
+        this.selectedTower.fireRate = this.selectedTower.baseFireRate * 0.85; // -15%
+        break;
+      case 'moreDamage':
+        this.selectedTower.damage = this.selectedTower.baseDamage * 1.1; // +10%
+        break;
+      // explosive and dotArrows apply on projectile impact
+    }
+
+    // Reset price to base (15g)
+    this.upgradePrices[upgradeType] = 15;
+
+    // Refresh upgrade UI
+    this.showUpgradeUI();
+  }
+
+  // Show ability quiz popup
+  // lightning: 40g, 45s cooldown, enemy selection after quiz
+  // freeze: 60g, 60s cooldown, freezes all enemies
+  // question: free, 90s cooldown, boost selected Training Camp
+  showAbilityQuestion(abilityType: 'lightning' | 'freeze' | 'question') {
+    // Pick a random question from quiz pool
+    const question = this.quizData.questions[Math.floor(Math.random() * this.quizData.questions.length)];
+
+    const abilityInfo = {
+      lightning: { name: 'Lightning Strike', cost: 40, color: 0xff9f22 },
+      freeze: { name: 'Freeze', cost: 60, color: 0x3498db },
+      question: { name: 'Question Ability', cost: 0, color: 0x96b902 }
+    };
+
+    const info = abilityInfo[abilityType];
+
+    // Responsive dimensions - center in game area (excluding sidebar)
+    const width = this.scale.width;
+    const height = this.scale.height;
+    const sidebarWidth = Math.min(220, width * 0.15);
+    const gameWidth = width - sidebarWidth;
+    const centerX = gameWidth / 2;
+    const centerY = height / 2;
+    const panelWidth = Math.min(700, gameWidth * 0.85);
+    const panelHeight = Math.min(540, height * 0.75);
+
+    // Popup background overlay
+    const overlay = this.add.rectangle(centerX, centerY, gameWidth, height, 0x000000, 0);
+    this.tweens.add({
+      targets: overlay,
+      alpha: 0.85,
+      duration: 200,
+      ease: 'Power1'
+    });
+
+    // Popup panel with shadow
+    const shadow = this.add.rectangle(centerX + 4, centerY + 4, panelWidth, panelHeight, 0x000000, 0.3);
+    const panel = this.add.rectangle(centerX, centerY, panelWidth, panelHeight, 0xfffaf2);
+    panel.setStrokeStyle(4, 0xc4a46f);
+
+    // Scale animation
+    panel.setScale(0.9);
+    shadow.setScale(0.9);
+    this.tweens.add({
+      targets: [panel, shadow],
+      scaleX: 1,
+      scaleY: 1,
+      duration: 200,
+      ease: 'Power2'
+    });
+
+    // Header background
+    const headerY = centerY - panelHeight/2 + 60;
+    const headerBg = this.add.rectangle(centerX, headerY, panelWidth, 90, info.color);
+    const headerLine = this.add.rectangle(centerX, headerY + 45, panelWidth - 40, 4, 0xc4a46f);
+
+    // Ability indicator
+    const costText = info.cost > 0 ? ` (${info.cost}g)` : ' (Free)';
+    const abilityInfoText = this.add.text(centerX, headerY - 20, `Using: ${info.name}${costText}`, {
+      fontSize: '16px',
+      color: '#ffffff',
+      fontFamily: 'Quicksand, sans-serif',
+      fontStyle: 'bold',
+      resolution: 2
+    }).setOrigin(0.5);
+
+    // Question text
+    const questionText = this.add.text(centerX, headerY + 15, question.question, {
+      fontSize: '20px',
+      color: '#ffffff',
+      fontFamily: 'Quicksand, sans-serif',
+      fontStyle: 'bold',
+      align: 'center',
+      wordWrap: { width: panelWidth - 60 },
+      resolution: 2
+    }).setOrigin(0.5);
+
+    const answerButtons: Phaser.GameObjects.Container[] = [];
+
+    // Create answer buttons
+    const buttonWidth = panelWidth - 50;
+    const buttonHeight = 60;
+    const startY = centerY - panelHeight/2 + 170;
+
+    question.options.forEach((option, index) => {
+      const yPos = startY + (index * 68);
+      const isCorrect = option === question.answer;
+
+      // Drop shadow
+      const btnShadow = this.add.rectangle(centerX + 4, yPos + 4, buttonWidth, buttonHeight, 0x000000, 0.15);
+      // Main button
+      const btnBg = this.add.rectangle(centerX, yPos, buttonWidth, buttonHeight, 0xfff6e8);
+      btnBg.setInteractive({ useHandCursor: true });
+      btnBg.setStrokeStyle(3, 0xc4a46f);
+
+      const btnText = this.add.text(centerX, yPos, option, {
+        fontSize: '17px',
+        color: '#473025',
+        fontFamily: 'Quicksand, sans-serif',
+        fontStyle: 'bold',
+        align: 'center',
+        wordWrap: { width: buttonWidth - 40 },
+        resolution: 2
+      }).setOrigin(0.5);
+
+      const button = this.add.container(0, 0, [btnShadow, btnBg, btnText]);
+      answerButtons.push(button);
+
+      btnBg.on('pointerover', () => {
+        btnBg.setFillStyle(0x96b902);
+        btnBg.setStrokeStyle(4, 0x7a9700);
+        btnText.setColor('#ffffff');
+        btnBg.setScale(1.02);
+        btnText.setScale(1.02);
+      });
+
+      btnBg.on('pointerout', () => {
+        btnBg.setFillStyle(0xfff6e8);
+        btnBg.setStrokeStyle(3, 0xc4a46f);
+        btnText.setColor('#473025');
+        btnBg.setScale(1);
+        btnText.setScale(1);
+      });
+
+      btnBg.on('pointerdown', () => {
+        btnBg.setScale(0.98);
+        btnText.setScale(0.98);
+        this.handleAbilityAnswer(isCorrect, abilityType, question, overlay, panel, shadow, headerBg, headerLine, abilityInfoText, questionText, answerButtons);
+      });
+    });
+
+    this.abilityQuestionPopup = this.add.container(0, 0, [overlay, shadow, panel, headerBg, headerLine, abilityInfoText, questionText, ...answerButtons]);
+  }
+
+  // Handle ability quiz answer
+  // Correct: Deduct cost, activate ability, set cooldown
+  // Incorrect: Track for spaced repetition, don't activate ability
+  handleAbilityAnswer(
+    isCorrect: boolean,
+    abilityType: 'lightning' | 'freeze' | 'question',
+    question: QuizQuestion,
+    overlay: Phaser.GameObjects.Rectangle,
+    panel: Phaser.GameObjects.Rectangle,
+    shadow: Phaser.GameObjects.Rectangle,
+    headerBg: Phaser.GameObjects.Rectangle,
+    headerLine: Phaser.GameObjects.Rectangle,
+    abilityInfoText: Phaser.GameObjects.Text,
+    questionText: Phaser.GameObjects.Text,
+    answerButtons: Phaser.GameObjects.Container[]
+  ) {
+    // Disable all buttons
+    answerButtons.forEach(btn => {
+      const bg = btn.list[1] as Phaser.GameObjects.Rectangle;
+      bg.removeInteractive();
+    });
+
+    const width = this.scale.width;
+    const height = this.scale.height;
+    const sidebarWidth = Math.min(220, width * 0.15);
+    const gameWidth = width - sidebarWidth;
+    const centerX = gameWidth / 2;
+    const centerY = height / 2;
+    const panelHeight = Math.min(540, height * 0.75);
+    const panelBottom = centerY + panelHeight / 2;
+    const feedbackY = panelBottom - 80;
+
+    if (isCorrect) {
+      // Correct answer: Activate ability
+      const feedback = this.add.text(centerX, feedbackY, 'Correct! Ability activated!', {
+        fontSize: '28px',
+        color: '#96b902',
+        fontFamily: 'Quicksand, sans-serif',
+        fontStyle: 'bold',
+        resolution: 2
+      }).setOrigin(0.5).setAlpha(0);
+
+      this.tweens.add({
+        targets: feedback,
+        alpha: 1,
+        duration: 150,
+        ease: 'Power2'
+      });
+
+      // Close popup and activate ability
+      this.time.delayedCall(1000, () => {
+        const fadeTargets = [overlay, panel, shadow, headerBg, headerLine, abilityInfoText, questionText, feedback, ...answerButtons];
+        this.tweens.add({
+          targets: fadeTargets,
+          alpha: 0,
+          duration: 150,
+          onComplete: () => {
+            this.abilityQuestionPopup?.destroy();
+            this.abilityQuestionPopup = undefined;
+
+            // Activate the ability
+            this.activateAbility(abilityType);
+          }
+        });
+      });
+    } else {
+      // Incorrect answer: Don't activate, but track for spaced repetition
+      const questionIndex = this.quizData.questions.findIndex(q => q.question === question.question);
+      if (questionIndex >= 0) {
+        this.incorrectQuestionIndices.add(questionIndex);
+      }
+
+      const feedback = this.add.text(centerX, feedbackY, 'Incorrect! Ability not activated.', {
+        fontSize: '24px',
+        color: '#ef4444',
+        fontFamily: 'Quicksand, sans-serif',
+        fontStyle: 'bold',
+        resolution: 2
+      }).setOrigin(0.5).setAlpha(0);
+
+      this.tweens.add({
+        targets: feedback,
+        alpha: 1,
+        duration: 150,
+        ease: 'Power2'
+      });
+
+      // Close popup
+      this.time.delayedCall(1500, () => {
+        const fadeTargets = [overlay, panel, shadow, headerBg, headerLine, abilityInfoText, questionText, feedback, ...answerButtons];
+        this.tweens.add({
+          targets: fadeTargets,
+          alpha: 0,
+          duration: 150,
+          onComplete: () => {
+            this.abilityQuestionPopup?.destroy();
+            this.abilityQuestionPopup = undefined;
+          }
+        });
+      });
+    }
+  }
+
+  // Activate ability after successful quiz
+  activateAbility(abilityType: 'lightning' | 'freeze' | 'question') {
+    if (abilityType === 'lightning') {
+      // Deduct cost and set cooldown
+      this.gold -= 40;
+      this.goldText.setText(`Gold: ${this.gold}`);
+      this.lightningStrikeCooldown = 45000; // 45 seconds in ms
+      this.updateAbilityButtons();
+
+      // Enter enemy selection mode
+      this.lightningStrikeActive = true;
+      this.showErrorMessage('Select an enemy to strike!');
+    } else if (abilityType === 'freeze') {
+      // Deduct cost and set cooldown
+      this.gold -= 60;
+      this.goldText.setText(`Gold: ${this.gold}`);
+      this.freezeCooldown = 60000; // 60 seconds in ms
+      this.updateAbilityButtons();
+
+      // Freeze all enemies
+      this.freezeAllEnemies();
+    } else if (abilityType === 'question') {
+      // Set cooldown (no cost)
+      this.questionAbilityCooldown = 90000; // 90 seconds in ms
+      this.updateAbilityButtons();
+
+      // Check if there are any Training Camps to boost
+      const factTowers = this.towers.filter(t => t.type === 'fact');
+      if (factTowers.length === 0) {
+        this.showErrorMessage('No Training Camps to boost!');
+        // Refund cooldown since ability can't be used
+        this.questionAbilityCooldown = 0;
+        this.updateAbilityButtons();
+      } else {
+        // Highlight all Training Camps for selection
+        this.highlightFactTowers(true);
+        this.showErrorMessage('Select a Training Camp to boost!');
+      }
+    }
+  }
+
+  // Freeze all enemies for 5 seconds (bosses slowed 50% instead)
+  freezeAllEnemies() {
+    const currentTime = Date.now();
+    this.enemies.forEach(enemy => {
+      if (enemy.type === EnemyType.BOSS) {
+        // Bosses are slowed by 50% for 5 seconds
+        enemy.speed *= 0.5;
+        this.frozenEnemies.add(enemy);
+      } else {
+        // Regular enemies are frozen (speed = 0)
+        enemy.speed = 0;
+        this.frozenEnemies.add(enemy);
+      }
+    });
+
+    // Unfreeze after 5 seconds
+    this.time.delayedCall(5000, () => {
+      this.frozenEnemies.forEach(enemy => {
+        if (!this.enemies.includes(enemy)) return; // Enemy already dead
+
+        if (enemy.type === EnemyType.BOSS) {
+          // Restore boss speed
+          enemy.speed *= 2; // Undo the 50% slow
+        } else {
+          // Restore regular enemy speed based on type
+          if (enemy.type === EnemyType.RED) enemy.speed = 50;
+          else if (enemy.type === EnemyType.BLUE) enemy.speed = 55;
+          else if (enemy.type === EnemyType.YELLOW) enemy.speed = 60.5;
+        }
+      });
+      this.frozenEnemies.clear();
+    });
+  }
+
+  // Execute Lightning Strike on selected enemy
+  // Deals 100 damage to target, 25 damage in AoE (30px radius)
+  executeLightningStrike(target: Enemy) {
+    if (!this.lightningStrikeActive || !this.enemies.includes(target)) return;
+
+    // Deactivate selection mode
+    this.lightningStrikeActive = false;
+    if (this.errorMessage) {
+      this.errorMessage.destroy();
+      this.errorMessage = undefined;
+    }
+
+    // Deal 100 damage to target (with armor reduction)
+    this.applyDamageToEnemy(target, 100);
+
+    // Visual lightning effect on target
+    const lightning = this.add.graphics();
+    lightning.lineStyle(4, 0xffff00, 1);
+    lightning.beginPath();
+    lightning.moveTo(target.x, 0);
+    lightning.lineTo(target.x, target.y);
+    lightning.strokePath();
+    lightning.fillStyle(0xffff00, 0.6);
+    lightning.fillCircle(target.x, target.y, 15);
+
+    // Damage number
+    const damageText = this.add.text(target.x, target.y - 30, `-100`, {
+      fontSize: '20px',
+      color: '#ffff00',
+      fontFamily: 'Quicksand, sans-serif',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 3
+    }).setOrigin(0.5);
+
+    this.tweens.add({
+      targets: damageText,
+      y: target.y - 60,
+      alpha: 0,
+      duration: 800,
+      onComplete: () => damageText.destroy()
+    });
+
+    // AoE damage (30px radius, 25 damage)
+    const aoeRadius = 30;
+    this.enemies.forEach(enemy => {
+      if (enemy === target) return; // Skip target (already damaged)
+
+      const dx = enemy.x - target.x;
+      const dy = enemy.y - target.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (dist < aoeRadius) {
+        this.applyDamageToEnemy(enemy, 25);
+
+        // AoE damage number
+        const aoeDamageText = this.add.text(enemy.x, enemy.y - 20, `-25`, {
+          fontSize: '14px',
+          color: '#ffaa00',
+          fontFamily: 'Quicksand, sans-serif',
+          fontStyle: 'bold',
+          stroke: '#000000',
+          strokeThickness: 2
+        }).setOrigin(0.5);
+
+        this.tweens.add({
+          targets: aoeDamageText,
+          y: enemy.y - 40,
+          alpha: 0,
+          duration: 600,
+          onComplete: () => aoeDamageText.destroy()
+        });
+      }
+    });
+
+    // AoE visual effect
+    const aoeCircle = this.add.graphics();
+    aoeCircle.lineStyle(3, 0xffaa00, 0.8);
+    aoeCircle.strokeCircle(target.x, target.y, aoeRadius);
+    aoeCircle.fillStyle(0xffaa00, 0.2);
+    aoeCircle.fillCircle(target.x, target.y, aoeRadius);
+
+    // Fade out visual effects
+    this.tweens.add({
+      targets: [lightning, aoeCircle],
+      alpha: 0,
+      duration: 400,
+      onComplete: () => {
+        lightning.destroy();
+        aoeCircle.destroy();
+      }
+    });
+  }
+
+  // Highlight or un-highlight Training Camps for Question ability selection
+  highlightFactTowers(highlight: boolean) {
+    this.towers.forEach(tower => {
+      if (tower.type === 'fact') {
+        if (highlight) {
+          // Add pulsing green highlight
+          tower.graphics.setStrokeStyle(6, 0x00ff00);
+          this.tweens.add({
+            targets: tower.graphics,
+            alpha: { from: 1, to: 0.6 },
+            duration: 500,
+            yoyo: true,
+            repeat: -1
+          });
+        } else {
+          // Remove highlight
+          tower.graphics.setStrokeStyle(0);
+          this.tweens.killTweensOf(tower.graphics);
+          tower.graphics.setAlpha(1);
+        }
+      }
+    });
+  }
+
+  // Boost selected Training Camp (+10% radius, 5%→15% buffs for 2 mins)
+  boostFactTower(tower: Tower) {
+    if (tower.type !== 'fact') return;
+
+    // Remove highlights
+    this.highlightFactTowers(false);
+    if (this.errorMessage) {
+      this.errorMessage.destroy();
+      this.errorMessage = undefined;
+    }
+
+    // Apply boost
+    tower.boosted = true;
+    tower.boostedUntil = Date.now() + 120000; // 2 minutes in ms
+    if (tower.baseBuffRadius) {
+      tower.buffRadius = tower.baseBuffRadius * 1.1; // +10% radius
+    }
+
+    // Visual feedback
+    this.showErrorMessage('Training Camp boosted! +10% radius, 15% buffs for 2 minutes');
+    this.time.delayedCall(2000, () => {
+      if (this.errorMessage) {
+        this.errorMessage.destroy();
+        this.errorMessage = undefined;
+      }
+    });
+
+    // Set up boost expiration (handled in update loop)
+  }
+
+  // Show tooltip with educational fact for Training Camp
+  showFactTowerTooltip(tower: Tower) {
+    if (!tower.factText) return;
+
+    // Hide existing tooltip if any
+    this.hideFactTowerTooltip();
+
+    // Calculate responsive dimensions
+    const width = this.scale.width;
+    const height = this.scale.height;
+    const sidebarWidth = Math.min(220, width * 0.15);
+    const gameWidth = width - sidebarWidth;
+
+    // Tooltip dimensions
+    const tooltipMaxWidth = Math.min(300, gameWidth * 0.4);
+    const tooltipPadding = 15;
+
+    // Create tooltip container
+    this.factTowerTooltip = this.add.container(0, 0);
+
+    // Background panel
+    const bg = this.add.rectangle(0, 0, tooltipMaxWidth, 100, 0x2c3e50, 0.95);
+    bg.setStrokeStyle(3, 0x96b902); // Green border (Training Camp color)
+    this.factTowerTooltip.add(bg);
+
+    // Title text
+    const titleText = this.add.text(0, -40, 'Educational Fact', {
+      fontSize: Math.min(16, width * 0.02) + 'px',
+      fontFamily: 'Arial',
+      color: '#96b902',
+      fontStyle: 'bold',
+      align: 'center',
+      wordWrap: { width: tooltipMaxWidth - tooltipPadding * 2 }
+    });
+    titleText.setOrigin(0.5);
+    this.factTowerTooltip.add(titleText);
+
+    // Fact text
+    const factTextObj = this.add.text(0, -10, tower.factText, {
+      fontSize: Math.min(14, width * 0.018) + 'px',
+      fontFamily: 'Arial',
+      color: '#ecf0f1',
+      align: 'center',
+      wordWrap: { width: tooltipMaxWidth - tooltipPadding * 2 }
+    });
+    factTextObj.setOrigin(0.5);
+    this.factTowerTooltip.add(factTextObj);
+
+    // Adjust background height based on text
+    const textHeight = factTextObj.height;
+    const totalHeight = textHeight + 60; // Title + padding
+    bg.setSize(tooltipMaxWidth, totalHeight);
+    bg.setY(0);
+    factTextObj.setY(titleText.y + titleText.height / 2 + factTextObj.height / 2 + 10);
+
+    // Position tooltip near tower but keep it on screen
+    let tooltipX = tower.x;
+    let tooltipY = tower.y - totalHeight / 2 - 40; // Above tower
+
+    // Keep tooltip within game area bounds
+    if (tooltipX - tooltipMaxWidth / 2 < 10) {
+      tooltipX = tooltipMaxWidth / 2 + 10;
+    }
+    if (tooltipX + tooltipMaxWidth / 2 > gameWidth - 10) {
+      tooltipX = gameWidth - tooltipMaxWidth / 2 - 10;
+    }
+    if (tooltipY - totalHeight / 2 < 10) {
+      tooltipY = tower.y + totalHeight / 2 + 40; // Below tower instead
+    }
+
+    this.factTowerTooltip.setPosition(tooltipX, tooltipY);
+    this.factTowerTooltip.setDepth(10000); // Above everything
+  }
+
+  // Hide Training Camp tooltip
+  hideFactTowerTooltip() {
+    if (this.factTowerTooltip) {
+      this.factTowerTooltip.destroy();
+      this.factTowerTooltip = undefined;
+    }
+  }
+
+  // Start challenge round (every 10 waves)
+  // Select 3 challenging questions and reset state
+  startChallengeRound() {
+    this.challengeRoundActive = true;
+    this.challengeQuestionIndex = 0;
+    this.challengeCorrectCount = 0;
+
+    // Select 3 challenging questions (prioritize incorrect ones from previous challenges)
+    this.challengeQuestions = [];
+    const availableIndices: number[] = [];
+
+    // First priority: questions incorrect in previous challenges
+    if (this.challengeIncorrectIndices.size > 0) {
+      availableIndices.push(...Array.from(this.challengeIncorrectIndices));
+    }
+
+    // Fill remaining slots with random questions
+    for (let i = 0; i < this.quizData.questions.length && availableIndices.length < this.quizData.questions.length; i++) {
+      if (!availableIndices.includes(i)) {
+        availableIndices.push(i);
+      }
+    }
+
+    // Shuffle and pick 3
+    for (let i = availableIndices.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [availableIndices[i], availableIndices[j]] = [availableIndices[j], availableIndices[i]];
+    }
+
+    const selectedIndices = availableIndices.slice(0, 3);
+    this.challengeQuestions = selectedIndices.map(i => this.quizData.questions[i]);
+
+    // Show first question
+    this.showChallengeQuestion();
+  }
+
+  // Show current challenge question (one at a time)
+  showChallengeQuestion() {
+    if (this.challengeQuestionIndex >= this.challengeQuestions.length) {
+      // All questions answered - show rewards
+      this.showChallengeRewards();
+      return;
+    }
+
+    const question = this.challengeQuestions[this.challengeQuestionIndex];
+
+    // Responsive dimensions - center in game area
+    const width = this.scale.width;
+    const height = this.scale.height;
+    const sidebarWidth = Math.min(220, width * 0.15);
+    const gameWidth = width - sidebarWidth;
+    const centerX = gameWidth / 2;
+    const centerY = height / 2;
+
+    const panelWidth = Math.min(600, gameWidth * 0.8);
+    const panelHeight = Math.min(500, height * 0.8);
+
+    // Overlay
+    const overlay = this.add.rectangle(centerX, centerY, gameWidth, height, 0x000000, 0.85);
+    overlay.setOrigin(0.5);
+    overlay.setDepth(9000);
+
+    // Panel shadow
+    const shadow = this.add.rectangle(centerX + 4, centerY + 4, panelWidth, panelHeight, 0x000000, 0.4);
+    shadow.setOrigin(0.5);
+    shadow.setDepth(9001);
+
+    // Main panel
+    const panel = this.add.rectangle(centerX, centerY, panelWidth, panelHeight, 0xffffff, 1);
+    panel.setOrigin(0.5);
+    panel.setStrokeStyle(3, 0x473025);
+    panel.setDepth(9002);
+
+    // Header background
+    const headerBg = this.add.rectangle(centerX, centerY - panelHeight / 2 + 40, panelWidth, 80, 0xff6b35, 1);
+    headerBg.setOrigin(0.5);
+    headerBg.setDepth(9003);
+
+    // Header line
+    const headerLine = this.add.rectangle(centerX, centerY - panelHeight / 2 + 80, panelWidth, 3, 0x473025, 1);
+    headerLine.setOrigin(0.5);
+    headerLine.setDepth(9004);
+
+    // Challenge info text
+    const challengeInfoText = this.add.text(centerX, centerY - panelHeight / 2 + 40,
+      `Challenge Round ${this.waveNumber}\nQuestion ${this.challengeQuestionIndex + 1} of 3`, {
+      fontSize: Math.min(20, width * 0.025) + 'px',
+      color: '#ffffff',
+      fontFamily: 'Quicksand, sans-serif',
+      fontStyle: '700',
+      align: 'center',
+      resolution: 2
+    });
+    challengeInfoText.setOrigin(0.5);
+    challengeInfoText.setDepth(9005);
+
+    // Question text
+    const questionText = this.add.text(centerX, centerY - panelHeight / 2 + 140, question.question, {
+      fontSize: Math.min(18, width * 0.022) + 'px',
+      color: '#473025',
+      fontFamily: 'Quicksand, sans-serif',
+      fontStyle: '600',
+      align: 'center',
+      wordWrap: { width: panelWidth - 80 },
+      resolution: 2
+    });
+    questionText.setOrigin(0.5);
+    questionText.setDepth(9005);
+
+    // Answer buttons (4 options)
+    const answerButtons: Phaser.GameObjects.Container[] = [];
+    const buttonWidth = panelWidth - 80;
+    const buttonHeight = 50;
+    const startY = centerY - 20;
+    const buttonSpacing = 65;
+
+    question.options.forEach((option, index) => {
+      const btnY = startY + (index * buttonSpacing);
+      const btnBg = this.add.rectangle(centerX, btnY, buttonWidth, buttonHeight, 0xf4f1de, 1);
+      btnBg.setStrokeStyle(2, 0x473025);
+      btnBg.setInteractive({ useHandCursor: true });
+      btnBg.setDepth(9005);
+
+      const btnText = this.add.text(centerX, btnY, option, {
+        fontSize: Math.min(16, width * 0.02) + 'px',
+        color: '#473025',
+        fontFamily: 'Quicksand, sans-serif',
+        fontStyle: '600',
+        align: 'center',
+        wordWrap: { width: buttonWidth - 40 },
+        resolution: 2
+      });
+      btnText.setOrigin(0.5);
+      btnText.setDepth(9006);
+
+      const btn = this.add.container(0, 0, [btnBg, btnText]);
+
+      btnBg.on('pointerdown', () => {
+        const isCorrect = option === question.answer;
+        this.handleChallengeAnswer(isCorrect, question, overlay, panel, shadow, headerBg, headerLine, challengeInfoText, questionText, answerButtons);
+      });
+
+      btnBg.on('pointerover', () => {
+        btnBg.setFillStyle(0xe3dfc8);
+        btnBg.setScale(0.98);
+        btnText.setScale(0.98);
+      });
+
+      btnBg.on('pointerout', () => {
+        btnBg.setFillStyle(0xf4f1de);
+        btnBg.setScale(1);
+        btnText.setScale(1);
+      });
+
+      answerButtons.push(btn);
+    });
+
+    this.challengeQuestionPopup = this.add.container(0, 0, [overlay, shadow, panel, headerBg, headerLine, challengeInfoText, questionText, ...answerButtons]);
+  }
+
+  // Handle challenge question answer
+  handleChallengeAnswer(
+    isCorrect: boolean,
+    question: QuizQuestion,
+    overlay: Phaser.GameObjects.Rectangle,
+    panel: Phaser.GameObjects.Rectangle,
+    shadow: Phaser.GameObjects.Rectangle,
+    headerBg: Phaser.GameObjects.Rectangle,
+    headerLine: Phaser.GameObjects.Rectangle,
+    challengeInfoText: Phaser.GameObjects.Text,
+    questionText: Phaser.GameObjects.Text,
+    answerButtons: Phaser.GameObjects.Container[]
+  ) {
+    // Disable all buttons
+    answerButtons.forEach(btn => {
+      const bg = btn.list[0] as Phaser.GameObjects.Rectangle;
+      bg.disableInteractive();
+    });
+
+    if (isCorrect) {
+      this.challengeCorrectCount++;
+
+      // Show "Correct!" feedback
+      const feedbackText = this.add.text(panel.x, panel.y + panel.height / 2 - 80, 'Correct!', {
+        fontSize: '24px',
+        color: '#27ae60',
+        fontFamily: 'Quicksand, sans-serif',
+        fontStyle: '700',
+        resolution: 2
+      });
+      feedbackText.setOrigin(0.5);
+      feedbackText.setDepth(9007);
+      this.challengeQuestionPopup?.add(feedbackText);
+
+      // Continue button
+      const continueBtnBg = this.add.rectangle(panel.x, panel.y + panel.height / 2 - 30, 200, 50, 0x95b607, 1);
+      continueBtnBg.setStrokeStyle(2, 0x006029);
+      continueBtnBg.setInteractive({ useHandCursor: true });
+      continueBtnBg.setDepth(9007);
+
+      const continueBtnText = this.add.text(panel.x, panel.y + panel.height / 2 - 30, 'Continue', {
+        fontSize: '18px',
+        color: '#ffffff',
+        fontFamily: 'Quicksand, sans-serif',
+        fontStyle: '700',
+        resolution: 2
+      });
+      continueBtnText.setOrigin(0.5);
+      continueBtnText.setDepth(9008);
+
+      continueBtnBg.on('pointerdown', () => {
+        this.challengeQuestionPopup?.destroy();
+        this.challengeQuestionPopup = undefined;
+        this.challengeQuestionIndex++;
+        this.showChallengeQuestion();
+      });
+
+      continueBtnBg.on('pointerover', () => {
+        continueBtnBg.setFillStyle(0x7a9700);
+        continueBtnBg.setScale(0.98);
+        continueBtnText.setScale(0.98);
+      });
+
+      continueBtnBg.on('pointerout', () => {
+        continueBtnBg.setFillStyle(0x95b607);
+        continueBtnBg.setScale(1);
+        continueBtnText.setScale(1);
+      });
+
+      this.challengeQuestionPopup?.add([continueBtnBg, continueBtnText]);
+    } else {
+      // Track incorrect question for future challenges
+      const questionIndex = this.quizData.questions.findIndex(q => q.question === question.question);
+      if (questionIndex >= 0) {
+        this.challengeIncorrectIndices.add(questionIndex);
+      }
+
+      // Show "Incorrect!" feedback
+      const feedbackText = this.add.text(panel.x, panel.y + panel.height / 2 - 150, 'Incorrect!', {
+        fontSize: '24px',
+        color: '#e74c3c',
+        fontFamily: 'Quicksand, sans-serif',
+        fontStyle: '700',
+        resolution: 2
+      });
+      feedbackText.setOrigin(0.5);
+      feedbackText.setDepth(9007);
+      this.challengeQuestionPopup?.add(feedbackText);
+
+      // Show explanation
+      const explanation = question.explanation || `The correct answer is: ${question.answer}`;
+      const explanationText = this.add.text(panel.x, panel.y + panel.height / 2 - 100, explanation, {
+        fontSize: '16px',
+        color: '#473025',
+        fontFamily: 'Quicksand, sans-serif',
+        fontStyle: '600',
+        align: 'center',
+        wordWrap: { width: panel.width * 0.8 },
+        resolution: 2
+      });
+      explanationText.setOrigin(0.5);
+      explanationText.setDepth(9007);
+      this.challengeQuestionPopup?.add(explanationText);
+
+      // Continue button
+      const continueBtnBg = this.add.rectangle(panel.x, panel.y + panel.height / 2 - 30, 200, 50, 0x95b607, 1);
+      continueBtnBg.setStrokeStyle(2, 0x006029);
+      continueBtnBg.setInteractive({ useHandCursor: true });
+      continueBtnBg.setDepth(9007);
+
+      const continueBtnText = this.add.text(panel.x, panel.y + panel.height / 2 - 30, 'Continue', {
+        fontSize: '18px',
+        color: '#ffffff',
+        fontFamily: 'Quicksand, sans-serif',
+        fontStyle: '700',
+        resolution: 2
+      });
+      continueBtnText.setOrigin(0.5);
+      continueBtnText.setDepth(9008);
+
+      continueBtnBg.on('pointerdown', () => {
+        this.challengeQuestionPopup?.destroy();
+        this.challengeQuestionPopup = undefined;
+        this.challengeQuestionIndex++;
+        this.showChallengeQuestion();
+      });
+
+      continueBtnBg.on('pointerover', () => {
+        continueBtnBg.setFillStyle(0x7a9700);
+        continueBtnBg.setScale(0.98);
+        continueBtnText.setScale(0.98);
+      });
+
+      continueBtnBg.on('pointerout', () => {
+        continueBtnBg.setFillStyle(0x95b607);
+        continueBtnBg.setScale(1);
+        continueBtnText.setScale(1);
+      });
+
+      this.challengeQuestionPopup?.add([continueBtnBg, continueBtnText]);
+    }
+  }
+
+  // Show rewards based on challenge score
+  showChallengeRewards() {
+    this.challengeRoundActive = false;
+
+    // Determine rewards based on score
+    if (this.challengeCorrectCount === 3) {
+      // 3/3 correct - show buff selection menu
+      this.showBuffSelectionMenu();
+    } else if (this.challengeCorrectCount === 2) {
+      // 2/3 correct - give 100 gold
+      this.gold += 100;
+      this.goldText.setText(`Gold: ${this.gold}`);
+      this.showChallengeRewardMessage('100 Gold Earned!', 'You got 2 out of 3 questions correct.');
+    } else if (this.challengeCorrectCount === 1) {
+      // 1/3 correct - give 2 free tower upgrades
+      this.showChallengeRewardMessage('2 Free Upgrades!', 'You got 1 out of 3 questions correct. Your next 2 tower upgrades are free!');
+      // TODO: Implement free upgrade tracking
+    } else {
+      // 0/3 correct - no reward
+      this.showChallengeRewardMessage('No Reward', 'You got 0 out of 3 questions correct. Better luck next time!');
+    }
+  }
+
+  // Show simple reward message (for gold/upgrades/nothing)
+  showChallengeRewardMessage(title: string, message: string) {
+    const width = this.scale.width;
+    const height = this.scale.height;
+    const sidebarWidth = Math.min(220, width * 0.15);
+    const gameWidth = width - sidebarWidth;
+    const centerX = gameWidth / 2;
+    const centerY = height / 2;
+
+    const panelWidth = Math.min(500, gameWidth * 0.7);
+    const panelHeight = Math.min(300, height * 0.5);
+
+    // Overlay
+    const overlay = this.add.rectangle(centerX, centerY, gameWidth, height, 0x000000, 0.85);
+    overlay.setOrigin(0.5);
+    overlay.setDepth(9000);
+
+    // Panel
+    const panel = this.add.rectangle(centerX, centerY, panelWidth, panelHeight, 0xffffff, 1);
+    panel.setOrigin(0.5);
+    panel.setStrokeStyle(3, 0x473025);
+    panel.setDepth(9001);
+
+    // Title
+    const titleText = this.add.text(centerX, centerY - 60, title, {
+      fontSize: '28px',
+      color: '#ff6b35',
+      fontFamily: 'Quicksand, sans-serif',
+      fontStyle: '700',
+      align: 'center',
+      resolution: 2
+    });
+    titleText.setOrigin(0.5);
+    titleText.setDepth(9002);
+
+    // Message
+    const messageText = this.add.text(centerX, centerY, message, {
+      fontSize: '18px',
+      color: '#473025',
+      fontFamily: 'Quicksand, sans-serif',
+      fontStyle: '600',
+      align: 'center',
+      wordWrap: { width: panelWidth - 60 },
+      resolution: 2
+    });
+    messageText.setOrigin(0.5);
+    messageText.setDepth(9002);
+
+    // Continue button
+    const btnBg = this.add.rectangle(centerX, centerY + 80, 200, 50, 0x95b607, 1);
+    btnBg.setStrokeStyle(2, 0x006029);
+    btnBg.setInteractive({ useHandCursor: true });
+    btnBg.setDepth(9002);
+
+    const btnText = this.add.text(centerX, centerY + 80, 'Continue', {
+      fontSize: '18px',
+      color: '#ffffff',
+      fontFamily: 'Quicksand, sans-serif',
+      fontStyle: '700',
+      resolution: 2
+    });
+    btnText.setOrigin(0.5);
+    btnText.setDepth(9003);
+
+    btnBg.on('pointerdown', () => {
+      overlay.destroy();
+      panel.destroy();
+      titleText.destroy();
+      messageText.destroy();
+      btnBg.destroy();
+      btnText.destroy();
+    });
+
+    btnBg.on('pointerover', () => {
+      btnBg.setFillStyle(0x7a9700);
+      btnBg.setScale(0.98);
+      btnText.setScale(0.98);
+    });
+
+    btnBg.on('pointerout', () => {
+      btnBg.setFillStyle(0x95b607);
+      btnBg.setScale(1);
+      btnText.setScale(1);
+    });
+  }
+
+  // Show buff selection menu (roguelike style)
+  showBuffSelectionMenu() {
+    const width = this.scale.width;
+    const height = this.scale.height;
+    const sidebarWidth = Math.min(220, width * 0.15);
+    const gameWidth = width - sidebarWidth;
+    const centerX = gameWidth / 2;
+    const centerY = height / 2;
+
+    const panelWidth = Math.min(700, gameWidth * 0.9);
+    const panelHeight = Math.min(500, height * 0.8);
+
+    // Overlay
+    const overlay = this.add.rectangle(centerX, centerY, gameWidth, height, 0x000000, 0.85);
+    overlay.setOrigin(0.5);
+    overlay.setDepth(9000);
+
+    // Panel
+    const panel = this.add.rectangle(centerX, centerY, panelWidth, panelHeight, 0xffffff, 1);
+    panel.setOrigin(0.5);
+    panel.setStrokeStyle(3, 0x473025);
+    panel.setDepth(9001);
+
+    // Title
+    const titleText = this.add.text(centerX, centerY - panelHeight / 2 + 50, 'Choose Your Buff!', {
+      fontSize: '32px',
+      color: '#ff6b35',
+      fontFamily: 'Quicksand, sans-serif',
+      fontStyle: '700',
+      align: 'center',
+      resolution: 2
+    });
+    titleText.setOrigin(0.5);
+    titleText.setDepth(9002);
+
+    const subtitleText = this.add.text(centerX, centerY - panelHeight / 2 + 90, 'Perfect Score! Select a buff for the next 10 rounds:', {
+      fontSize: '16px',
+      color: '#473025',
+      fontFamily: 'Quicksand, sans-serif',
+      fontStyle: '600',
+      align: 'center',
+      resolution: 2
+    });
+    subtitleText.setOrigin(0.5);
+    subtitleText.setDepth(9002);
+
+    // Buff buttons (3 options)
+    const buffs: Array<{ type: 'aoe' | 'gold' | 'cooldown', name: string, description: string, color: number }> = [
+      { type: 'aoe', name: 'AoE Attacks', description: 'All tower shots deal AoE damage\n(Small radius around impact)', color: 0xe74c3c },
+      { type: 'gold', name: 'Gold Boost', description: 'All enemies drop +1 extra gold\nwhen defeated', color: 0xf39c12 },
+      { type: 'cooldown', name: 'Quick Cooldowns', description: 'All ability cooldowns are\n25% faster', color: 0x3498db }
+    ];
+
+    const buttonWidth = 200;
+    const buttonHeight = 180;
+    const startX = centerX - (buttonWidth + 20);
+    const buttonY = centerY + 20;
+
+    buffs.forEach((buff, index) => {
+      const btnX = startX + (index * (buttonWidth + 20));
+
+      // Button background
+      const btnBg = this.add.rectangle(btnX, buttonY, buttonWidth, buttonHeight, buff.color, 1);
+      btnBg.setStrokeStyle(3, 0x473025);
+      btnBg.setInteractive({ useHandCursor: true });
+      btnBg.setDepth(9002);
+
+      // Buff name
+      const nameText = this.add.text(btnX, buttonY - 50, buff.name, {
+        fontSize: '20px',
+        color: '#ffffff',
+        fontFamily: 'Quicksand, sans-serif',
+        fontStyle: '700',
+        align: 'center',
+        resolution: 2
+      });
+      nameText.setOrigin(0.5);
+      nameText.setDepth(9003);
+
+      // Buff description
+      const descText = this.add.text(btnX, buttonY + 20, buff.description, {
+        fontSize: '14px',
+        color: '#ffffff',
+        fontFamily: 'Quicksand, sans-serif',
+        fontStyle: '600',
+        align: 'center',
+        wordWrap: { width: buttonWidth - 20 },
+        resolution: 2
+      });
+      descText.setOrigin(0.5);
+      descText.setDepth(9003);
+
+      btnBg.on('pointerdown', () => {
+        this.activateBuff(buff.type);
+        overlay.destroy();
+        panel.destroy();
+        titleText.destroy();
+        subtitleText.destroy();
+        btnBg.destroy();
+        nameText.destroy();
+        descText.destroy();
+        // Destroy other buttons
+        buffs.forEach((_, i) => {
+          if (i !== index) {
+            const otherBtnX = startX + (i * (buttonWidth + 20));
+            this.children.list.forEach(child => {
+              if (child instanceof Phaser.GameObjects.Rectangle && child.x === otherBtnX && child.y === buttonY) {
+                child.destroy();
+              }
+              if (child instanceof Phaser.GameObjects.Text && child.x === otherBtnX) {
+                child.destroy();
+              }
+            });
+          }
+        });
+      });
+
+      btnBg.on('pointerover', () => {
+        btnBg.setScale(1.05);
+        nameText.setScale(1.05);
+        descText.setScale(1.05);
+      });
+
+      btnBg.on('pointerout', () => {
+        btnBg.setScale(1);
+        nameText.setScale(1);
+        descText.setScale(1);
+      });
+    });
+  }
+
+  // Activate selected buff
+  activateBuff(buffType: 'aoe' | 'gold' | 'cooldown') {
+    this.activeBuff = buffType;
+    this.buffRoundsRemaining = 10;
+
+    let buffName = '';
+    if (buffType === 'aoe') buffName = 'AoE Attacks';
+    else if (buffType === 'gold') buffName = 'Gold Boost';
+    else if (buffType === 'cooldown') buffName = 'Quick Cooldowns';
+
+    this.showErrorMessage(`${buffName} activated for 10 rounds!`);
+    this.time.delayedCall(3000, () => {
+      if (this.errorMessage) {
+        this.errorMessage.destroy();
+        this.errorMessage = undefined;
+      }
+    });
   }
 }

@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import TeacherPageLayout from '@/components/shared/TeacherPageLayout';
+import BackButton from '@/components/ui/BackButton';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -13,17 +14,7 @@ export default function SettingsPage() {
           <h1 className="font-quicksand font-bold text-[#473025] text-[32px] md:text-[40px]">
             Settings
           </h1>
-          <button
-            onClick={() => router.push('/teacher/dashboard')}
-            className="bg-[#fd9227] border-[1.5px] border-[#730f11] rounded-[11px] h-[45px] px-6 flex items-center gap-2 hover:bg-[#e6832b] transition-all cursor-pointer"
-          >
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12.5 15L7.5 10L12.5 5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            <span className="font-quicksand font-bold text-white text-[16px]">
-              Back to Dashboard
-            </span>
-          </button>
+          <BackButton href="/teacher/dashboard" variant="text">Back to Dashboard</BackButton>
         </div>
 
         <div className="bg-white border-[4px] border-[#473025] rounded-[24px] p-8 shadow-lg">

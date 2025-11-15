@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { getPublicGames, PublicGameFilters } from '@/app/actions/game';
 import PublicGameCard from '@/components/discover/PublicGameCard';
 import { Subject, GameMode } from '@prisma/client';
+import { Search } from 'lucide-react';
 
 export default function DiscoverPage() {
   const router = useRouter();
@@ -173,7 +174,9 @@ export default function DiscoverPage() {
               </div>
             ) : games.length === 0 ? (
               <div className="bg-[#fff6e8] border-[3px] border-[#473025] rounded-[15px] p-12 text-center">
-                <div className="text-6xl mb-4">🔍</div>
+                <div className="flex justify-center mb-4 text-[#473025]">
+                  <Search size={80} strokeWidth={1.5} />
+                </div>
                 <h3 className="font-quicksand font-bold text-[#473025] text-[24px] mb-2">
                   No Games Found
                 </h3>

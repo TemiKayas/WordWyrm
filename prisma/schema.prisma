@@ -192,6 +192,7 @@ model PDF {
   teacher           Teacher             @relation(fields: [teacherId], references: [id], onDelete: Cascade)
   class             Class               @relation(fields: [classId], references: [id], onDelete: Cascade)
   processedContent  ProcessedContent?
+  quizSources       QuizSource[]        // Track which quizzes use this PDF
 
   @@index([teacherId])
   @@index([classId])
@@ -225,8 +226,24 @@ model Quiz {
 
   processedContent  ProcessedContent  @relation(fields: [processedContentId], references: [id], onDelete: Cascade)
   games             Game[]
+  quizSources       QuizSource[]      // Track which PDFs were used to generate this quiz
 
   @@index([processedContentId])
+}
+
+// Join table to track which PDFs are used in each quiz
+model QuizSource {
+  id        String   @id @default(cuid())
+  quizId    String
+  pdfId     String
+  createdAt DateTime @default(now())
+
+  quiz Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  pdf  PDF  @relation(fields: [pdfId], references: [id], onDelete: Cascade)
+
+  @@unique([quizId, pdfId])
+  @@index([quizId])
+  @@index([pdfId])
 }
 
 model Game {

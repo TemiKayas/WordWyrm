@@ -24,7 +24,7 @@ type ClassData = {
 export default function StudentDashboard() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [classes, setClasses] = useState<ClassData[]>([]);
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
@@ -110,6 +110,8 @@ export default function StudentDashboard() {
         showSignOut={true}
         onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)}
         logoHref="/student/dashboard"
+        userName={studentData.name}
+        userRole={studentData.role}
       />
 
       <SlidingSidebar
