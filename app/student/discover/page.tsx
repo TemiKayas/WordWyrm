@@ -7,19 +7,35 @@ import PublicGameCard from '@/components/discover/PublicGameCard';
 import { Subject, GameMode } from '@prisma/client';
 import Navbar from '@/components/shared/Navbar';
 import SlidingSidebar from '@/components/shared/SlidingSidebar';
+import { Search } from 'lucide-react';
 
 export default function DiscoverPage() {
   const router = useRouter();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [games, setGames] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [userName, setUserName] = useState('');
+  const [userRole, setUserRole] = useState('STUDENT');
 
   // Filter state
   const [subject, setSubject] = useState<Subject | ''>('');
   const [gameMode, setGameMode] = useState<GameMode | ''>('');
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<'newest' | 'mostPlayed'>('newest');
+
+  // Fetch user session
+  useEffect(() => {
+    async function fetchUser() {
+      const response = await fetch('/api/auth/session');
+      const session = await response.json();
+      if (session?.user) {
+        setUserName(session.user.name || 'Student');
+        setUserRole('STUDENT');
+      }
+    }
+    fetchUser();
+  }, []);
 
   // Fetch games
   useEffect(() => {
@@ -51,6 +67,8 @@ export default function DiscoverPage() {
         showSignOut={true}
         onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)}
         logoHref="/student/dashboard"
+        userName={userName}
+        userRole={userRole}
       />
 
       <SlidingSidebar
@@ -176,7 +194,9 @@ export default function DiscoverPage() {
                 </div>
               ) : games.length === 0 ? (
                 <div className="bg-[#fff6e8] border-[3px] border-[#473025] rounded-[15px] p-12 text-center">
-                  <div className="text-6xl mb-4">🔍</div>
+                  <div className="flex justify-center mb-4 text-[#473025]">
+                    <Search size={80} strokeWidth={1.5} />
+                  </div>
                   <h3 className="font-quicksand font-bold text-[#473025] text-[24px] mb-2">
                     No Games Found
                   </h3>

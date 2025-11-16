@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { updateGame, getGameQuizzes, addQuizToGame, removeQuizFromGame } from '@/app/actions/game';
 import { getQuizById, updateQuizQuestions, getTeacherQuizzes } from '@/app/actions/quiz';
+import { getQuizSourcePDFs, removePDFFromQuiz, addPDFsToQuiz, regenerateQuizQuestions } from '@/app/actions/pdf';
 import Button from '@/components/ui/Button';
 import TeacherPageLayout from '@/components/shared/TeacherPageLayout';
 import { GameMode } from '@prisma/client';
@@ -19,12 +20,11 @@ interface Quiz {
     questions: QuizQuestion[];
 }
 
-interface AttachedPDF {
+interface SourcePDF {
     id: string;
-    quizId: string;
-    pdfFilename: string;
-    uploadedAt: string;
-    numQuestions: number;
+    filename: string;
+    fileSize: number;
+    uploadedAt: Date;
 }
 
 interface AvailableQuiz {
@@ -48,9 +48,10 @@ function GameEditContent() {
     const [coverImage, setCoverImage] = useState<string>('');
     const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
 
-    const [attachedPDFs, setAttachedPDFs] = useState<AttachedPDF[]>([]);
-    const [availableQuizzes, setAvailableQuizzes] = useState<AvailableQuiz[]>([]);
-    const [showAddPDFModal, setShowAddPDFModal] = useState(false);
+    const [sourcePDFs, setSourcePDFs] = useState<SourcePDF[]>([]);
+    const [showUploadPDFModal, setShowUploadPDFModal] = useState(false);
+    const [isRegenerating, setIsRegenerating] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const [questions, setQuestions] = useState<QuizQuestion[]>([]);
     const [editingQuestionIndex, setEditingQuestionIndex] = useState<number | null>(null);
@@ -80,40 +81,90 @@ function GameEditContent() {
                     setIsActive(game.active);
                     setIsPublic(game.isPublic);
                     setGameMode(game.gameMode);
-                    await loadAttachedPDFs(game.id);
                 }
+                // Load source PDFs
+                await loadSourcePDFs(quizId);
             }
             setIsLoading(false);
         }
         loadGameData();
     }, [quizId, router]);
 
-    const loadAttachedPDFs = async (gId: string) => {
-        const result = await getGameQuizzes(gId);
+    const loadSourcePDFs = async (qId: string) => {
+        const result = await getQuizSourcePDFs(qId);
         if (result.success) {
-            const pdfs = result.data.quizzes.map((gq: {id: string; quiz: {id: string; numQuestions?: number; processedContent?: {pdf?: {filename?: string; uploadedAt?: Date}}}}) => ({
-                id: gq.id,
-                quizId: gq.quiz.id,
-                pdfFilename: gq.quiz.processedContent?.pdf?.filename || 'unknown.pdf',
-                uploadedAt: new Date(gq.quiz.processedContent?.pdf?.uploadedAt || Date.now()).toISOString(),
-                numQuestions: gq.quiz.numQuestions || 0,
-            }));
-            setAttachedPDFs(pdfs);
+            setSourcePDFs(result.data.pdfs);
         }
     };
 
-    const loadAvailableQuizzes = async () => {
-        const result = await getTeacherQuizzes();
-        if (result.success) {
-            const quizzes = result.data.quizzes
-                .filter((q: {id: string}) => !attachedPDFs.some((p) => p.quizId === q.id))
-                .map((q: {id: string; title: string | null; pdfFilename?: string; numQuestions: number}) => ({
-                    id: q.id,
-                    title: q.title || 'Untitled',
-                    pdfFilename: q.pdfFilename || 'unknown.pdf',
-                    numQuestions: q.numQuestions,
-                }));
-            setAvailableQuizzes(quizzes);
+    const handleUploadMorePDFs = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (!files || files.length === 0 || !quizId) return;
+
+        setIsSaving(true);
+        try {
+            const formData = new FormData();
+            Array.from(files).forEach(file => {
+                formData.append('pdfs', file);
+            });
+            formData.append('numQuestions', '5'); // Default 5 questions per new PDF
+
+            const result = await addPDFsToQuiz({ quizId, formData });
+
+            if (result.success) {
+                setSaveMessage({ type: 'success', text: `Added ${result.data.addedQuestions} new questions!` });
+                // Reload data
+                await loadSourcePDFs(quizId);
+                const quizResult = await getQuizById(quizId);
+                if (quizResult.success) {
+                    const quizData = typeof quizResult.data.quiz.quizJson === 'string'
+                        ? JSON.parse(quizResult.data.quiz.quizJson)
+                        : (quizResult.data.quiz.quizJson as unknown as Quiz);
+                    setQuestions(quizData.questions || []);
+                }
+                setTimeout(() => setSaveMessage(null), 3000);
+            } else {
+                setSaveMessage({ type: 'error', text: result.error });
+            }
+        } catch {
+            setSaveMessage({ type: 'error', text: 'Failed to upload PDFs' });
+        } finally {
+            setIsSaving(false);
+            if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+            }
+        }
+    };
+
+    const handleRegenerateQuestions = async () => {
+        if (!quizId || !confirm('Regenerate all questions? This will replace existing questions.')) {
+            return;
+        }
+
+        setIsRegenerating(true);
+        setIsSaving(true);
+        try {
+            const result = await regenerateQuizQuestions({ quizId, numQuestions: questions.length });
+
+            if (result.success) {
+                setSaveMessage({ type: 'success', text: `Regenerated ${result.data.numQuestions} questions!` });
+                // Reload questions
+                const quizResult = await getQuizById(quizId);
+                if (quizResult.success) {
+                    const quizData = typeof quizResult.data.quiz.quizJson === 'string'
+                        ? JSON.parse(quizResult.data.quiz.quizJson)
+                        : (quizResult.data.quiz.quizJson as unknown as Quiz);
+                    setQuestions(quizData.questions || []);
+                }
+                setTimeout(() => setSaveMessage(null), 3000);
+            } else {
+                setSaveMessage({ type: 'error', text: result.error });
+            }
+        } catch {
+            setSaveMessage({ type: 'error', text: 'Failed to regenerate questions' });
+        } finally {
+            setIsRegenerating(false);
+            setIsSaving(false);
         }
     };
 
@@ -173,45 +224,26 @@ function GameEditContent() {
         }
     };
 
-    const handleRemovePDF = async (quizIdToRemove: string) => {
-        if (attachedPDFs.length === 1) {
-            setSaveMessage({ type: 'error', text: 'Cannot remove the only PDF from a game' });
+    const handleRemoveSourcePDF = async (pdfId: string) => {
+        if (sourcePDFs.length === 1) {
+            setSaveMessage({ type: 'error', text: 'Cannot remove the only PDF from a quiz' });
             return;
         }
-        if (!confirm('Remove this PDF from the game? Questions from this PDF will no longer appear in the game.')) {
+        if (!quizId || !confirm('Remove this PDF? The questions will remain but can no longer be regenerated from this PDF.')) {
             return;
         }
         setIsSaving(true);
         try {
-            const result = await removeQuizFromGame({ gameId, quizId: quizIdToRemove });
+            const result = await removePDFFromQuiz({ quizId, pdfId });
             if (result.success) {
-                setAttachedPDFs(attachedPDFs.filter(p => p.quizId !== quizIdToRemove));
-                setSaveMessage({ type: 'success', text: 'PDF removed successfully!' });
+                setSourcePDFs(sourcePDFs.filter(p => p.id !== pdfId));
+                setSaveMessage({ type: 'success', text: 'PDF removed from sources!' });
                 setTimeout(() => setSaveMessage(null), 3000);
             } else {
                 setSaveMessage({ type: 'error', text: result.error });
             }
         } catch {
             setSaveMessage({ type: 'error', text: 'Failed to remove PDF' });
-        } finally {
-            setIsSaving(false);
-        }
-    };
-
-    const handleAddPDF = async (quizIdToAdd: string) => {
-        setIsSaving(true);
-        try {
-            const result = await addQuizToGame({ gameId, quizId: quizIdToAdd });
-            if (result.success) {
-                await loadAttachedPDFs(gameId);
-                setShowAddPDFModal(false);
-                setSaveMessage({ type: 'success', text: 'PDF added successfully!' });
-                setTimeout(() => setSaveMessage(null), 3000);
-            } else {
-                setSaveMessage({ type: 'error', text: result.error });
-            }
-        } catch {
-            setSaveMessage({ type: 'error', text: 'Failed to add PDF' });
         } finally {
             setIsSaving(false);
         }
@@ -331,9 +363,9 @@ function GameEditContent() {
                                         onChange={(e) => setGameMode(e.target.value as GameMode)}
                                         className="w-full bg-[#fff6e8] border-2 border-[#ffb554] rounded-[8px] h-[36px] px-3 font-quicksand text-[#473025] text-[13px] focus:outline-none focus:border-[#ff9f22] transition-all"
                                     >
-                                        <option value={GameMode.TRADITIONAL}>📝 Traditional Quiz</option>
-                                        <option value={GameMode.TOWER_DEFENSE}>🏰 Tower Defense</option>
-                                        <option value={GameMode.SNAKE}>🐍 Snake Quiz</option>
+                                        <option value={GameMode.TRADITIONAL}>Traditional Quiz</option>
+                                        <option value={GameMode.TOWER_DEFENSE}>Tower Defense</option>
+                                        <option value={GameMode.SNAKE}>Snake Quiz</option>
                                     </select>
                                 </div>
                                 <div className="space-y-3">
@@ -413,24 +445,30 @@ function GameEditContent() {
                                         <polyline points="10,9 9,9 8,9" stroke="#ff9f22" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                                     </svg>
                                 </div>
-                                <h2 className="font-quicksand font-bold text-[#473025] text-[18px]">Study Materials</h2>
+                                <h2 className="font-quicksand font-bold text-[#473025] text-[18px]">Source PDFs</h2>
                             </div>
                             <div className="flex items-center justify-between mb-3">
                                 <span className="font-quicksand text-[#a7613c] text-[11px]">
-                                    {attachedPDFs.length} PDFs • {attachedPDFs.reduce((a, p) => a + (p.numQuestions || 0), 0)} total questions
+                                    {sourcePDFs.length} PDF{sourcePDFs.length !== 1 ? 's' : ''} • {questions.length} total questions
                                 </span>
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept="application/pdf"
+                                    multiple
+                                    onChange={handleUploadMorePDFs}
+                                    className="hidden"
+                                />
                                 <button
-                                    onClick={() => {
-                                        loadAvailableQuizzes();
-                                        setShowAddPDFModal(true);
-                                    }}
-                                    className="bg-[#96b902] text-white font-quicksand font-bold text-[11px] px-2.5 py-1.5 rounded-[6px] hover:bg-[#82a002] transition-all"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    disabled={isSaving}
+                                    className="bg-[#96b902] text-white font-quicksand font-bold text-[11px] px-2.5 py-1.5 rounded-[6px] hover:bg-[#82a002] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                                 >
-                                    + Add
+                                    + Upload More
                                 </button>
                             </div>
                             <div className="space-y-2 max-h-[280px] overflow-y-auto pr-1">
-                                {attachedPDFs.map((pdf) => (
+                                {sourcePDFs.map((pdf) => (
                                     <div
                                         key={pdf.id}
                                         className="flex items-center justify-between p-3 bg-[#fff6e8] border-2 border-[#ffb554] rounded-[8px] hover:border-[#ff9f22] transition-all"
@@ -443,28 +481,28 @@ function GameEditContent() {
                                                 </svg>
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <p className="font-quicksand font-bold text-[#473025] text-[12px] truncate">{pdf.pdfFilename}</p>
-                                                <p className="font-quicksand text-[#a7613c] text-[10px]">{pdf.numQuestions} questions</p>
+                                                <p className="font-quicksand font-bold text-[#473025] text-[12px] truncate">{pdf.filename}</p>
+                                                <p className="font-quicksand text-[#a7613c] text-[10px]">{(pdf.fileSize / 1024 / 1024).toFixed(2)} MB</p>
                                             </div>
                                         </div>
                                         <button
-                                            onClick={() => handleRemovePDF(pdf.quizId)}
-                                            disabled={attachedPDFs.length === 1 || isSaving}
+                                            onClick={() => handleRemoveSourcePDF(pdf.id)}
+                                            disabled={sourcePDFs.length === 1 || isSaving}
                                             className="font-quicksand font-bold text-[11px] text-[#ff4880] hover:text-red-600 disabled:text-gray-400 disabled:cursor-not-allowed px-2 py-1 transition-all"
                                         >
                                             Remove
                                         </button>
                                     </div>
                                 ))}
-                                {attachedPDFs.length === 0 && (
+                                {sourcePDFs.length === 0 && (
                                     <div className="text-center py-6">
                                         <div className="w-[48px] h-[48px] bg-[#fff6e8] rounded-full flex items-center justify-center mx-auto mb-2">
                                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                 <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" stroke="#a7613c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                                             </svg>
                                         </div>
-                                        <p className="text-[#a7613c] font-quicksand font-semibold text-[12px] mb-1">No PDFs attached</p>
-                                        <p className="text-[#be9f91] font-quicksand text-[10px]">Add PDFs to generate content</p>
+                                        <p className="text-[#a7613c] font-quicksand font-semibold text-[12px] mb-1">No PDFs found</p>
+                                        <p className="text-[#be9f91] font-quicksand text-[10px]">Upload PDFs to generate content</p>
                                     </div>
                                 )}
                             </div>
@@ -477,12 +515,21 @@ function GameEditContent() {
                                 <div className="flex items-center gap-2">
                                     <h2 className="font-quicksand font-bold text-[#473025] text-[18px]">Questions ({questions.length})</h2>
                                 </div>
-                                <button
-                                    onClick={handleAddQuestion}
-                                    className="bg-[#96b902] text-white font-quicksand font-bold text-[11px] px-2.5 py-1.5 rounded-[6px] hover:bg-[#82a002] transition-all"
-                                >
-                                    + Add
-                                </button>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={handleRegenerateQuestions}
+                                        disabled={isRegenerating || isSaving || sourcePDFs.length === 0}
+                                        className="bg-[#ff9f22] text-white font-quicksand font-bold text-[11px] px-2.5 py-1.5 rounded-[6px] hover:bg-[#e6832b] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                    >
+                                        {isRegenerating ? 'Regenerating...' : '🔄 Regenerate'}
+                                    </button>
+                                    <button
+                                        onClick={handleAddQuestion}
+                                        className="bg-[#96b902] text-white font-quicksand font-bold text-[11px] px-2.5 py-1.5 rounded-[6px] hover:bg-[#82a002] transition-all"
+                                    >
+                                        + Add
+                                    </button>
+                                </div>
                             </div>
                             <div className="space-y-2 mb-3 max-h-[600px] overflow-y-auto pr-1">
                                 {questions.map((question, index) => (
@@ -607,62 +654,6 @@ function GameEditContent() {
                     </button>
                 </div>
 
-            {showAddPDFModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-[16px] border-[3px] border-[#473025] p-5 max-w-md w-full max-h-[70vh] overflow-y-auto shadow-2xl">
-                        <div className="flex items-center justify-between mb-4">
-                            <div className="flex items-center gap-2">
-                                <div className="w-[32px] h-[32px] bg-[#ff9f22] rounded-[8px] flex items-center justify-center">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" fill="white"/>
-                                        <polyline points="14,2 14,8 20,8" fill="white"/>
-                                    </svg>
-                                </div>
-                                <h3 className="font-quicksand font-bold text-[#473025] text-[18px]">Add Study Material</h3>
-                            </div>
-                            <button onClick={() => setShowAddPDFModal(false)} className="text-[#a7613c] hover:text-[#473025]">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                                </svg>
-                            </button>
-                        </div>
-                        <div className="space-y-2 mb-4">
-                            {availableQuizzes.map((quiz) => (
-                                <button
-                                    key={quiz.id}
-                                    onClick={() => handleAddPDF(quiz.id)}
-                                    disabled={isSaving}
-                                    className="w-full text-left p-3 bg-[#fff6e8] border-2 border-[#ffb554] rounded-[8px] hover:border-[#ff9f22] hover:shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                                >
-                                    <p className="font-quicksand font-bold text-[#473025] text-[13px] mb-0.5">{quiz.title}</p>
-                                    <p className="font-quicksand text-[#a7613c] text-[11px]">
-                                        {quiz.pdfFilename} • {quiz.numQuestions} questions
-                                    </p>
-                                </button>
-                            ))}
-                            {availableQuizzes.length === 0 && (
-                                <div className="text-center py-8">
-                                    <div className="w-[48px] h-[48px] bg-[#fff6e8] rounded-full flex items-center justify-center mx-auto mb-2">
-                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="#a7613c" strokeWidth="2"/>
-                                            <polyline points="22,6 12,13 2,6" stroke="#a7613c" strokeWidth="2"/>
-                                        </svg>
-                                    </div>
-                                    <p className="text-[#a7613c] font-quicksand font-semibold text-[12px] mb-1">No PDFs Available</p>
-                                    <p className="text-[#be9f91] font-quicksand text-[10px] max-w-[250px] mx-auto">All quizzes are attached or upload new PDFs</p>
-                                </div>
-                            )}
-                        </div>
-                        <button
-                            onClick={() => setShowAddPDFModal(false)}
-                            disabled={isSaving}
-                            className="w-full bg-[#fff6e8] border-2 border-[#ffb554] text-[#473025] font-quicksand font-semibold text-[13px] py-2.5 rounded-[8px] hover:bg-[#fff0d8] hover:border-[#ff9f22] transition-all"
-                        >
-                            Close
-                        </button>
-                    </div>
-                </div>
-            )}
     </div>
     );
 }
