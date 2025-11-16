@@ -129,10 +129,12 @@ function SnakeGameContent() {
     );
   }
 
-  // Render SnakeGame with quiz data
+  // Render SnakeGame with quiz data and gameId
+  // ANALYTICS SYSTEM - Pass gameId to enable session tracking
+  // If no gameId in URL params, game runs in demo mode (no analytics)
   return (
     <div id="phaser-container" className="w-full h-screen flex items-center justify-center bg-[#2d3436]">
-      <SnakeGame quiz={quiz} />
+      <SnakeGame quiz={quiz} gameId={gameId || undefined} />
     </div>
   );
 }
