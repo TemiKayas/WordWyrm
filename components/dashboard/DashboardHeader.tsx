@@ -27,7 +27,7 @@ export default function DashboardHeader({
   return (
     <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 md:mb-8 gap-4 md:gap-0">
       <h1 className="font-quicksand font-bold text-[#473025] text-[24px] md:text-[30px] lg:text-[36px]">
-        Instructor Dashboard
+        {userRole === 'STUDENT' ? 'Student Dashboard' : 'Instructor Dashboard'}
       </h1>
 
       <div className="flex items-center gap-3 md:gap-4">

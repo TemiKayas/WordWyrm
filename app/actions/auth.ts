@@ -6,6 +6,17 @@ import { hash } from 'bcryptjs';
 import { z } from 'zod';
 import { AuthError } from 'next-auth';
 
+// Helper to check if error is a redirect error from Next.js
+function isRedirectError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'digest' in error &&
+    typeof error.digest === 'string' &&
+    error.digest.startsWith('NEXT_REDIRECT')
+  );
+}
+
 // Validation schemas
 const signupSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
@@ -89,7 +100,12 @@ export async function signup(
         redirectTo: redirectPath,
       });
     } catch (error) {
-      // If auto-signin fails, user needs to login manually
+      // Re-throw redirect errors (this is how Next.js handles redirects)
+      if (isRedirectError(error)) {
+        throw error;
+      }
+
+      // If auto-signin fails for other reasons, user needs to login manually
       console.error('Auto-signin failed:', error);
       // Return success but user will need to login
       return {
@@ -179,6 +195,11 @@ export async function login(
       data: { message: 'Logged in successfully', role: user.role },
     };
   } catch (error) {
+    // Re-throw redirect errors (this is how Next.js handles redirects in server actions)
+    if (isRedirectError(error)) {
+      throw error;
+    }
+
     if (error instanceof z.ZodError) {
       return {
         success: false,

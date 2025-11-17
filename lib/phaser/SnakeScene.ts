@@ -2012,7 +2012,7 @@ export default class SnakeScene extends Phaser.Scene {
 
       // Call the server action to save the session
       // The server action handles authentication and database writes
-      const result = await saveGameSession({
+      let result = await saveGameSession({
         gameId: this.gameId,
         score: this.score,
         correctAnswers: this.correctAnswers,
@@ -2021,8 +2021,30 @@ export default class SnakeScene extends Phaser.Scene {
         metadata  // Snake-specific stats go here
       });
 
+      // If failed and asks for player name, prompt for guest name
+      if (!result.success && result.error.includes('player name')) {
+        const guestName = prompt('Please enter your name to save your score:');
+
+        if (guestName && guestName.trim()) {
+          result = await saveGameSession({
+            gameId: this.gameId,
+            score: this.score,
+            correctAnswers: this.correctAnswers,
+            totalQuestions: this.quizData.questions.length,
+            timeSpent,
+            metadata,
+            guestName: guestName.trim()
+          });
+        } else {
+          console.log('No name provided, score not saved');
+          return;
+        }
+      }
+
       if (!result.success) {
         console.error('Failed to save game session:', result.error);
+      } else {
+        console.log('Game session saved successfully!');
       }
     } catch (error) {
       console.error('Error saving game session:', error);
