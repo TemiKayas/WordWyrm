@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { deleteQuiz, updateQuizTitle } from '@/app/actions/quiz';
 import { createGameFromQuiz } from '@/app/actions/game';
+import Button from '@/components/ui/Button';
 
 interface QuizCardProps {
   quiz: {
@@ -123,21 +124,23 @@ export default function QuizCard({ quiz, onUpdate }: QuizCardProps) {
             autoFocus
           />
           <div className="flex gap-2 mt-2">
-            <button
+            <Button
               onClick={handleSaveTitle}
-              className="px-3 py-1 bg-[#96b902] text-white rounded font-quicksand text-sm"
+              variant="success"
+              size="sm"
             >
               Save
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={() => {
                 setIsEditing(false);
                 setEditedTitle(quiz.title || 'Untitled Quiz');
               }}
-              className="px-3 py-1 bg-gray-300 text-brown rounded font-quicksand text-sm"
+              variant="secondary"
+              size="sm"
             >
               Cancel
-            </button>
+            </Button>
           </div>
         </div>
       ) : (
@@ -164,20 +167,23 @@ export default function QuizCard({ quiz, onUpdate }: QuizCardProps) {
       {/* action buttons */}
       <div className="flex gap-2 flex-wrap">
         {quiz.hasGame ? (
-          <button
+          <Button
             onClick={handleViewGame}
-            className="bg-[#96b902] hover:bg-[#7a9700] text-white font-quicksand font-medium text-sm rounded-lg px-4 py-2 transition-all"
+            variant="success"
+            size="sm"
           >
             View Game
-          </button>
+          </Button>
         ) : (
-          <button
+          <Button
             onClick={handleCreateGame}
             disabled={isCreatingGame}
-            className="bg-[#96b902] hover:bg-[#7a9700] text-white font-quicksand font-medium text-sm rounded-lg px-4 py-2 transition-all disabled:opacity-50"
+            isLoading={isCreatingGame}
+            variant="success"
+            size="sm"
           >
             {isCreatingGame ? 'Creating...' : 'Create Game'}
-          </button>
+          </Button>
         )}
       </div>
 

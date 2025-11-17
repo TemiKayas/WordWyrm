@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Menu, Bell } from 'lucide-react';
 import { useState } from 'react';
+import { useProfile } from '@/lib/contexts/ProfileContext';
 
 /**
  * DaisyUI navigation bar with dropdown menu, logo, and sign out
@@ -28,6 +29,7 @@ export default function Navbar({
 }: NavbarProps) {
   const router = useRouter();
   const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const { profilePictureId } = useProfile();
 
   const handleMenuClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -62,7 +64,7 @@ export default function Navbar({
         <Link href={logoHref} className="cursor-pointer">
           <div className="w-28 h-28 md:w-36 md:h-36 relative">
             <Image
-              src="/assets/game-preview/wordwyrm-icon.png"
+              src="/LearnWyrmLogo.svg"
               alt="WordWyrm"
               fill
               className="object-contain"
@@ -100,10 +102,16 @@ export default function Navbar({
             <div className="relative">
               <button
                 onClick={() => setShowUserDropdown(!showUserDropdown)}
-                className="btn btn-circle bg-[#96b902] border-2 border-[#473025] hover:bg-[#7a9700] text-white font-quicksand font-bold text-[16px]"
+                className="btn btn-circle bg-[#473025] border-2 border-[#473025] hover:bg-[#5a3d2e] p-0 overflow-hidden"
                 aria-label="User menu"
               >
-                {userName.charAt(0).toUpperCase()}
+                <Image
+                  src="/assets/dashboard/floopa-character.png"
+                  alt="Profile"
+                  width={48}
+                  height={48}
+                  className="object-cover"
+                />
               </button>
 
               {/* Dropdown Menu */}

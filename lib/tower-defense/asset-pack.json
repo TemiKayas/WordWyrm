@@ -1,0 +1,152 @@
+{
+  "section1": {
+    "files": [
+      {
+        "type": "image",
+        "key": "tower_ballista",
+        "url": "assets/Tower_Ballista.PNG"
+      },
+      {
+        "type": "image",
+        "key": "tower_catapult",
+        "url": "assets/Tower_Catapult.PNG"
+      },
+      {
+        "type": "image",
+        "key": "tower_melee_back",
+        "url": "assets/Tower_MeleeBack.PNG"
+      },
+      {
+        "type": "image",
+        "key": "tower_melee_front",
+        "url": "assets/Tower_MeleeFront.PNG"
+      },
+      {
+        "type": "image",
+        "key": "tower_wizard_back",
+        "url": "assets/Tower_WizardBack.PNG"
+      },
+      {
+        "type": "image",
+        "key": "tower_wizard_front",
+        "url": "assets/Tower_WizardFront.PNG"
+      },
+      {
+        "type": "image",
+        "key": "projectile_ballista",
+        "url": "assets/Projectile_Ballista.PNG"
+      },
+      {
+        "type": "image",
+        "key": "projectile_catapult",
+        "url": "assets/Projectile_Catapult.PNG"
+      },
+      {
+        "type": "image",
+        "key": "projectile_archer",
+        "url": "assets/Projectile_Archer.PNG"
+      },
+      {
+        "type": "image",
+        "key": "projectile_cannon",
+        "url": "assets/Projectile_Cannon.PNG"
+      },
+      {
+        "type": "image",
+        "key": "projectile_melee",
+        "url": "assets/Projectile_Melee.PNG"
+      },
+      {
+        "type": "image",
+        "key": "projectile_wizard",
+        "url": "assets/Projectile_Wizard.PNG"
+      },
+      {
+        "type": "image",
+        "key": "icon_ballista",
+        "url": "assets/Icon_Ballista.PNG"
+      },
+      {
+        "type": "image",
+        "key": "icon_catapult",
+        "url": "assets/Icon_Catapult.PNG"
+      },
+      {
+        "type": "image",
+        "key": "icon_melee",
+        "url": "assets/Icon_Melee.PNG"
+      },
+      {
+        "type": "image",
+        "key": "icon_wizard",
+        "url": "assets/Icon_Wizard.PNG"
+      },
+      {
+        "type": "image",
+        "key": "icon_powerup",
+        "url": "assets/Icon_PowerUp.PNG"
+      },
+      {
+        "type": "image",
+        "key": "icon_lightning",
+        "url": "assets/Icon_Lightning.PNG"
+      },
+      {
+        "type": "image",
+        "key": "icon_freeze",
+        "url": "assets/Icon_Freeze.PNG"
+      },
+      {
+        "type": "image",
+        "key": "icon_select",
+        "url": "assets/Icon_Select.PNG"
+      },
+      {
+        "type": "image",
+        "key": "stage1_bg",
+        "url": "assets/Stage1_BG.png"
+      },
+      {
+        "type": "image",
+        "key": "stage2_bg",
+        "url": "assets/Stage2_BG.png"
+      },
+      {
+        "type": "image",
+        "key": "stage3_bg",
+        "url": "assets/Stage3_BG.png"
+      },
+      {
+        "type": "image",
+        "key": "stage2",
+        "url": "assets/stage2.png"
+      },
+      {
+        "type": "image",
+        "key": "stage3",
+        "url": "assets/stage3.png"
+      },
+      {
+        "type": "image",
+        "key": "grass_map",
+        "url": "assets/GrassMap.PNG"
+      },
+      {
+        "type": "image",
+        "key": "background_back",
+        "url": "assets/back.PNG"
+      },
+      {
+        "type": "image",
+        "key": "background_front",
+        "url": "assets/front.PNG"
+      }
+    ]
+  },
+  "meta": {
+    "app": "Phaser Editor 2D - Asset Pack Editor",
+    "url": "https://phasereditor2d.com",
+    "contentType": "phasereditor2d.pack.core.AssetContentType",
+    "version": 2
+  }
+}

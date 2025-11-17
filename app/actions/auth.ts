@@ -5,6 +5,7 @@ import { signIn } from '@/lib/auth';
 import { hash } from 'bcryptjs';
 import { z } from 'zod';
 import { AuthError } from 'next-auth';
+import { redirect } from 'next/navigation';
 
 // Validation schemas
 const signupSchema = z.object({
@@ -77,18 +78,28 @@ export async function signup(
       });
     }
 
-    // Auto sign in after signup
+    // Auto sign in after signup with redirect
+    const redirectPath = validatedData.role === 'TEACHER'
+      ? '/teacher/dashboard'
+      : '/student/dashboard';
+
     try {
       await signIn('credentials', {
         email: validatedData.email,
         password: validatedData.password,
-        redirect: false,
+        redirectTo: redirectPath,
       });
     } catch (error) {
-      // If auto-signin fails, it's okay - user can manually login
+      // If auto-signin fails, user needs to login manually
       console.error('Auto-signin failed:', error);
+      // Return success but user will need to login
+      return {
+        success: true,
+        data: { message: 'Account created successfully. Please login.', role: user.role },
+      };
     }
 
+    // This will never be reached if signIn succeeds (it redirects)
     return {
       success: true,
       data: { message: 'Account created successfully', role: user.role },
@@ -110,7 +121,8 @@ export async function signup(
 }
 
 export async function login(
-  formData: FormData
+  formData: FormData,
+  callbackUrl?: string
 ): Promise<ActionResult<{ message: string; role: string }>> {
   try {
     // Extract and validate data
@@ -133,13 +145,36 @@ export async function login(
       };
     }
 
-    // Attempt sign in
+    // Determine redirect path
+    // If there's a callback URL and it matches user's role, use it
+    // Otherwise, redirect to appropriate dashboard
+    let redirectPath = user.role === 'TEACHER'
+      ? '/teacher/dashboard'
+      : user.role === 'STUDENT'
+      ? '/student/dashboard'
+      : '/';
+
+    if (callbackUrl) {
+      // Validate callback URL is safe and matches user's role
+      const isTeacherRoute = callbackUrl.startsWith('/teacher');
+      const isStudentRoute = callbackUrl.startsWith('/student');
+
+      if ((isTeacherRoute && user.role === 'TEACHER') ||
+          (isStudentRoute && user.role === 'STUDENT')) {
+        redirectPath = callbackUrl;
+      }
+    }
+
+    // Attempt sign in with redirect
+    // NextAuth will handle the session creation and redirect
     await signIn('credentials', {
       email: validatedData.email,
       password: validatedData.password,
-      redirect: false,
+      redirectTo: redirectPath,
     });
 
+    // This line will never be reached because signIn will redirect
+    // But we need it for TypeScript
     return {
       success: true,
       data: { message: 'Logged in successfully', role: user.role },

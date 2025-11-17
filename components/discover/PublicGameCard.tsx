@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { GameMode, Subject } from '@prisma/client';
 import { FileText, Castle, Gamepad2, User, HelpCircle, Users } from 'lucide-react';
+import Button from '@/components/ui/Button';
 
 interface PublicGameCardProps {
   game: {
@@ -129,12 +130,15 @@ export default function PublicGameCard({ game }: PublicGameCardProps) {
       </div>
 
       {/* Play Button */}
-      <button
+      <Button
         onClick={handlePlay}
-        className="w-full bg-[#96b902] border-[3px] border-[#006029] rounded-[15px] h-[44px] font-quicksand font-bold text-white text-[15px] hover:bg-[#a8cc00] transition-all shadow-[0_6px_0_0_#006029] hover:shadow-[0_8px_0_0_#006029] active:shadow-[0_2px_0_0_#006029] hover:-translate-y-0.5 active:translate-y-1 cursor-pointer"
+        variant="play"
+        size="md"
+        fullWidth
+        className="h-[44px]"
       >
         Play Now
-      </button>
+      </Button>
     </div>
   );
 }

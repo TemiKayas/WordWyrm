@@ -3,7 +3,9 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import { GameMode } from '@prisma/client';
-import { FileText, Gamepad2, BarChart3 } from 'lucide-react';
+
+import { FileText, Gamepad2 } from 'lucide-react';
+import Button from '@/components/ui/Button';
 
 interface GameCardProps {
   title: string;
@@ -175,40 +177,45 @@ export default function GameCard({
       <div className="flex items-center gap-2.5">
         {/* play or edit game button */}
         {isDraft ? (
-          <button
+          <Button
             onClick={onEdit}
-            className="btn-primary w-full bg-[#fd9227] border-[2px] border-[#730f11] rounded-[13px] h-[44px] md:h-[48px] flex items-center justify-center gap-2 hover:bg-[#e6832b] hover:shadow-md active:scale-[0.98] transition-all cursor-pointer"
+            variant="orange"
+            size="md"
+            fullWidth
+            className="h-[44px] md:h-[48px]"
+            icon={
+              <svg width="18" height="18" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M11.3333 2.00004C11.5084 1.82494 11.7163 1.68605 11.9451 1.59129C12.1739 1.49653 12.4191 1.44775 12.6666 1.44775C12.9142 1.44775 13.1594 1.49653 13.3882 1.59129C13.617 1.68605 13.8249 1.82494 14 2.00004C14.1751 2.17513 14.314 2.383 14.4087 2.61182C14.5035 2.84063 14.5523 3.08584 14.5523 3.33337C14.5523 3.58091 14.5035 3.82612 14.4087 4.05493C14.314 4.28375 14.1751 4.49162 14 4.66671L5.00001 13.6667L1.33334 14.6667L2.33334 11L11.3333 2.00004Z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            }
           >
-            <svg width="18" height="18" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M11.3333 2.00004C11.5084 1.82494 11.7163 1.68605 11.9451 1.59129C12.1739 1.49653 12.4191 1.44775 12.6666 1.44775C12.9142 1.44775 13.1594 1.49653 13.3882 1.59129C13.617 1.68605 13.8249 1.82494 14 2.00004C14.1751 2.17513 14.314 2.383 14.4087 2.61182C14.5035 2.84063 14.5523 3.08584 14.5523 3.33337C14.5523 3.58091 14.5035 3.82612 14.4087 4.05493C14.314 4.28375 14.1751 4.49162 14 4.66671L5.00001 13.6667L1.33334 14.6667L2.33334 11L11.3333 2.00004Z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            <span className="font-quicksand font-bold text-white text-[17px] md:text-[19px]">
-              Edit Quiz
-            </span>
-          </button>
+            Edit Quiz
+          </Button>
         ) : (
           <>
-            <button
+            <Button
               onClick={onPlay}
-              className="btn-primary flex-1 bg-[#95b607] border-[2px] border-[#006029] rounded-[13px] h-[44px] md:h-[48px] flex items-center justify-center gap-2 hover:bg-[#7a9700] hover:shadow-md active:scale-[0.98] transition-all cursor-pointer"
+              variant="play"
+              size="md"
+              className="flex-1 h-[44px] md:h-[48px]"
+              icon={
+                <div className="w-[16px] h-[16px] md:w-[18px] md:h-[18px] relative flex-shrink-0">
+                  <Image
+                    src="/assets/dashboard/play-icon-small.svg"
+                    alt="Play"
+                    fill
+                    className="object-contain"
+                  />
+                </div>
+              }
             >
-              <div className="w-[16px] h-[16px] md:w-[18px] md:h-[18px] relative flex-shrink-0">
-                <Image
-                  src="/assets/dashboard/play-icon-small.svg"
-                  alt="Play"
-                  fill
-                  className="object-contain"
-                />
-              </div>
-              <span className="font-quicksand font-bold text-white text-[17px] md:text-[19px]">
-                Play
-              </span>
-            </button>
+              Play
+            </Button>
 
             {/* small edit button */}
             <button
               onClick={onEdit}
-              className="btn-primary bg-[#fd9227] border-[2px] border-[#730f11] rounded-[13px] h-[44px] md:h-[48px] w-[44px] md:w-[48px] flex items-center justify-center hover:bg-[#e6832b] hover:shadow-md active:scale-[0.98] transition-all cursor-pointer flex-shrink-0"
+              className="bg-[#fd9227] hover:bg-[#ffa447] border-[3px] border-[#cc7425] rounded-[15px] h-[44px] md:h-[48px] w-[44px] md:w-[48px] flex items-center justify-center shadow-[0_6px_0_0] shadow-[#cc7425] active:shadow-[0_2px_0_0] active:translate-y-1 hover:-translate-y-0.5 hover:shadow-[0_8px_0_0] transition-all duration-150 cursor-pointer"
               aria-label="Edit quiz"
             >
               <svg width="18" height="18" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">

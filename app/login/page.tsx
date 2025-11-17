@@ -3,35 +3,28 @@
 import { useState, useTransition } from 'react';
 import { login } from '@/app/actions/auth';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import Button from '@/components/ui/Button';
+import { Suspense } from 'react';
 
-export default function LoginPage() {
+function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get('callbackUrl');
 
   async function handleSubmit(formData: FormData) {
     setError(null);
 
     startTransition(async () => {
       try {
-        const result = await login(formData);
+        const result = await login(formData, callbackUrl || undefined);
 
         if (!result.success) {
           setError(result.error);
-        } else {
-          // Redirect based on user role
-          if (result.data.role === 'TEACHER') {
-            router.push('/teacher/dashboard');
-          } else if (result.data.role === 'STUDENT') {
-            router.push('/student/dashboard');
-          } else {
-            router.push('/');
-          }
-          router.refresh();
         }
+        // No need for else - server action will redirect on success
       } catch (err) {
         console.error('Login error:', err);
         setError('An unexpected error occurred');
@@ -147,5 +140,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-cream flex items-center justify-center">Loading...</div>}>
+      <LoginForm />
+    </Suspense>
   );
 }

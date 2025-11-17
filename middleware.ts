@@ -23,13 +23,28 @@ export default auth((req) => {
     return NextResponse.redirect(new URL(redirectPath, req.url));
   }
 
+  // Redirect root to appropriate dashboard if authenticated
+  if (isAuthenticated && path === '/') {
+    const redirectPath = userRole === 'TEACHER'
+      ? '/teacher/dashboard'
+      : userRole === 'STUDENT'
+      ? '/student/dashboard'
+      : '/';
+    if (redirectPath !== '/') {
+      return NextResponse.redirect(new URL(redirectPath, req.url));
+    }
+  }
+
   // Protect teacher routes
   if (path.startsWith('/teacher')) {
     if (!isAuthenticated) {
-      return NextResponse.redirect(new URL('/login', req.url));
+      // Save the attempted URL to redirect back after login
+      const loginUrl = new URL('/login', req.url);
+      loginUrl.searchParams.set('callbackUrl', path);
+      return NextResponse.redirect(loginUrl);
     }
     if (userRole !== 'TEACHER' && userRole !== 'ADMIN') {
-      // Wrong role - redirect to their appropriate dashboard or login
+      // Wrong role - redirect to their appropriate dashboard
       if (userRole === 'STUDENT') {
         return NextResponse.redirect(new URL('/student/dashboard', req.url));
       }
@@ -40,10 +55,13 @@ export default auth((req) => {
   // Protect student routes
   if (path.startsWith('/student')) {
     if (!isAuthenticated) {
-      return NextResponse.redirect(new URL('/login', req.url));
+      // Save the attempted URL to redirect back after login
+      const loginUrl = new URL('/login', req.url);
+      loginUrl.searchParams.set('callbackUrl', path);
+      return NextResponse.redirect(loginUrl);
     }
     if (userRole !== 'STUDENT' && userRole !== 'ADMIN') {
-      // Wrong role - redirect to their appropriate dashboard or login
+      // Wrong role - redirect to their appropriate dashboard
       if (userRole === 'TEACHER') {
         return NextResponse.redirect(new URL('/teacher/dashboard', req.url));
       }

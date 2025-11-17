@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { getGameWithQuiz } from '@/app/actions/game';
-import { GameMode } from '@prisma/client';
+import { Quiz } from '@/lib/processors/ai-generator';
+import TowerDefenseGame from '@/lib/tower-defense/TowerDefenseGame';
 
 /**
  * GAME ROUTER - Redirects to correct game type based on gameMode
