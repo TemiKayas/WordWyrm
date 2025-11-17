@@ -3,75 +3,100 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { getGameWithQuiz } from '@/app/actions/game';
-import { Quiz } from '@/lib/processors/ai-generator';
-import TowerDefenseGame from '@/components/game/TowerDefenseGame';
+import { GameMode } from '@prisma/client';
 
-// main page component for playing a tower defense game
-// fetches game/quiz data from share code in URL, handles loading/error states, renders tower defense game canvas
-export default function TowerDefenseGamePage() {
+/**
+ * GAME ROUTER - Redirects to correct game type based on gameMode
+ *
+ * This page acts as a router that:
+ * 1. Receives a share code from the URL
+ * 2. Fetches the game from the database
+ * 3. Checks the game's gameMode field
+ * 4. Redirects to the appropriate game page:
+ *    - SNAKE -> /play/snake?gameId=...
+ *    - TOWER_DEFENSE -> /play/td?gameId=...
+ *    - TRADITIONAL -> /play/traditional?gameId=...
+ */
+export default function GameRouterPage() {
   const router = useRouter();
-  // get shareCode from URL params
   const params = useParams();
   const shareCode = params.shareCode as string;
 
-  // state for quiz data
-  const [quiz, setQuiz] = useState<Quiz | null>(null);
-  // state for loading status
   const [loading, setLoading] = useState(true);
-  // state for errors during fetch
   const [error, setError] = useState<string | null>(null);
 
-  // effect hook to fetch game data on mount or shareCode change
   useEffect(() => {
     if (!shareCode) return;
 
-    const fetchGame = async () => {
+    const fetchAndRedirect = async () => {
       try {
-        // fetch game and quiz data by share code
+        // Fetch game data by share code
         const result = await getGameWithQuiz(shareCode);
 
         if (result.success) {
           const gameData = result.data.game;
-          // quizJson from server is a string, parse it
-          if (typeof gameData.quiz.quizJson === 'string') {
-            gameData.quiz.quizJson = JSON.parse(gameData.quiz.quizJson);
+          const gameId = gameData.id;
+          const gameMode = gameData.gameMode;
+
+          // Redirect based on game mode
+          switch (gameMode) {
+            case GameMode.SNAKE:
+              router.push(`/play/snake?gameId=${gameId}`);
+              break;
+            case GameMode.TOWER_DEFENSE:
+              router.push(`/play/td?gameId=${gameId}`);
+              break;
+            case GameMode.TRADITIONAL:
+              // Add traditional quiz route when implemented
+              router.push(`/play/traditional?gameId=${gameId}`);
+              break;
+            default:
+              setError(`Unknown game mode: ${gameMode}`);
+              setLoading(false);
           }
-          setQuiz(gameData.quiz.quizJson as unknown as Quiz);
         } else {
-          // set error state if fetch fails
           setError(result.error);
+          setLoading(false);
         }
       } catch (e) {
         setError('An unexpected error occurred.');
         console.error(e);
-      } finally {
-        // set loading to false after fetch
         setLoading(false);
       }
     };
 
-    fetchGame();
-  }, [shareCode]);
+    fetchAndRedirect();
+  }, [shareCode, router]);
 
-  // loading message
+  // Loading state while fetching game and redirecting
   if (loading) {
-    return <div className="flex items-center justify-center min-h-screen">Loading Game...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-[#2d3436]">
+        <div className="text-white font-quicksand font-bold text-xl">
+          Loading Game...
+        </div>
+      </div>
+    );
   }
 
-  // error message
+  // Error state if game fetch failed or unknown game mode
   if (error) {
-    return <div className="flex items-center justify-center min-h-screen">Error: {error}</div>;
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-[#2d3436] gap-4">
+        <div className="text-white font-quicksand font-bold text-xl">
+          Error: {error}
+        </div>
+        <a
+          href="/"
+          className="text-[#95b607] font-quicksand font-semibold hover:underline"
+        >
+          Return to Home
+        </a>
+      </div>
+    );
   }
 
-  // message if quiz data fails to load
-  if (!quiz) {
-    return <div className="flex items-center justify-center min-h-screen">Could not load quiz data.</div>;
-  }
-
-  // render TowerDefenseGame with quiz data
-  return (
-    <div id="tower-defense-container" className="relative w-full h-screen flex items-center justify-center bg-[#8bc34a]">
-      <TowerDefenseGame quiz={quiz} />
-    </div>
-  );
+  // This should never render because we redirect in the useEffect
+  // But TypeScript needs a return statement
+  return null;
 }

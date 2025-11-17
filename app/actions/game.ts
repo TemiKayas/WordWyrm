@@ -612,3 +612,119 @@ export async function getPublicGames(
     return { success: false, error: 'Failed to retrieve public games' };
   }
 }
+
+/**
+ * =============================================================================
+ * SAVE GAME SESSION - ANALYTICS SYSTEM
+ * =============================================================================
+ *
+ * This function saves or updates a student's game session with their performance data.
+ * It's used by all game types to record student progress and enable analytics.
+ *
+ * UNIVERSAL FIELDS (same for all game types):
+ * - score: The final score the student achieved
+ * - correctAnswers: Number of questions answered correctly
+ * - totalQuestions: Total number of questions in the quiz
+ * - timeSpent: Time in seconds the student spent playing (optional)
+ *
+ * GAME-SPECIFIC FIELDS (stored in metadata):
+ * - metadata: A flexible JSON object for game-specific statistics
+ *   Examples:
+ *   - Snake: { longestStreak: 12, finalLength: 25 }
+ *   - Tower Defense: { wavesCompleted: 15, towersBuilt: 8, enemiesDefeated: 250 }
+ *   - Traditional: { accuracy: 0.85, averageTimePerQuestion: 12 }
+ *
+ * HOW TO USE IN YOUR GAME:
+ *
+ * 1. Import the function:
+ *    import { saveGameSession } from '@/app/actions/game';
+ *
+ * 2. Call it when the game ends:
+ *    const result = await saveGameSession({
+ *      gameId: 'your-game-id',
+ *      score: 1000,
+ *      correctAnswers: 8,
+ *      totalQuestions: 10,
+ *      timeSpent: 180,  // 3 minutes
+ *      metadata: {
+ *        // Your game-specific stats (must match keys in lib/game-types.ts)
+ *        customMetric1: value1,
+ *        customMetric2: value2
+ *      }
+ *    });
+ *
+ *    if (result.success) {
+ *      console.log('Session saved!', result.data.sessionId);
+ *    }
+ *
+ * IMPORTANT NOTES:
+ * - Uses upsert: If student played this game before, it updates their session
+ * - Requires authentication: Student must be logged in
+ * - The metadata object should match the metrics defined in lib/game-types.ts
+ * - The analytics dashboard automatically reads these values to display stats
+ */
+export async function saveGameSession(params: {
+  gameId: string;
+  score: number;
+  correctAnswers: number;
+  totalQuestions: number;
+  timeSpent?: number;
+  metadata?: Record<string, any>;  // Game-specific statistics (flexible JSON)
+}): Promise<ActionResult<{ sessionId: string }>> {
+  try {
+    const { gameId, score, correctAnswers, totalQuestions, timeSpent, metadata } = params;
+
+    // Get current user (must be logged in)
+    const session = await auth();
+    if (!session?.user) {
+      return { success: false, error: 'Please log in to save your score' };
+    }
+
+    // Get student profile from database
+    const student = await db.student.findUnique({
+      where: { userId: session.user.id },
+    });
+
+    if (!student) {
+      return { success: false, error: 'Student profile not found' };
+    }
+
+    // Create or update game session using upsert
+    // Note: The unique constraint on (gameId, studentId) means one session per student per game
+    // If the student plays again, this will update their existing session
+    const gameSession = await db.gameSession.upsert({
+      where: {
+        gameId_studentId: {
+          gameId,
+          studentId: student.id,
+        },
+      },
+      create: {
+        gameId,
+        studentId: student.id,
+        score,
+        correctAnswers,
+        totalQuestions,
+        timeSpent,
+        metadata,  // Game-specific stats stored as JSON
+        completedAt: new Date(),
+      },
+      update: {
+        score,
+        correctAnswers,
+        totalQuestions,
+        timeSpent,
+        metadata,  // Updates game-specific stats if playing again
+        completedAt: new Date(),
+      },
+    });
+
+    return { success: true, data: { sessionId: gameSession.id } };
+  } catch (error) {
+    console.error('Failed to save game session:', error);
+    return {
+      success: false,
+      error: 'Failed to save your score. Please try again.',
+    };
+  }
+}

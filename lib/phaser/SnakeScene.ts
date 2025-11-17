@@ -75,7 +75,16 @@ export default class SnakeScene extends Phaser.Scene {
   private score = 0;
   private displayedScore = 0; // For smooth score animation
   private streak = 0; // Consecutive correct answers
+
+  // ANALYTICS SYSTEM - Tracks longest streak for dashboard display
+  private longestStreak = 0; // Highest streak achieved during this session
+
   private correctAnswers = 0; // Total correct answers
+
+  // ANALYTICS SYSTEM - Session tracking variables
+  private gameId?: string; // Game ID for saving session (undefined in demo mode)
+  private startTime = 0; // Timestamp when game started (for calculating time spent)
+
   private exitButton!: Phaser.GameObjects.Rectangle;
 
   // Input
@@ -91,7 +100,12 @@ export default class SnakeScene extends Phaser.Scene {
     super({ key: 'SnakeScene' });
   }
 
-  init(data: { quiz: Quiz }) {
+  init(data: { quiz: Quiz; gameId?: string }) {
+    // ANALYTICS SYSTEM - Store game ID for session saving
+    // gameId is passed from the play page through the SnakeGame component
+    // If undefined, the game is in demo mode and won't save statistics
+    this.gameId = data.gameId;
+
     // Store original quiz data for reshuffling on retry
     this.originalQuizData = JSON.parse(JSON.stringify(data.quiz));
 
@@ -172,9 +186,9 @@ export default class SnakeScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(3001);
 
     this.exitButton.on('pointerdown', () => {
-      // Navigate back
+      // Navigate to student dashboard
       if (typeof window !== 'undefined') {
-        window.history.back();
+        window.location.href = '/student/dashboard';
       }
     });
 
@@ -704,132 +718,130 @@ export default class SnakeScene extends Phaser.Scene {
     // Increment to next question
     this.currentQuestionIndex++;
 
+    // Show feedback overlay for all correct answers (last or not)
+    const screenWidth = this.scale.width;
+    const screenHeight = this.scale.height;
+    const panel = 400;
+    const available = screenWidth - panel;
+    const size = Math.min(available, screenHeight);
+
+    const pauseOverlay = this.add.rectangle(
+      this.gameOffsetX + (size / 2),
+      this.gameOffsetY + (size / 2),
+      size,
+      size,
+      0x000000,
+      0.6
+    ).setDepth(1000).setAlpha(0);
+
+    // Fade in overlay
+    this.tweens.add({
+      targets: pauseOverlay,
+      alpha: 1,
+      duration: 300,
+      ease: 'Power2'
+    });
+
+    const overlayElements: Phaser.GameObjects.GameObject[] = [pauseOverlay];
+
+    // "Correct!" text in green
+    const correctText = this.add.text(
+      this.gameOffsetX + (size / 2),
+      this.gameOffsetY + (size / 2) - 120,
+      'CORRECT!',
+      {
+        fontSize: '64px',
+        color: '#00b894',
+        fontFamily: 'Quicksand, sans-serif',
+        fontStyle: 'bold'
+      }
+    ).setOrigin(0.5).setDepth(1001).setAlpha(0);
+    overlayElements.push(correctText);
+
+    // Fade in and scale animation
+    this.tweens.add({
+      targets: correctText,
+      alpha: 1,
+      scale: { from: 0.8, to: 1 },
+      duration: 400,
+      ease: 'Back.easeOut'
+    });
+
+    // Points earned
+    const pointsText = this.add.text(
+      this.gameOffsetX + (size / 2),
+      this.gameOffsetY + (size / 2) - 60,
+      `+${pointsEarned} points`,
+      {
+        fontSize: '28px',
+        color: '#ffffff',
+        fontFamily: 'Quicksand, sans-serif',
+        fontStyle: 'bold'
+      }
+    ).setOrigin(0.5).setDepth(1001).setAlpha(0);
+    overlayElements.push(pointsText);
+
+    // Fade in with delay
+    this.tweens.add({
+      targets: pointsText,
+      alpha: 1,
+      duration: 300,
+      delay: 200,
+      ease: 'Power2'
+    });
+
+    // Streak
+    const streakDisplayText = this.add.text(
+      this.gameOffsetX + (size / 2),
+      this.gameOffsetY + (size / 2) - 30,
+      `Streak: ${currentStreak}`,
+      {
+        fontSize: '24px',
+        color: '#ffffff',
+        fontFamily: 'Quicksand, sans-serif',
+        fontStyle: 'bold'
+      }
+    ).setOrigin(0.5).setDepth(1001).setAlpha(0);
+    overlayElements.push(streakDisplayText);
+
+    // Fade in with delay
+    this.tweens.add({
+      targets: streakDisplayText,
+      alpha: 1,
+      duration: 300,
+      delay: 300,
+      ease: 'Power2'
+    });
+
+    // Read the question prompt
+    const readPromptText = this.add.text(
+      this.gameOffsetX + (size / 2),
+      this.gameOffsetY + (size / 2) + 20,
+      isLastQuestion ? 'Quiz Complete!' : 'Read the next question!',
+      {
+        fontSize: '32px',
+        color: '#ffffff',
+        fontFamily: 'Quicksand, sans-serif',
+        fontStyle: 'bold',
+        align: 'center'
+      }
+    ).setOrigin(0.5).setDepth(1001).setAlpha(0);
+    overlayElements.push(readPromptText);
+
+    // Fade in prompt
+    this.tweens.add({
+      targets: readPromptText,
+      alpha: 1,
+      duration: 300,
+      delay: 400,
+      ease: 'Power2'
+    });
+
     if (!isLastQuestion) {
-      // Not last question - show next question with correct feedback
-      // Pass the answered question so Explanation button shows correct info
-      this.showQuestion(true, pointsEarned, currentStreak, answeredQuestion);
-    } else {
-      // Last question - show correct feedback then transition to win screen
-      const screenWidth = this.scale.width;
-      const screenHeight = this.scale.height;
-      const panel = 400;
-      const available = screenWidth - panel;
-      const size = Math.min(available, screenHeight);
-
-      const pauseOverlay = this.add.rectangle(
-        this.gameOffsetX + (size / 2),
-        this.gameOffsetY + (size / 2),
-        size,
-        size,
-        0x000000,
-        0.6
-      ).setDepth(1000).setAlpha(0);
-
-      // Fade in overlay
-      this.tweens.add({
-        targets: pauseOverlay,
-        alpha: 1,
-        duration: 300,
-        ease: 'Power2'
-      });
-
-      const overlayElements: Phaser.GameObjects.GameObject[] = [pauseOverlay];
-
-      // "Correct!" text in green
-      const correctText = this.add.text(
-        this.gameOffsetX + (size / 2),
-        this.gameOffsetY + (size / 2) - 120,
-        'CORRECT!',
-        {
-          fontSize: '64px',
-          color: '#00b894',
-          fontFamily: 'Quicksand, sans-serif',
-          fontStyle: 'bold'
-        }
-      ).setOrigin(0.5).setDepth(1001).setAlpha(0);
-      overlayElements.push(correctText);
-
-      // Fade in and scale animation
-      this.tweens.add({
-        targets: correctText,
-        alpha: 1,
-        scale: { from: 0.8, to: 1 },
-        duration: 400,
-        ease: 'Back.easeOut'
-      });
-
-      // Points earned
-      const pointsText = this.add.text(
-        this.gameOffsetX + (size / 2),
-        this.gameOffsetY + (size / 2) - 60,
-        `+${pointsEarned} points`,
-        {
-          fontSize: '28px',
-          color: '#ffffff',
-          fontFamily: 'Quicksand, sans-serif',
-          fontStyle: 'bold'
-        }
-      ).setOrigin(0.5).setDepth(1001).setAlpha(0);
-      overlayElements.push(pointsText);
-
-      // Fade in with delay
-      this.tweens.add({
-        targets: pointsText,
-        alpha: 1,
-        duration: 300,
-        delay: 200,
-        ease: 'Power2'
-      });
-
-      // Streak
-      const streakDisplayText = this.add.text(
-        this.gameOffsetX + (size / 2),
-        this.gameOffsetY + (size / 2) - 30,
-        `Streak: ${currentStreak}`,
-        {
-          fontSize: '24px',
-          color: '#ffffff',
-          fontFamily: 'Quicksand, sans-serif',
-          fontStyle: 'bold'
-        }
-      ).setOrigin(0.5).setDepth(1001).setAlpha(0);
-      overlayElements.push(streakDisplayText);
-
-      // Fade in with delay
-      this.tweens.add({
-        targets: streakDisplayText,
-        alpha: 1,
-        duration: 300,
-        delay: 300,
-        ease: 'Power2'
-      });
-
-      // Completion message
-      const completionText = this.add.text(
-        this.gameOffsetX + (size / 2),
-        this.gameOffsetY + (size / 2) + 20,
-        'Quiz Complete!',
-        {
-          fontSize: '32px',
-          color: '#ffffff',
-          fontFamily: 'Quicksand, sans-serif',
-          fontStyle: 'bold'
-        }
-      ).setOrigin(0.5).setDepth(1001).setAlpha(0);
-      overlayElements.push(completionText);
-
-      // Fade in with delay
-      this.tweens.add({
-        targets: completionText,
-        alpha: 1,
-        duration: 300,
-        delay: 400,
-        ease: 'Power2'
-      });
-
+      // Not last question - show Continue and Explanation buttons
       // Continue button
       const continueButton = this.add.rectangle(
-        this.gameOffsetX + (size / 2),
+        this.gameOffsetX + (size / 2) - 110,
         this.gameOffsetY + (size / 2) + 90,
         200,
         50,
@@ -839,6 +851,82 @@ export default class SnakeScene extends Phaser.Scene {
       overlayElements.push(continueButton);
 
       const continueText = this.add.text(
+        this.gameOffsetX + (size / 2) - 110,
+        this.gameOffsetY + (size / 2) + 90,
+        'Continue',
+        {
+          fontSize: '24px',
+          color: '#ffffff',
+          fontFamily: 'Quicksand, sans-serif',
+          fontStyle: 'bold'
+        }
+      ).setOrigin(0.5).setDepth(1002).setAlpha(0).setScale(0.9);
+      overlayElements.push(continueText);
+
+      // Explanation button
+      const explainButton = this.add.rectangle(
+        this.gameOffsetX + (size / 2) + 110,
+        this.gameOffsetY + (size / 2) + 90,
+        200,
+        50,
+        0x3498db
+      ).setDepth(1001).setAlpha(0).setScale(0.9);
+      explainButton.setInteractive({ useHandCursor: true });
+      overlayElements.push(explainButton);
+
+      const explainText = this.add.text(
+        this.gameOffsetX + (size / 2) + 110,
+        this.gameOffsetY + (size / 2) + 90,
+        'Explanation',
+        {
+          fontSize: '24px',
+          color: '#ffffff',
+          fontFamily: 'Quicksand, sans-serif',
+          fontStyle: 'bold'
+        }
+      ).setOrigin(0.5).setDepth(1002).setAlpha(0).setScale(0.9);
+      overlayElements.push(explainText);
+
+      // Animate buttons in
+      this.tweens.add({
+        targets: [continueButton, continueText, explainButton, explainText],
+        alpha: 1,
+        scale: 1,
+        duration: 300,
+        delay: 500,
+        ease: 'Back.easeOut'
+      });
+
+      // Button hover effects
+      continueButton.on('pointerover', () => continueButton.setFillStyle(0x7a9405));
+      continueButton.on('pointerout', () => continueButton.setFillStyle(0x95b607));
+      explainButton.on('pointerover', () => explainButton.setFillStyle(0x2980b9));
+      explainButton.on('pointerout', () => explainButton.setFillStyle(0x3498db));
+
+      // Continue button click - show next question
+      continueButton.on('pointerdown', () => {
+        overlayElements.forEach(el => el.destroy());
+        this.showQuestion();  // Show next question panel
+      });
+
+      // Explanation button click
+      explainButton.on('pointerdown', () => {
+        this.showExplanation(overlayElements, answeredQuestion, true, answeredQuestion.answer);
+      });
+
+    } else {
+      // Last question - show "View Results" button instead of Continue
+      const viewResultsButton = this.add.rectangle(
+        this.gameOffsetX + (size / 2),
+        this.gameOffsetY + (size / 2) + 90,
+        200,
+        50,
+        0x95b607
+      ).setDepth(1001).setAlpha(0).setScale(0.9);
+      viewResultsButton.setInteractive({ useHandCursor: true });
+      overlayElements.push(viewResultsButton);
+
+      const viewResultsText = this.add.text(
         this.gameOffsetX + (size / 2),
         this.gameOffsetY + (size / 2) + 90,
         'View Results',
@@ -849,11 +937,11 @@ export default class SnakeScene extends Phaser.Scene {
           fontStyle: 'bold'
         }
       ).setOrigin(0.5).setDepth(1002).setAlpha(0).setScale(0.9);
-      overlayElements.push(continueText);
+      overlayElements.push(viewResultsText);
 
       // Animate button in
       this.tweens.add({
-        targets: [continueButton, continueText],
+        targets: [viewResultsButton, viewResultsText],
         alpha: 1,
         scale: 1,
         duration: 300,
@@ -862,11 +950,11 @@ export default class SnakeScene extends Phaser.Scene {
       });
 
       // Button hover
-      continueButton.on('pointerover', () => continueButton.setFillStyle(0x7a9405));
-      continueButton.on('pointerout', () => continueButton.setFillStyle(0x95b607));
+      viewResultsButton.on('pointerover', () => viewResultsButton.setFillStyle(0x7a9405));
+      viewResultsButton.on('pointerout', () => viewResultsButton.setFillStyle(0x95b607));
 
-      // Continue click - go to win screen
-      continueButton.on('pointerdown', () => {
+      // Click - go to win screen
+      viewResultsButton.on('pointerdown', () => {
         overlayElements.forEach(el => el.destroy());
         this.winGame();
       });
@@ -944,6 +1032,12 @@ export default class SnakeScene extends Phaser.Scene {
   startRound() {
     this.isPausedForQuestion = false;
     this.gameStarted = true;
+
+    // ANALYTICS SYSTEM - Track start time for time spent calculation
+    // Only set on first round, not on subsequent rounds after answering questions
+    if (this.startTime === 0) {
+      this.startTime = Date.now();
+    }
 
     // Re-enable exit button
     this.exitButton.setInteractive({ useHandCursor: true });
@@ -1102,6 +1196,13 @@ export default class SnakeScene extends Phaser.Scene {
         // Correct answer!
         this.streak++;
         this.correctAnswers++;
+
+        // ANALYTICS SYSTEM - Track longest streak achieved
+        // This is saved to the database for analytics dashboard display
+        // Updates whenever the current streak surpasses the previous record
+        if (this.streak > this.longestStreak) {
+          this.longestStreak = this.streak;
+        }
 
         // Calculate score with streak bonus: base 10 + (streak - 1) * 5
         const baseScore = 10;
@@ -1838,8 +1939,90 @@ export default class SnakeScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * =============================================================================
+   * ANALYTICS SYSTEM - SAVE GAME SESSION
+   * =============================================================================
+   *
+   * This method saves the student's game performance to the database when the
+   * game ends (either by winning or losing). It's called automatically from
+   * both endGame() and winGame() methods.
+   *
+   * WHAT IT SAVES:
+   * 1. Universal metrics (same for all game types):
+   *    - score: Final score achieved
+   *    - correctAnswers: Number of questions answered correctly
+   *    - totalQuestions: Total number of questions in the quiz
+   *    - timeSpent: Time in seconds from game start to game end
+   *
+   * 2. Snake-specific metrics (stored in metadata JSON):
+   *    - longestStreak: Highest consecutive correct answers achieved
+   *    - finalLength: Length of the snake when game ended
+   *    - totalQuestions: Included in metadata for consistency
+   *
+   * HOW TO ADAPT FOR YOUR GAME:
+   * If you're working on a different game type:
+   * 1. Add your game's metrics to lib/game-types.ts
+   * 2. Track those metrics as private variables in your scene class
+   * 3. Create a similar saveSession() method with your metadata:
+   *    const metadata = {
+   *      yourMetric1: this.yourValue1,
+   *      yourMetric2: this.yourValue2
+   *    };
+   * 4. Call it when your game ends
+   *
+   * The analytics dashboard will automatically display your metrics!
+   */
+  async saveSession() {
+    // Only save if we have a gameId (not demo mode)
+    // Demo mode doesn't have a gameId because it's not tied to a real game record
+    if (!this.gameId) {
+      return;
+    }
+
+    try {
+      // Calculate time spent in seconds
+      const timeSpent = this.startTime > 0
+        ? Math.floor((Date.now() - this.startTime) / 1000)
+        : 0;
+
+      // Prepare metadata with Snake-specific statistics
+      // These keys must match the metrics defined in lib/game-types.ts for SNAKE
+      const metadata = {
+        longestStreak: this.longestStreak,      // Tracked in correct answer handler
+        finalLength: this.snake.length,         // Current snake length at game end
+        totalQuestions: this.quizData.questions.length
+      };
+
+      // Dynamically import the server action to avoid bundling issues
+      // This prevents the server action from being bundled into the client code
+      const { saveGameSession } = await import('@/app/actions/game');
+
+      // Call the server action to save the session
+      // The server action handles authentication and database writes
+      const result = await saveGameSession({
+        gameId: this.gameId,
+        score: this.score,
+        correctAnswers: this.correctAnswers,
+        totalQuestions: this.quizData.questions.length,
+        timeSpent,
+        metadata  // Snake-specific stats go here
+      });
+
+      if (!result.success) {
+        console.error('Failed to save game session:', result.error);
+      }
+    } catch (error) {
+      console.error('Error saving game session:', error);
+    }
+  }
+
   endGame(reason: string) {
     this.gameOver = true;
+
+    // ANALYTICS SYSTEM - Save game session to database
+    // This records the student's performance for the analytics dashboard
+    this.saveSession();
 
     // Disable exit button
     this.exitButton.disableInteractive();
@@ -1899,8 +2082,12 @@ export default class SnakeScene extends Phaser.Scene {
   winGame() {
     this.gameOver = true;
 
-    // Disable exit button
-    this.exitButton.disableInteractive();
+    // ANALYTICS SYSTEM - Save game session to database
+    // This records the student's performance for the analytics dashboard
+    this.saveSession();
+
+    // Re-enable exit button so player can exit from win screen
+    this.exitButton.setInteractive({ useHandCursor: true });
 
     const width = this.scale.width;
     const height = this.scale.height;

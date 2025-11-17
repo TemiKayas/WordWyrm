@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import { GameMode } from '@prisma/client';
-import { FileText, Gamepad2 } from 'lucide-react';
+import { FileText, Gamepad2, BarChart3 } from 'lucide-react';
 
 interface GameCardProps {
   title: string;
@@ -16,6 +16,7 @@ interface GameCardProps {
   onPlay?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
+  onViewAnalytics?: () => void;  // ANALYTICS SYSTEM - Navigate to analytics dashboard
 }
 
 export default function GameCard({
@@ -29,6 +30,7 @@ export default function GameCard({
   onPlay,
   onEdit,
   onDelete,
+  onViewAnalytics,
 }: GameCardProps) {
   const [showMenu, setShowMenu] = useState(false);
 
@@ -45,6 +47,11 @@ export default function GameCard({
 
   const handleEdit = () => {
     onEdit?.();
+    setShowMenu(false);
+  };
+
+  const handleViewAnalytics = () => {
+    onViewAnalytics?.();
     setShowMenu(false);
   };
 
@@ -81,6 +88,19 @@ export default function GameCard({
                 </svg>
                 Edit Quiz
               </button>
+              {/* ANALYTICS SYSTEM - Show analytics button only for published games (not drafts) */}
+              {!isDraft && onViewAnalytics && (
+                <>
+                  <div className="h-[1px] bg-[#473025]/20 mx-2"/>
+                  <button
+                    onClick={handleViewAnalytics}
+                    className="w-full px-4 py-3 text-left font-quicksand font-bold text-[#95b607] text-[14px] hover:bg-[#fff5e8] transition-colors cursor-pointer flex items-center gap-2"
+                  >
+                    <BarChart3 size={16} strokeWidth={1.5} className="text-[#95b607]" />
+                    View Analytics
+                  </button>
+                </>
+              )}
               <div className="h-[1px] bg-[#473025]/20 mx-2"/>
               <button
                 onClick={handleDelete}
