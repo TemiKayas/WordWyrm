@@ -936,6 +936,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
     });
 
     this.questionPopup = this.add.container(0, 0, [overlay, shadow, panel, headerBg, headerLine, questionNum, questionText, ...answerButtons]);
+    this.questionPopup.setDepth(1000); // Ensure questions always appear on top
   }
 
   handleAnswer(isCorrect: boolean, overlay: Phaser.GameObjects.Rectangle, panel: Phaser.GameObjects.Rectangle, questionText: Phaser.GameObjects.Text, answerButtons: Phaser.GameObjects.Container[]) {
@@ -1994,7 +1995,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
     this.updateUIDisplays();
   }
 
-  showErrorMessage(message: string) {
+  showErrorMessage(message: string, color?: number) {
     if (this.errorMessage) {
       this.errorMessage.destroy();
     }
@@ -2005,8 +2006,12 @@ export default class TowerDefenseScene extends Phaser.Scene {
     const centerX = width / 2;
     const messageY = height * 0.65; // Position in bottom third
 
+    // Convert hex color to CSS color string if provided
+    const textColor = color !== undefined ? `#${color.toString(16).padStart(6, '0')}` : TEXT_STYLES.ERROR_MESSAGE.color;
+
     this.errorMessage = this.add.text(centerX, messageY, message, {
       ...TEXT_STYLES.ERROR_MESSAGE,
+      color: textColor,
       fontSize: Math.min(24, width / 60) + 'px'
     }).setOrigin(0.5);
 
@@ -2706,6 +2711,48 @@ export default class TowerDefenseScene extends Phaser.Scene {
     this.showUpgradeUI();
   }
 
+  // Delete tower and refund 50% of spent gold
+  deleteTower() {
+    if (!this.selectedTower) return;
+
+    const tower = this.selectedTower;
+
+    // Calculate total gold spent on this tower
+    let totalSpent = tower.cost; // Initial purchase price
+
+    // Add upgrade costs
+    if (tower.upgrades.explosive) totalSpent += this.upgradePrices.explosive;
+    if (tower.upgrades.dotArrows) totalSpent += this.upgradePrices.dotArrows;
+    if (tower.upgrades.fasterFireRate) totalSpent += this.upgradePrices.fasterFireRate;
+    if (tower.upgrades.moreDamage) totalSpent += this.upgradePrices.moreDamage;
+
+    // Refund 50% of total spent
+    const refund = Math.floor(totalSpent * 0.5);
+    this.gold += refund;
+
+    // Show feedback message
+    this.showErrorMessage(`Tower sold! +${refund}g`, 0x96b902); // Green color for positive feedback
+
+    // Remove tower from manager (this also destroys graphics)
+    this.towerManager.removeTower(tower);
+
+    // Hide upgrade UI
+    if (this.upgradeContainer) {
+      this.upgradeContainer.destroy();
+      this.upgradeContainer = undefined;
+    }
+    if (this.upgradeSelectionIndicator) {
+      this.upgradeSelectionIndicator.destroy();
+      this.upgradeSelectionIndicator = undefined;
+    }
+
+    // Deselect tower
+    this.selectedTower = null;
+
+    // Update UI displays
+    this.updateUIDisplays();
+  }
+
   // Purchase tower upgrade with knowledge check quiz gate
   // Ballista: DoT arrows, faster fire rate
   // Trebuchet: Explosive projectiles
@@ -2854,6 +2901,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
     });
 
     this.bossQuestionPopup = this.add.container(0, 0, [overlay, panel, warningText, timerText, questionText, ...answerButtons]);
+    this.bossQuestionPopup.setDepth(1000); // Ensure questions always appear on top
   }
 
   // Handle boss question answer (correct or incorrect)
@@ -3030,6 +3078,9 @@ export default class TowerDefenseScene extends Phaser.Scene {
 
     // Add dismiss background at the beginning so it's behind the quiz
     container.addAt(dismissBg, 0);
+
+    // Ensure quiz always appears on top
+    container.setDepth(1000);
 
     return container;
   }
@@ -3715,6 +3766,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
     });
 
     this.challengeQuestionPopup = this.add.container(0, 0, [overlay, shadow, panel, headerBg, headerLine, challengeInfoText, questionText, ...answerButtons]);
+    this.challengeQuestionPopup.setDepth(1000); // Ensure questions always appear on top
   }
 
   // Handle challenge question answer
