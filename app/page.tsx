@@ -4,12 +4,28 @@ import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import Button from '@/components/ui/Button';
+import { gsap } from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
+gsap.registerPlugin(ScrollTrigger);
 
 export default function Home() {
   const [visibleSections, setVisibleSections] = useState<Set<number>>(new Set([0]));
   const sectionRefs = useRef<(HTMLDivElement | null)[]>([]);
   const mainGifRef = useRef<HTMLImageElement>(null);
   const [gifKey, setGifKey] = useState(0);
+
+  // GSAP refs
+  const logoRef = useRef<HTMLDivElement>(null);
+  const gifContainerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const scrollIndicatorRef = useRef<HTMLDivElement>(null);
+  const button1Ref = useRef<HTMLAnchorElement>(null);
+  const button2Ref = useRef<HTMLAnchorElement>(null);
+  const headlineRef = useRef<HTMLHeadingElement>(null);
+  const dragon1Ref = useRef<HTMLDivElement>(null);
+  const dragon2Ref = useRef<HTMLDivElement>(null);
+  const dragon3Ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const observers = sectionRefs.current.map((ref, index) => {
@@ -69,6 +85,143 @@ export default function Home() {
     return () => clearInterval(interval);
   }, []);
 
+  // GSAP Animations
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      // Hero section animations - more dramatic
+      gsap.from(logoRef.current, {
+        y: -100,
+        opacity: 0,
+        scale: 0.5,
+        rotation: -10,
+        duration: 1.2,
+        ease: 'elastic.out(1, 0.5)',
+      });
+
+      gsap.from(gifContainerRef.current, {
+        x: -200,
+        opacity: 0,
+        rotation: -20,
+        duration: 1.2,
+        ease: 'back.out(1.5)',
+        delay: 0.3,
+      });
+
+      gsap.from(headlineRef.current, {
+        scale: 0.8,
+        opacity: 0,
+        duration: 1,
+        ease: 'back.out(2)',
+        delay: 0.6,
+      });
+
+      // Button animations with bounce
+      gsap.from(button1Ref.current, {
+        y: 50,
+        opacity: 0,
+        scale: 0.8,
+        rotation: -5,
+        duration: 1,
+        ease: 'back.out(2)',
+        delay: 0.9,
+      });
+
+      gsap.from(button2Ref.current, {
+        y: 50,
+        opacity: 0,
+        scale: 0.8,
+        rotation: 5,
+        duration: 1,
+        ease: 'back.out(2)',
+        delay: 1.1,
+      });
+
+      // Scroll indicator bounce - more pronounced
+      gsap.to(scrollIndicatorRef.current, {
+        y: 15,
+        duration: 0.7,
+        repeat: -1,
+        yoyo: true,
+        ease: 'power1.inOut',
+      });
+
+      // Floating animation for GIF - gentler
+      gsap.to(gifContainerRef.current, {
+        y: -12,
+        duration: 3,
+        repeat: -1,
+        yoyo: true,
+        ease: 'sine.inOut',
+      });
+
+      // Add wiggle to dragons on hover (continuous subtle movement)
+      gsap.to(dragon1Ref.current, {
+        rotation: 5,
+        y: -5,
+        duration: 2,
+        repeat: -1,
+        yoyo: true,
+        ease: 'sine.inOut',
+      });
+
+      gsap.to(dragon2Ref.current, {
+        rotation: -5,
+        y: 5,
+        duration: 2.5,
+        repeat: -1,
+        yoyo: true,
+        ease: 'sine.inOut',
+      });
+
+      gsap.to(dragon3Ref.current, {
+        rotation: 3,
+        y: -3,
+        duration: 2.2,
+        repeat: -1,
+        yoyo: true,
+        ease: 'sine.inOut',
+      });
+
+      // ScrollTrigger animations for feature sections - more dramatic
+      sectionRefs.current.forEach((section, index) => {
+        if (index === 0 || !section) return;
+
+        const images = section.querySelectorAll('img');
+        const texts = section.querySelectorAll('h3, p');
+
+        gsap.from(texts, {
+          scrollTrigger: {
+            trigger: section,
+            start: 'top 85%',
+            end: 'top 20%',
+            toggleActions: 'play none none reverse',
+          },
+          y: 80,
+          opacity: 0,
+          duration: 1.2,
+          stagger: 0.15,
+          ease: 'power3.out',
+        });
+
+        gsap.from(images, {
+          scrollTrigger: {
+            trigger: section,
+            start: 'top 85%',
+            end: 'top 20%',
+            toggleActions: 'play none none reverse',
+          },
+          scale: 0.5,
+          rotation: index % 2 === 0 ? 25 : -25,
+          opacity: 0,
+          duration: 1.2,
+          ease: 'elastic.out(1, 0.6)',
+        });
+      });
+    });
+
+    return () => ctx.revert();
+  }, []);
+
   return (
     <div className="min-h-screen bg-[#fffaf2] overflow-x-hidden">
       {/* hero section */}
@@ -77,7 +230,7 @@ export default function Home() {
         className="min-h-screen flex flex-col items-center justify-center px-4 sm:px-6 py-8 sm:py-12 relative bg-[#fffaf2]"
       >
         {/* wordwyrm logo */}
-        <div className="mb-6 sm:mb-8 opacity-0 animate-[fadeInScale_0.4s_ease-out_forwards]">
+        <div ref={logoRef} className="mb-6 sm:mb-8">
           <Image
             src="/assets/WordWyrm.svg"
             alt="WordWyrm"
@@ -88,9 +241,9 @@ export default function Home() {
         </div>
 
         {/* main content */}
-        <div className="flex flex-col lg:flex-row items-center gap-6 sm:gap-8 lg:gap-20 max-w-6xl mx-auto opacity-0 animate-[fadeInScale_0.6s_ease-out_0.2s_forwards]">
+        <div className="flex flex-col lg:flex-row items-center gap-6 sm:gap-8 lg:gap-20 max-w-6xl mx-auto">
           {/* left side - gif */}
-          <div className="flex-shrink-0 w-[280px] h-[263px] sm:w-[340px] sm:h-[319px] lg:w-[380px] lg:h-[357px] relative transform transition-transform duration-700">
+          <div ref={gifContainerRef} className="flex-shrink-0 w-[280px] h-[263px] sm:w-[340px] sm:h-[319px] lg:w-[380px] lg:h-[357px] relative">
             <img
               key={`main-gif-${gifKey}`}
               ref={mainGifRef}
@@ -101,20 +254,36 @@ export default function Home() {
           </div>
 
           {/* right side - content */}
-          <div className="flex flex-col items-start gap-6 sm:gap-8 max-w-xl w-full">
-            <h2 className="font-quicksand font-bold text-[#473025] text-[28px] sm:text-[36px] lg:text-[48px] leading-tight text-center lg:text-left w-full">
+          <div ref={contentRef} className="flex flex-col items-start gap-6 sm:gap-8 max-w-xl w-full">
+            <h2 ref={headlineRef} className="font-quicksand font-bold text-[#473025] text-[28px] sm:text-[36px] lg:text-[52px] leading-tight text-center lg:text-left w-full">
               Scales, tales, and everything in between.
             </h2>
 
+            <p className="font-quicksand font-bold text-[#6b4e3d] text-[16px] sm:text-[18px] lg:text-[20px] leading-relaxed text-center lg:text-left w-full">
+              Turn PDFs into playful quizzes. Share instantly. Make learning fun.
+            </p>
+
             <div className="flex flex-col gap-5 sm:gap-[30px] w-full max-w-[413px] mx-auto lg:mx-0">
-              <Link href="/login" className="w-full opacity-0 animate-[fadeInScale_0.8s_ease-out_0.5s_forwards]">
-                <Button variant="secondary" size="lg" className="w-full border-[5px] text-base sm:text-lg transform transition-all duration-200 hover:scale-[1.05] hover:-rotate-1 hover:shadow-2xl active:scale-95">
+              <Link ref={button1Ref} href="/login" className="w-full">
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  className="w-full border-[5px] text-base sm:text-lg"
+                  onMouseEnter={(e) => gsap.to(e.currentTarget, { scale: 1.05, rotation: -1, duration: 0.15 })}
+                  onMouseLeave={(e) => gsap.to(e.currentTarget, { scale: 1, rotation: 0, duration: 0.15 })}
+                >
                   Log in or Sign up
                 </Button>
               </Link>
 
-              <Link href="/join" className="w-full opacity-0 animate-[fadeInScale_0.8s_ease-out_0.7s_forwards]">
-                <Button variant="primary" size="lg" className="w-full border-[5px] text-base sm:text-lg transform transition-all duration-200 hover:scale-[1.05] hover:rotate-1 hover:shadow-2xl active:scale-95">
+              <Link ref={button2Ref} href="/join" className="w-full">
+                <Button
+                  variant="primary"
+                  size="lg"
+                  className="w-full border-[5px] text-base sm:text-lg"
+                  onMouseEnter={(e) => gsap.to(e.currentTarget, { scale: 1.05, rotation: 1, duration: 0.15 })}
+                  onMouseLeave={(e) => gsap.to(e.currentTarget, { scale: 1, rotation: 0, duration: 0.15 })}
+                >
                   I have a Game Code
                 </Button>
               </Link>
@@ -122,15 +291,20 @@ export default function Home() {
           </div>
         </div>
 
-        {/* scroll down arrow */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-[bounce_2s_ease-in-out_infinite] hidden sm:block opacity-0">
-          <Image
-            src="/assets/landing/arrow-down.svg"
-            alt="Scroll down"
-            width={20}
-            height={16}
-            className="opacity-60 rotate-180"
-          />
+        {/* scroll down indicator */}
+        <div
+          ref={scrollIndicatorRef}
+          className="absolute bottom-8 left-1/2 -translate-x-1/2 cursor-pointer opacity-70 hover:opacity-100 transition-opacity"
+          onClick={() => window.scrollTo({ top: window.innerHeight, behavior: 'smooth' })}
+        >
+          <div className="flex flex-col items-center gap-1">
+            <p className="font-quicksand font-bold text-[#473025] text-[11px] uppercase tracking-wide">
+              Scroll
+            </p>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 5v14m0 0l-7-7m7 7l7-7" stroke="#473025" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
         </div>
       </div>
 
@@ -161,18 +335,33 @@ export default function Home() {
 
             {/* right side - dragon image */}
             <div
-              className={`flex-shrink-0 transition-all duration-[1.2s] ease-out delay-200 ${
-                visibleSections.has(1)
-                  ? 'opacity-100 translate-x-0 rotate-0'
-                  : 'opacity-0 translate-x-20 rotate-12'
-              }`}
+              ref={dragon1Ref}
+              className="flex-shrink-0 cursor-pointer transition-all"
+              onMouseEnter={(e) => {
+                gsap.to(e.currentTarget, {
+                  scale: 1.2,
+                  y: -15,
+                  rotation: -12,
+                  duration: 0.5,
+                  ease: 'elastic.out(1, 0.3)',
+                });
+              }}
+              onMouseLeave={(e) => {
+                gsap.to(e.currentTarget, {
+                  scale: 1,
+                  y: 0,
+                  rotation: 0,
+                  duration: 0.6,
+                  ease: 'elastic.out(1, 0.4)',
+                });
+              }}
             >
               <Image
                 src="/assets/landing/dragon-flying.png"
                 alt="Flying dragon creating quizzes"
                 width={326}
                 height={326}
-                className="object-contain w-[220px] sm:w-[280px] lg:w-[326px] h-auto transform transition-transform duration-500 hover:scale-110 hover:-rotate-6"
+                className="object-contain w-[220px] sm:w-[280px] lg:w-[326px] h-auto drop-shadow-2xl"
               />
             </div>
           </div>
@@ -206,18 +395,33 @@ export default function Home() {
 
             {/* left side - dragon image */}
             <div
-              className={`flex-shrink-0 transition-all duration-[1.2s] ease-out delay-200 ${
-                visibleSections.has(2)
-                  ? 'opacity-100 translate-x-0 scale-100'
-                  : 'opacity-0 -translate-x-20 scale-75'
-              }`}
+              ref={dragon2Ref}
+              className="flex-shrink-0 cursor-pointer transition-all"
+              onMouseEnter={(e) => {
+                gsap.to(e.currentTarget, {
+                  scale: 1.2,
+                  x: -10,
+                  rotation: 15,
+                  duration: 0.5,
+                  ease: 'elastic.out(1, 0.3)',
+                });
+              }}
+              onMouseLeave={(e) => {
+                gsap.to(e.currentTarget, {
+                  scale: 1,
+                  x: 0,
+                  rotation: 0,
+                  duration: 0.6,
+                  ease: 'elastic.out(1, 0.4)',
+                });
+              }}
             >
               <Image
                 src="/assets/landing/dragon-teaching.png"
                 alt="Dragon teaching through games"
                 width={312}
                 height={312}
-                className="object-contain w-[210px] sm:w-[270px] lg:w-[312px] h-auto transform transition-transform duration-500 hover:scale-110 hover:rotate-6"
+                className="object-contain w-[210px] sm:w-[270px] lg:w-[312px] h-auto drop-shadow-2xl"
               />
             </div>
           </div>
@@ -251,18 +455,35 @@ export default function Home() {
 
             {/* right side - dragon image */}
             <div
-              className={`flex-shrink-0 transition-all duration-[1.2s] ease-out delay-200 ${
-                visibleSections.has(3)
-                  ? 'opacity-100 translate-x-0 scale-100'
-                  : 'opacity-0 translate-x-20 scale-90'
-              }`}
+              ref={dragon3Ref}
+              className="flex-shrink-0 cursor-pointer transition-all"
+              onMouseEnter={(e) => {
+                gsap.to(e.currentTarget, {
+                  scale: 1.2,
+                  y: -10,
+                  x: 10,
+                  rotation: -10,
+                  duration: 0.5,
+                  ease: 'elastic.out(1, 0.3)',
+                });
+              }}
+              onMouseLeave={(e) => {
+                gsap.to(e.currentTarget, {
+                  scale: 1,
+                  y: 0,
+                  x: 0,
+                  rotation: 0,
+                  duration: 0.6,
+                  ease: 'elastic.out(1, 0.4)',
+                });
+              }}
             >
               <Image
                 src="/assets/landing/dragon-reading.png"
                 alt="Dragon reading and tracking progress"
                 width={285}
                 height={285}
-                className="object-contain w-[195px] sm:w-[250px] lg:w-[285px] h-auto transform transition-transform duration-500 hover:scale-110 hover:-rotate-3"
+                className="object-contain w-[195px] sm:w-[250px] lg:w-[285px] h-auto drop-shadow-2xl"
               />
             </div>
           </div>
@@ -272,26 +493,20 @@ export default function Home() {
       {/* footer CTA */}
       <div
         ref={(el) => { sectionRefs.current[4] = el; }}
-        className="py-12 sm:py-16 lg:py-20 px-4 sm:px-6 bg-[#473025]"
+        className="relative py-20 sm:py-24 lg:py-32 px-4 sm:px-6 bg-[#473025]"
       >
-        <div className="max-w-4xl mx-auto text-center">
-          <h3
-            className={`font-quicksand font-bold text-white text-[28px] sm:text-[36px] lg:text-[42px] mb-6 sm:mb-8 px-2 transition-all duration-[1s] ease-out ${
-              visibleSections.has(4)
-                ? 'opacity-100 translate-y-0'
-                : 'opacity-0 translate-y-10'
-            }`}
-          >
-            Ready to transform your classroom?
-          </h3>
+        <div className="relative max-w-2xl mx-auto text-center">
+          <p className="font-quicksand font-bold text-[#f5e6d3] text-[20px] sm:text-[24px] lg:text-[28px] mb-10 leading-relaxed">
+            Turn your PDFs into engaging quizzes in minutes
+          </p>
+
           <Link href="/signup">
             <Button
               variant="success"
-              className={`text-[20px] sm:text-[24px] lg:text-[28px] px-8 sm:px-10 lg:px-12 py-3 sm:py-4 h-auto transform transition-all duration-[.7s] hover:scale-102 ${
-                visibleSections.has(4)
-                  ? 'opacity-100 translate-y-0'
-                  : 'opacity-0 translate-y-10'
-              }`}
+              size="lg"
+              className="text-[18px] sm:text-[20px] lg:text-[22px] px-12 sm:px-14 lg:px-16 border-[5px]"
+              onMouseEnter={(e) => gsap.to(e.currentTarget, { scale: 1.05, duration: 0.2 })}
+              onMouseLeave={(e) => gsap.to(e.currentTarget, { scale: 1, duration: 0.2 })}
             >
               Get Started for Free
             </Button>
