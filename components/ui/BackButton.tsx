@@ -30,11 +30,11 @@ export default function BackButton({
     }
   };
 
-  const baseStyles = "inline-flex items-center gap-2 font-quicksand font-bold transition-all cursor-pointer";
+  const baseStyles = "inline-flex items-center gap-2 font-quicksand font-bold transition-all duration-150 cursor-pointer";
 
   const variantStyles = {
-    primary: "bg-[#fd9227] border-[1.5px] border-[#730f11] rounded-[8px] h-[38px] px-4 text-white hover:bg-[#e6832b]",
-    secondary: "bg-[#473025] border-[3px] border-[#473025] rounded-[15px] py-2 px-4 text-[#fffbf6] hover:bg-[#5a3d2e]",
+    primary: "bg-[#fd9227] border-[3px] border-[#cc7425] shadow-[0_6px_0_0] shadow-[#cc7425] active:shadow-[0_2px_0_0] active:translate-y-1 hover:-translate-y-0.5 hover:shadow-[0_8px_0_0] rounded-[15px] h-[38px] px-4 text-white hover:bg-[#ffa447]",
+    secondary: "bg-[#473025] border-[3px] border-[#2d1f18] shadow-[0_6px_0_0] shadow-[#2d1f18] active:shadow-[0_2px_0_0] active:translate-y-1 hover:-translate-y-0.5 hover:shadow-[0_8px_0_0] rounded-[15px] h-[38px] px-4 text-[#fffbf6] hover:bg-[#5a3d2e]",
     text: "text-[#473025]/60 hover:text-[#473025] text-[14px]"
   };
 

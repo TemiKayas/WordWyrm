@@ -78,7 +78,13 @@ export default function JoinGamePage() {
       setError('Please enter a valid 6-character game code');
       // Shake animation on error
       gsap.to(cardRef.current, {
-        x: [-10, 10, -10, 10, 0],
+        keyframes: [
+          { x: -10 },
+          { x: 10 },
+          { x: -10 },
+          { x: 10 },
+          { x: 0 }
+        ],
         duration: 0.4,
         ease: 'power2.inOut',
       });
@@ -379,12 +385,12 @@ export default function JoinGamePage() {
             <span className="text-[#7b9900]">FREE</span>
             {' '}at{' '}
             <Link
-              href="https://wordwyrm.com"
+              href="https://word-wyrm.vercel.app/"
               target="_blank"
               rel="noopener noreferrer"
               className="text-[#fd9227] underline hover:text-[#ff9f22] transition-colors"
             >
-              WordWyrm.com
+              LearnWyrm.com
             </Link>
           </p>
         </div>
