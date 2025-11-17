@@ -27,13 +27,16 @@ export default function FileUploadButton({ onClick, disabled = false }: FileUplo
       }}
       disabled={disabled}
       className={`
-        relative bg-[#96b902] hover:bg-[#7a9700]
-        text-[#fffdfa] font-bold text-lg
-        rounded-xl px-5 py-3
+        relative bg-[#95b607] hover:bg-[#a8cc00]
+        text-[#fffdfa] font-quicksand font-bold text-lg
+        rounded-[15px] px-5 py-3
         flex items-center justify-center gap-2
-        transition-all duration-300
-        shadow-md hover:shadow-lg
-        ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer active:scale-95'}
+        transition-all duration-150
+        border-[3px] border-[#006029]
+        shadow-[0_6px_0_0] shadow-[#006029]
+        hover:shadow-[0_8px_0_0] hover:-translate-y-0.5
+        active:shadow-[0_2px_0_0] active:translate-y-1
+        ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
       `}
     >
       {/* file icon with plus indicator overlay */}
