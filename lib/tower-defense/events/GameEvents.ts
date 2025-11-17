@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 
 /**
  * Global event bus for cross-scene communication
@@ -13,7 +13,7 @@ export class GameEvents {
    * @param fn - Callback function
    * @param context - Context for 'this' in callback
    */
-  static on(event: string, fn: Function, context?: any): void {
+  static on(event: string, fn: (...args: unknown[]) => void, context?: unknown): void {
     this.emitter.on(event, fn, context);
   }
 
@@ -23,7 +23,7 @@ export class GameEvents {
    * @param fn - Callback function
    * @param context - Context for 'this' in callback
    */
-  static once(event: string, fn: Function, context?: any): void {
+  static once(event: string, fn: (...args: unknown[]) => void, context?: unknown): void {
     this.emitter.once(event, fn, context);
   }
 
@@ -32,7 +32,7 @@ export class GameEvents {
    * @param event - Event name
    * @param args - Arguments to pass to listeners
    */
-  static emit(event: string, ...args: any[]): void {
+  static emit(event: string, ...args: unknown[]): void {
     this.emitter.emit(event, ...args);
   }
 
@@ -42,7 +42,7 @@ export class GameEvents {
    * @param fn - Callback function (optional - removes all if not provided)
    * @param context - Context (optional)
    */
-  static off(event: string, fn?: Function, context?: any): void {
+  static off(event: string, fn?: (...args: unknown[]) => void, context?: unknown): void {
     if (fn) {
       this.emitter.off(event, fn, context);
     } else {

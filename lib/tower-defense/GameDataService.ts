@@ -172,7 +172,7 @@ export class GameDataService {
   /**
    * Load previous game session
    */
-  async loadGameSession(): Promise<any | null> {
+  async loadGameSession(): Promise<unknown | null> {
     if (this.isPhaserEditor()) {
       const saved = localStorage.getItem('towerDefenseSession');
       return saved ? JSON.parse(saved) : null;

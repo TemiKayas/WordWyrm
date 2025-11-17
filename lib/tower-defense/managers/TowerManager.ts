@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 import { Tower, PathPoint } from '@/lib/tower-defense/types/GameTypes';
 import { TOWER_SPRITE_SCALES } from '@/lib/tower-defense/config/GameConfig';
 
@@ -165,7 +165,7 @@ export class TowerManager {
       container.add([backSprite, frontSprite]);
       container.setSize(40, 40);
       container.setInteractive(new Phaser.Geom.Circle(0, 0, 20), Phaser.Geom.Circle.Contains);
-      (container.input! as any).cursor = 'pointer';
+      (container.input! as { cursor?: string }).cursor = 'pointer';
 
       return container;
     } else {

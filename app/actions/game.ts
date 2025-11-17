@@ -516,7 +516,7 @@ export async function getPublicGames(
 > {
   try {
     // Build where clause
-    const where: any = {
+    const where: Record<string, unknown> = {
       isPublic: true,
       active: true,
     };
@@ -540,7 +540,7 @@ export async function getPublicGames(
     }
 
     // Build orderBy
-    const orderBy: any = filters?.sortBy === 'mostPlayed'
+    const orderBy: Record<string, unknown>[] = filters?.sortBy === 'mostPlayed'
       ? [{ gameSessions: { _count: 'desc' } }]
       : [{ createdAt: 'desc' }];
 

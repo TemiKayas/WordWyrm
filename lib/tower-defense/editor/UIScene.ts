@@ -3,6 +3,8 @@
 /* START OF COMPILED CODE */
 
 /* START-USER-IMPORTS */
+import { ResponsiveText } from '@/lib/tower-defense/utils/ResponsiveText';
+import { LAYOUT } from '@/lib/tower-defense/config/LayoutConfig';
 /* END-USER-IMPORTS */
 
 export default class UIScene extends Phaser.Scene {
@@ -416,9 +418,7 @@ export default class UIScene extends Phaser.Scene {
   handleResize(gameSize: Phaser.Structs.Size): void {
     const { width, height } = gameSize;
 
-    // Import responsive utilities (dynamic import to avoid errors during compilation)
-    const ResponsiveText = require('@/lib/tower-defense/utils/ResponsiveText').ResponsiveText;
-    const { LAYOUT } = require('@/lib/tower-defense/config/LayoutConfig');
+    // Use responsive utilities from imports
 
     // Update text font sizes (clamped for readability)
     this.livesText.setFontSize(ResponsiveText.getClampedFontSize(

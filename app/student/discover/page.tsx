@@ -12,7 +12,7 @@ import { Search } from 'lucide-react';
 export default function DiscoverPage() {
   const router = useRouter();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [games, setGames] = useState<any[]>([]);
+  const [games, setGames] = useState<unknown[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [userName, setUserName] = useState('');
@@ -212,8 +212,8 @@ export default function DiscoverPage() {
                     </p>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                    {games.map((game) => (
-                      <PublicGameCard key={game.id} game={game} />
+                    {(games as Array<{ id: string; [key: string]: unknown }>).map((game) => (
+                      <PublicGameCard key={game.id} game={game as never} />
                     ))}
                   </div>
                 </>
