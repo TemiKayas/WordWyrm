@@ -12,12 +12,7 @@
       "Bash(npm run build:*)",
       "Bash(vercel env pull:*)",
       "Bash(vercel env rm:*)",
-      "Bash(vercel env:*)",
-      "mcp__figma-desktop__get_metadata",
-      "mcp__figma-desktop__get_screenshot",
-      "mcp__figma-dev-mode-mcp-server__get_screenshot",
-      "Bash(npm run dev:*)",
-      "mcp__figma-desktop__get_design_context"
+      "Bash(vercel env:*)"
     ],
     "deny": [],
     "ask": []
