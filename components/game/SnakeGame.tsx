@@ -5,11 +5,19 @@ import { Quiz } from '@/lib/processors/ai-generator';
 
 interface SnakeGameProps {
   quiz: Quiz;
+  gameId?: string;  // ANALYTICS SYSTEM - Game ID for saving session (optional for demo mode)
 }
 
-// React component that wraps and manages a Phaser 3 snake quiz game instance
-// Dynamically loads Phaser and game scene, creates game, and destroys on unmount
-const SnakeGame = ({ quiz }: SnakeGameProps) => {
+/**
+ * React component that wraps and manages a Phaser 3 snake quiz game instance
+ * Dynamically loads Phaser and game scene, creates game, and destroys on unmount
+ *
+ * ANALYTICS SYSTEM - gameId prop:
+ * - When provided: Game sessions are saved to the database for analytics
+ * - When undefined: Game runs in demo mode without saving statistics
+ * - Passed through to SnakeScene via scene.start() data parameter
+ */
+const SnakeGame = ({ quiz, gameId }: SnakeGameProps) => {
   // Ref to DOM element for Phaser canvas
   const gameRef = useRef<HTMLDivElement>(null);
   // Ref for Phaser game instance
@@ -50,8 +58,11 @@ const SnakeGame = ({ quiz }: SnakeGameProps) => {
 
         // Create new Phaser game instance
         const game = new Phaser.Game(config);
-        // Start SnakeScene and pass quiz data
-        game.scene.start('SnakeScene', { quiz });
+
+        // Start SnakeScene and pass quiz data and gameId
+        // ANALYTICS SYSTEM - gameId enables session saving in the scene
+        game.scene.start('SnakeScene', { quiz, gameId });
+
         // Store game instance in ref
         gameInstance.current = game;
       }
@@ -66,7 +77,7 @@ const SnakeGame = ({ quiz }: SnakeGameProps) => {
         gameInstance.current = null;
       }
     };
-  }, [quiz]); // Rerun if quiz changes
+  }, [quiz, gameId]); // Rerun if quiz or gameId changes
 
   // Div that contains the Phaser game canvas
   return <div ref={gameRef} />;

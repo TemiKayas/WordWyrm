@@ -125,7 +125,16 @@ Requirements:
 - Questions should test understanding, not just memorization
 - Cover different parts of the text
 - Keep questions clear and concise
-- Follow the subject-specific guidelines above`;
+- Follow the subject-specific guidelines above
+
+CRITICAL - Answer Choice Quality:
+- ALL four options must be SIMILAR in length (within 10-20 words of each other)
+- ALL options must have the SAME level of detail and specificity
+- Incorrect options must be PLAUSIBLE and based on the text (not obviously wrong)
+- Avoid one long detailed correct answer with three short vague wrong answers
+- Each option should follow the same format and structure
+- Wrong answers should be tempting distractors that require careful reading to eliminate
+- Do NOT make the correct answer obvious by making it longer or more detailed than others`;
 
     const result = await model.generateContent(prompt);
     const response = result.response.text();
