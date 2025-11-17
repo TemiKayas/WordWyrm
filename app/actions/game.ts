@@ -5,7 +5,7 @@ import { db } from '@/lib/db';
 import { generateUniqueShareCode } from '@/lib/utils/share-code';
 import { generateGameQRCode } from '@/lib/utils/qr-code';
 import type { Game, Quiz, ProcessedContent, PDF, Subject } from '@prisma/client';
-import { GameMode } from '@prisma/client';
+import { GameMode, Prisma } from '@prisma/client';
 
 //type of server action results, success or fail, T is the type of return.
 type ActionResult<T> =
@@ -669,7 +669,7 @@ export async function saveGameSession(params: {
   correctAnswers: number;
   totalQuestions: number;
   timeSpent?: number;
-  metadata?: Record<string, any>;  // Game-specific statistics (flexible JSON)
+  metadata?: Record<string, unknown>;  // Game-specific statistics (flexible JSON)
 }): Promise<ActionResult<{ sessionId: string }>> {
   try {
     const { gameId, score, correctAnswers, totalQuestions, timeSpent, metadata } = params;
@@ -706,7 +706,7 @@ export async function saveGameSession(params: {
         correctAnswers,
         totalQuestions,
         timeSpent,
-        metadata,  // Game-specific stats stored as JSON
+        metadata: metadata as Prisma.InputJsonValue | undefined,  // Game-specific stats stored as JSON
         completedAt: new Date(),
       },
       update: {
@@ -714,7 +714,7 @@ export async function saveGameSession(params: {
         correctAnswers,
         totalQuestions,
         timeSpent,
-        metadata,  // Updates game-specific stats if playing again
+        metadata: metadata as Prisma.InputJsonValue | undefined,  // Updates game-specific stats if playing again
         completedAt: new Date(),
       },
     });

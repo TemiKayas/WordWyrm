@@ -1633,7 +1633,11 @@ export default class SnakeScene extends Phaser.Scene {
 
   async showExplanation(previousOverlayElements: Phaser.GameObjects.GameObject[], questionData: QuizQuestion, wasCorrect: boolean = true, studentAnswer?: string) {
     // Hide previous overlay elements temporarily
-    previousOverlayElements.forEach(el => el.setVisible(false));
+    previousOverlayElements.forEach(el => {
+      if ('setVisible' in el && typeof el.setVisible === 'function') {
+        el.setVisible(false);
+      }
+    });
 
     const screenWidth = this.scale.width;
     const screenHeight = this.scale.height;
@@ -1867,7 +1871,11 @@ export default class SnakeScene extends Phaser.Scene {
         backText.destroy();
 
         // Restore previous overlay
-        previousOverlayElements.forEach(el => el.setVisible(true));
+        previousOverlayElements.forEach(el => {
+          if ('setVisible' in el && typeof el.setVisible === 'function') {
+            el.setVisible(true);
+          }
+        });
       });
 
     } catch (error) {
@@ -1901,7 +1909,11 @@ export default class SnakeScene extends Phaser.Scene {
         loadingText.destroy();
         backButton.destroy();
         backText.destroy();
-        previousOverlayElements.forEach(el => el.setVisible(true));
+        previousOverlayElements.forEach(el => {
+          if ('setVisible' in el && typeof el.setVisible === 'function') {
+            el.setVisible(true);
+          }
+        });
       });
     }
   }

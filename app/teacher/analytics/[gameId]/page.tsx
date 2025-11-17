@@ -38,8 +38,9 @@ import { getGameTypeConfig } from '@/lib/game-types';
 export default async function GameAnalyticsPage({
   params,
 }: {
-  params: { gameId: string };
+  params: Promise<{ gameId: string }>;
 }) {
+  const { gameId } = await params;
   const session = await auth();
 
   // Redirect to login if not authenticated
@@ -54,7 +55,7 @@ export default async function GameAnalyticsPage({
 
   // Get game with sessions and verify ownership
   const game = await db.game.findUnique({
-    where: { id: params.gameId },
+    where: { id: gameId },
     include: {
       teacher: {
         include: {
@@ -93,7 +94,7 @@ export default async function GameAnalyticsPage({
       <div className="min-h-screen bg-gray-50 p-8">
         <div className="max-w-4xl mx-auto">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Game Not Found</h1>
-          <p className="text-gray-600">The game you're looking for doesn't exist.</p>
+          <p className="text-gray-600">The game you&apos;re looking for doesn&apos;t exist.</p>
         </div>
       </div>
     );
@@ -212,7 +213,7 @@ export default async function GameAnalyticsPage({
                     // ANALYTICS SYSTEM - Extract game-specific metadata
                     // The metadata JSON field contains game-specific stats saved by the game
                     // e.g., { longestStreak: 12, finalLength: 25 } for Snake
-                    const metadata = session.metadata as Record<string, any> | null;
+                    const metadata = session.metadata as Record<string, unknown> | null;
 
                     return (
                       <tr key={session.id} className="hover:bg-gray-50">
@@ -253,9 +254,9 @@ export default async function GameAnalyticsPage({
                           const value = metadata?.[metric.key];
 
                           // Apply formatter if one is defined, otherwise use raw value
-                          const displayValue = metric.format && value !== undefined
+                          const displayValue: string | number = metric.format && value !== undefined
                             ? metric.format(value)
-                            : value !== undefined
+                            : value !== undefined && (typeof value === 'string' || typeof value === 'number')
                             ? value
                             : 'N/A';
 

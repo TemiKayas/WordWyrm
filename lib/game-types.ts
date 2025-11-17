@@ -53,7 +53,7 @@ export interface GameMetric {
   key: string;           // The key in the metadata JSON object (e.g., 'longestStreak')
   label: string;         // Display label in the analytics table (e.g., 'Longest Streak')
   type: 'number' | 'string' | 'boolean';  // Data type of the metric
-  format?: (value: any) => string;  // Optional formatter for display (e.g., converting 0.85 to "85%")
+  format?: (value: unknown) => string;  // Optional formatter for display (e.g., converting 0.85 to "85%")
 }
 
 /**
@@ -131,13 +131,13 @@ export const GAME_TYPES: Record<GameMode, GameTypeConfig> = {
         key: 'accuracy',               // Calculated as correctAnswers / totalQuestions
         label: 'Accuracy',
         type: 'number',
-        format: (value: number) => `${Math.round(value * 100)}%`  // Formats 0.85 as "85%"
+        format: (value: unknown) => `${Math.round((value as number) * 100)}%`  // Formats 0.85 as "85%"
       },
       {
         key: 'averageTimePerQuestion',
         label: 'Avg Time/Question',
         type: 'number',
-        format: (value: number) => `${Math.round(value)}s`  // Formats 12.5 as "13s"
+        format: (value: unknown) => `${Math.round(value as number)}s`  // Formats 12.5 as "13s"
       }
     ]
   }

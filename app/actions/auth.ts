@@ -5,7 +5,6 @@ import { signIn } from '@/lib/auth';
 import { hash } from 'bcryptjs';
 import { z } from 'zod';
 import { AuthError } from 'next-auth';
-import { redirect } from 'next/navigation';
 
 // Validation schemas
 const signupSchema = z.object({

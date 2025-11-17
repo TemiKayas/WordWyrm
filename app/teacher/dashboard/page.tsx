@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/components/shared/Navbar';
 import SlidingSidebar from '@/components/shared/SlidingSidebar';
-import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import Button from '@/components/ui/Button';
 import { getTeacherClasses, createClass } from '@/app/actions/class';
 

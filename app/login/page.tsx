@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react';
 import { login } from '@/app/actions/auth';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import Button from '@/components/ui/Button';
 import { Suspense } from 'react';
