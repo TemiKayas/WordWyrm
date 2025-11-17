@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { getGameWithQuiz } from '@/app/actions/game';
 import { Quiz } from '@/lib/processors/ai-generator';
-import TowerDefenseGame from '@/components/game/TowerDefenseGame';
+import TowerDefenseGame from '@/lib/tower-defense/TowerDefenseGame';
 
 // main page component for playing educational tower defense game
 // fetches game/quiz data from URL params, handles loading/error states, renders TD game canvas

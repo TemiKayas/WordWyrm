@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { getGameWithQuiz } from '@/app/actions/game';
 import { Quiz } from '@/lib/processors/ai-generator';
-import TowerDefenseGame from '@/components/game/TowerDefenseGame';
+import TowerDefenseGame from '@/lib/tower-defense/TowerDefenseGame';
 
 // main page component for playing a tower defense game
 // fetches game/quiz data from share code in URL, handles loading/error states, renders tower defense game canvas
