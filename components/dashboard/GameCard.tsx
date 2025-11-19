@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Image from 'next/image';
 import { GameMode } from '@prisma/client';
 
-import { FileText, Gamepad2 } from 'lucide-react';
+import { FileText, Gamepad2, BarChart3 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 
 interface GameCardProps {
@@ -38,12 +38,6 @@ export default function GameCard({
 
   const handleDelete = () => {
     onDelete?.();
-    setShowMenu(false);
-  };
-
-  const handleChangeTitle = () => {
-    // todo: implement change title functionality
-    console.log('Change title:', title);
     setShowMenu(false);
   };
 

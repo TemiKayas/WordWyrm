@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { uploadAndProcessMultiplePDFs } from '@/app/actions/pdf';
+import { processContentForQuiz } from '@/app/actions/pdf';
 import FileUploadDropZone from '@/components/fileupload/FileUploadDropZone';
 import StepIndicator from '@/components/fileupload/StepIndicator';
 import Button from '@/components/ui/Button';
@@ -25,6 +25,7 @@ export default function PDFUploadForm({ onFileSelect }: PDFUploadFormProps) {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [numQuestions, setNumQuestions] = useState<number>(5);
   const [subject, setSubject] = useState<string>('');
+  const [textContent, setTextContent] = useState<string>('');
 
   // Redirect if no classId is provided
   useEffect(() => {
@@ -51,8 +52,11 @@ export default function PDFUploadForm({ onFileSelect }: PDFUploadFormProps) {
   }
 
   async function handleSubmit() {
-    if (selectedFiles.length === 0) {
-      showToast('Please select at least one PDF file', 'error');
+    const hasText = textContent.trim().length > 0;
+    const hasPDFs = selectedFiles.length > 0;
+
+    if (!hasText && !hasPDFs) {
+      showToast('Please provide text content or upload at least one PDF', 'error');
       return;
     }
 
@@ -62,23 +66,39 @@ export default function PDFUploadForm({ onFileSelect }: PDFUploadFormProps) {
       return;
     }
 
-    // Validate total size again before submission
-    const totalSize = selectedFiles.reduce((sum, f) => sum + f.size, 0);
-    if (totalSize > MAX_TOTAL_SIZE_BYTES) {
-      showToast(
-        `Total file size (${(totalSize / 1024 / 1024).toFixed(2)}MB) exceeds ${MAX_TOTAL_SIZE_MB}MB limit`,
-        'error'
-      );
-      return;
+    // Validate total size if PDFs provided
+    if (hasPDFs) {
+      const totalSize = selectedFiles.reduce((sum, f) => sum + f.size, 0);
+      if (totalSize > MAX_TOTAL_SIZE_BYTES) {
+        showToast(
+          `Total file size (${(totalSize / 1024 / 1024).toFixed(2)}MB) exceeds ${MAX_TOTAL_SIZE_MB}MB limit`,
+          'error'
+        );
+        return;
+      }
     }
 
-    showToast(`Processing ${selectedFiles.length} PDF(s)...`, 'info');
+    // Show appropriate processing message
+    let processingMessage = 'Processing content...';
+    if (hasText && hasPDFs) {
+      processingMessage = `Processing text and ${selectedFiles.length} PDF(s)...`;
+    } else if (hasPDFs) {
+      processingMessage = `Processing ${selectedFiles.length} PDF(s)...`;
+    } else {
+      processingMessage = 'Processing text content...';
+    }
+    showToast(processingMessage, 'info');
 
     startTransition(async () => {
       try {
         const formData = new FormData();
 
-        // Add all files
+        // Add text content if provided
+        if (hasText) {
+          formData.append('textContent', textContent.trim());
+        }
+
+        // Add all files if provided
         selectedFiles.forEach(file => {
           formData.append('pdfs', file);
         });
@@ -90,19 +110,19 @@ export default function PDFUploadForm({ onFileSelect }: PDFUploadFormProps) {
           formData.append('subject', subject);
         }
 
-        const result = await uploadAndProcessMultiplePDFs(formData);
+        const result = await processContentForQuiz(formData);
 
         if (!result.success) {
-          showToast(`Failed to process PDFs: ${result.error}`, 'error');
+          showToast(`Failed to generate quiz: ${result.error}`, 'error');
           return;
         }
 
-        showToast('All PDFs processed successfully! Redirecting...', 'success');
+        showToast('Quiz generated successfully! Redirecting...', 'success');
         // Redirect to game settings to review questions
         setTimeout(() => {
           router.push(`/teacher/game-settings?quizId=${result.data.quizId}`);
         }, 1500);
-      } catch (error) {
+      } catch {
         showToast('An unexpected error occurred', 'error');
       }
     });
@@ -112,11 +132,42 @@ export default function PDFUploadForm({ onFileSelect }: PDFUploadFormProps) {
     <div className="w-full">
       {/* Step Indicator */}
       <div className="mb-4 animate-fade-in flex justify-center">
-        <StepIndicator step={1} title="Upload your PDF" />
+        <StepIndicator step={1} title="Add your content" />
+      </div>
+
+      {/* Text Input Area */}
+      <div className="mb-4 animate-slide-up" style={{ animationDelay: '0.05s' }}>
+        <label
+          htmlFor="textContent"
+          className="block text-[#473025] font-bold text-sm mb-1"
+        >
+          Text Content <span className="font-normal text-xs text-[#473025]/60">(optional if uploading PDF)</span>
+        </label>
+        <textarea
+          id="textContent"
+          value={textContent}
+          onChange={(e) => setTextContent(e.target.value)}
+          disabled={isPending}
+          placeholder="Paste or type your educational content here... (vocabulary lists, notes, study material, etc.)"
+          className="w-full px-3 py-2 bg-[#fff6e8] border-2 border-[#473025] rounded-lg font-medium text-[#473025] text-xs focus:ring-4 focus:ring-[#96b902]/30 focus:border-[#96b902] transition-all disabled:opacity-50 resize-y min-h-[100px] max-h-[200px]"
+          rows={4}
+        />
+        {textContent.trim().length > 0 && (
+          <p className="text-[#473025]/60 text-xs mt-1">
+            {textContent.trim().length} characters
+          </p>
+        )}
+      </div>
+
+      {/* Divider */}
+      <div className="flex items-center mb-4 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+        <div className="flex-1 border-t-2 border-[#473025]/20"></div>
+        <span className="px-3 text-[#473025]/60 font-bold text-xs">AND/OR</span>
+        <div className="flex-1 border-t-2 border-[#473025]/20"></div>
       </div>
 
       {/* File Upload Drop Zone */}
-      <div className="mb-4 animate-slide-up" style={{ animationDelay: '0.1s' }}>
+      <div className="mb-4 animate-slide-up" style={{ animationDelay: '0.15s' }}>
         <FileUploadDropZone
           onFileSelect={handleFileSelect}
           disabled={isPending}
@@ -150,7 +201,7 @@ export default function PDFUploadForm({ onFileSelect }: PDFUploadFormProps) {
       )}
 
       {/* Subject Selection */}
-      <div className="mb-3 animate-slide-up" style={{ animationDelay: '0.2s' }}>
+      <div className="mb-3 animate-slide-up" style={{ animationDelay: '0.25s' }}>
         <label
           htmlFor="subject"
           className="block text-[#473025] font-bold text-sm mb-1"
@@ -199,14 +250,31 @@ export default function PDFUploadForm({ onFileSelect }: PDFUploadFormProps) {
       <Button
         type="button"
         onClick={handleSubmit}
-        disabled={isPending || selectedFiles.length === 0}
+        disabled={isPending || (selectedFiles.length === 0 && textContent.trim().length === 0)}
         variant="success"
         size="md"
         className="w-full animate-slide-up"
-        style={{ animationDelay: '0.4s' } as React.CSSProperties}
+        style={{ animationDelay: '0.35s' } as React.CSSProperties}
         isLoading={isPending}
       >
-        {selectedFiles.length > 1 ? `Generate Combined Quiz (${selectedFiles.length} PDFs)` : 'Generate Quiz'}
+        {(() => {
+          const hasText = textContent.trim().length > 0;
+          const hasPDFs = selectedFiles.length > 0;
+
+          if (hasText && hasPDFs) {
+            return selectedFiles.length > 1
+              ? `Generate Quiz (Text + ${selectedFiles.length} PDFs)`
+              : 'Generate Quiz (Text + PDF)';
+          } else if (hasPDFs) {
+            return selectedFiles.length > 1
+              ? `Generate Quiz (${selectedFiles.length} PDFs)`
+              : 'Generate Quiz';
+          } else if (hasText) {
+            return 'Generate Quiz from Text';
+          } else {
+            return 'Generate Quiz';
+          }
+        })()}
       </Button>
     </div>
   );

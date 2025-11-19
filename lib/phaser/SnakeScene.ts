@@ -85,6 +85,14 @@ export default class SnakeScene extends Phaser.Scene {
   private gameId?: string; // Game ID for saving session (undefined in demo mode)
   private startTime = 0; // Timestamp when game started (for calculating time spent)
 
+  // QUESTION ANALYTICS - Track each individual question response
+  private questionResponses: Record<string, {
+    questionText: string;
+    selectedAnswer: string;
+    correctAnswer: string;
+    correct: boolean;
+  }> = {};
+
   private exitButton!: Phaser.GameObjects.Rectangle;
 
   // Input
@@ -1197,6 +1205,15 @@ export default class SnakeScene extends Phaser.Scene {
         this.streak++;
         this.correctAnswers++;
 
+        // QUESTION ANALYTICS - Record this correct answer
+        const selectedAnswer = this.currentQuestion!.options[eatenApple.answerIndex];
+        this.questionResponses[`q${this.currentQuestionIndex}`] = {
+          questionText: this.currentQuestion!.question,
+          selectedAnswer: selectedAnswer,
+          correctAnswer: this.currentQuestion!.answer,
+          correct: true
+        };
+
         // ANALYTICS SYSTEM - Track longest streak achieved
         // This is saved to the database for analytics dashboard display
         // Updates whenever the current streak surpasses the previous record
@@ -1260,6 +1277,15 @@ export default class SnakeScene extends Phaser.Scene {
       } else {
         // Wrong answer!
         const studentAnswer = this.currentQuestion!.options[eatenApple.answerIndex];
+
+        // QUESTION ANALYTICS - Record this wrong answer
+        this.questionResponses[`q${this.currentQuestionIndex}`] = {
+          questionText: this.currentQuestion!.question,
+          selectedAnswer: studentAnswer,
+          correctAnswer: this.currentQuestion!.answer,
+          correct: false
+        };
+
         this.streak = 0; // Reset streak
         this.streakText.setText(`Streak: ${this.streak}`);
         this.wrongAnswer(`Wrong answer! Correct: ${this.currentQuestion!.answer}`, studentAnswer);
@@ -1633,7 +1659,11 @@ export default class SnakeScene extends Phaser.Scene {
 
   async showExplanation(previousOverlayElements: Phaser.GameObjects.GameObject[], questionData: QuizQuestion, wasCorrect: boolean = true, studentAnswer?: string) {
     // Hide previous overlay elements temporarily
-    previousOverlayElements.forEach(el => el.setVisible(false));
+    previousOverlayElements.forEach(el => {
+      if ('setVisible' in el && typeof el.setVisible === 'function') {
+        el.setVisible(false);
+      }
+    });
 
     const screenWidth = this.scale.width;
     const screenHeight = this.scale.height;
@@ -1867,7 +1897,11 @@ export default class SnakeScene extends Phaser.Scene {
         backText.destroy();
 
         // Restore previous overlay
-        previousOverlayElements.forEach(el => el.setVisible(true));
+        previousOverlayElements.forEach(el => {
+          if ('setVisible' in el && typeof el.setVisible === 'function') {
+            el.setVisible(true);
+          }
+        });
       });
 
     } catch (error) {
@@ -1901,7 +1935,11 @@ export default class SnakeScene extends Phaser.Scene {
         loadingText.destroy();
         backButton.destroy();
         backText.destroy();
-        previousOverlayElements.forEach(el => el.setVisible(true));
+        previousOverlayElements.forEach(el => {
+          if ('setVisible' in el && typeof el.setVisible === 'function') {
+            el.setVisible(true);
+          }
+        });
       });
     }
   }
@@ -2000,17 +2038,41 @@ export default class SnakeScene extends Phaser.Scene {
 
       // Call the server action to save the session
       // The server action handles authentication and database writes
-      const result = await saveGameSession({
+      let result = await saveGameSession({
         gameId: this.gameId,
         score: this.score,
         correctAnswers: this.correctAnswers,
         totalQuestions: this.quizData.questions.length,
         timeSpent,
-        metadata  // Snake-specific stats go here
+        metadata,  // Snake-specific stats go here
+        questionResponses: this.questionResponses  // QUESTION ANALYTICS - Individual question data
       });
+
+      // If failed and asks for player name, prompt for guest name
+      if (!result.success && result.error.includes('player name')) {
+        const guestName = prompt('Please enter your name to save your score:');
+
+        if (guestName && guestName.trim()) {
+          result = await saveGameSession({
+            gameId: this.gameId,
+            score: this.score,
+            correctAnswers: this.correctAnswers,
+            totalQuestions: this.quizData.questions.length,
+            timeSpent,
+            metadata,
+            questionResponses: this.questionResponses,  // QUESTION ANALYTICS
+            guestName: guestName.trim()
+          });
+        } else {
+          console.log('No name provided, score not saved');
+          return;
+        }
+      }
 
       if (!result.success) {
         console.error('Failed to save game session:', result.error);
+      } else {
+        console.log('Game session saved successfully!');
       }
     } catch (error) {
       console.error('Error saving game session:', error);

@@ -10,7 +10,6 @@ import SlidingSidebar from '@/components/shared/SlidingSidebar';
 import { Search } from 'lucide-react';
 
 export default function DiscoverPage() {
-  const router = useRouter();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [games, setGames] = useState<unknown[]>([]);
   const [loading, setLoading] = useState(true);

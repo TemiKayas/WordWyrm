@@ -5,7 +5,7 @@ import { db } from '@/lib/db';
 import { generateUniqueShareCode } from '@/lib/utils/share-code';
 import { generateGameQRCode } from '@/lib/utils/qr-code';
 import type { Game, Quiz, ProcessedContent, PDF, Subject } from '@prisma/client';
-import { GameMode } from '@prisma/client';
+import { GameMode, Prisma } from '@prisma/client';
 
 //type of server action results, success or fail, T is the type of return.
 type ActionResult<T> =
@@ -669,57 +669,97 @@ export async function saveGameSession(params: {
   correctAnswers: number;
   totalQuestions: number;
   timeSpent?: number;
-  metadata?: Record<string, any>;  // Game-specific statistics (flexible JSON)
+  metadata?: Record<string, unknown>;  // Game-specific statistics (flexible JSON)
+  questionResponses?: Record<string, unknown>;  // QUESTION ANALYTICS - Individual question data
+  guestName?: string;  // Name for guest players (if not logged in)
 }): Promise<ActionResult<{ sessionId: string }>> {
   try {
-    const { gameId, score, correctAnswers, totalQuestions, timeSpent, metadata } = params;
+    const { gameId, score, correctAnswers, totalQuestions, timeSpent, metadata, questionResponses, guestName } = params;
 
-    // Get current user (must be logged in)
+    // Get current user session
     const session = await auth();
-    if (!session?.user) {
-      return { success: false, error: 'Please log in to save your score' };
+    let studentId: string | null = null;
+
+    // If user is logged in, try to get their student profile
+    if (session?.user) {
+      const student = await db.student.findUnique({
+        where: { userId: session.user.id },
+      });
+
+      if (student) {
+        studentId = student.id;
+      }
     }
 
-    // Get student profile from database
-    const student = await db.student.findUnique({
-      where: { userId: session.user.id },
-    });
-
-    if (!student) {
-      return { success: false, error: 'Student profile not found' };
+    // If no student ID and no guest name, require guest name
+    if (!studentId && !guestName) {
+      return { success: false, error: 'Please provide a player name' };
     }
 
-    // Create or update game session using upsert
-    // Note: The unique constraint on (gameId, studentId) means one session per student per game
-    // If the student plays again, this will update their existing session
-    const gameSession = await db.gameSession.upsert({
-      where: {
-        gameId_studentId: {
+    // Create game session (guest or authenticated)
+    // For logged-in students, we update existing sessions if they exist
+    // For guests, we always create new sessions
+    if (studentId) {
+      // Logged-in student - find existing session or create new one
+      const existingSession = await db.gameSession.findFirst({
+        where: {
           gameId,
-          studentId: student.id,
+          studentId,
         },
-      },
-      create: {
-        gameId,
-        studentId: student.id,
-        score,
-        correctAnswers,
-        totalQuestions,
-        timeSpent,
-        metadata,  // Game-specific stats stored as JSON
-        completedAt: new Date(),
-      },
-      update: {
-        score,
-        correctAnswers,
-        totalQuestions,
-        timeSpent,
-        metadata,  // Updates game-specific stats if playing again
-        completedAt: new Date(),
-      },
-    });
+      });
 
-    return { success: true, data: { sessionId: gameSession.id } };
+      if (existingSession) {
+        // Update existing session
+        const gameSession = await db.gameSession.update({
+          where: { id: existingSession.id },
+          data: {
+            score,
+            correctAnswers,
+            totalQuestions,
+            timeSpent,
+            metadata: metadata as Prisma.InputJsonValue | undefined,
+            questionResponses: questionResponses as Prisma.InputJsonValue | undefined,  // QUESTION ANALYTICS
+            completedAt: new Date(),
+          },
+        });
+
+        return { success: true, data: { sessionId: gameSession.id } };
+      } else {
+        // Create new session
+        const gameSession = await db.gameSession.create({
+          data: {
+            gameId,
+            studentId,
+            score,
+            correctAnswers,
+            totalQuestions,
+            timeSpent,
+            metadata: metadata as Prisma.InputJsonValue | undefined,
+            questionResponses: questionResponses as Prisma.InputJsonValue | undefined,  // QUESTION ANALYTICS
+            completedAt: new Date(),
+          },
+        });
+
+        return { success: true, data: { sessionId: gameSession.id } };
+      }
+    } else {
+      // Guest player - always create new session
+      const gameSession = await db.gameSession.create({
+        data: {
+          gameId,
+          guestName,
+          score,
+          correctAnswers,
+          totalQuestions,
+          timeSpent,
+          metadata: metadata as Prisma.InputJsonValue | undefined,
+          questionResponses: questionResponses as Prisma.InputJsonValue | undefined,  // QUESTION ANALYTICS
+          completedAt: new Date(),
+        },
+      });
+
+      return { success: true, data: { sessionId: gameSession.id } };
+    }
   } catch (error) {
     console.error('Failed to save game session:', error);
     return {

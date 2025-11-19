@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { getGameWithQuiz } from '@/app/actions/game';
-import { Quiz } from '@/lib/processors/ai-generator';
-import TowerDefenseGame from '@/lib/tower-defense/TowerDefenseGame';
+import { GameMode } from '@prisma/client';
 
 /**
  * GAME ROUTER - Redirects to correct game type based on gameMode
@@ -87,12 +87,12 @@ export default function GameRouterPage() {
         <div className="text-white font-quicksand font-bold text-xl">
           Error: {error}
         </div>
-        <a
+        <Link
           href="/"
           className="text-[#95b607] font-quicksand font-semibold hover:underline"
         >
           Return to Home
-        </a>
+        </Link>
       </div>
     );
   }

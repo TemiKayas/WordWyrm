@@ -10,7 +10,6 @@ import { Search, BookOpen, Gamepad2, SlidersHorizontal, X } from 'lucide-react';
 import Button from '@/components/ui/Button';
 
 export default function DiscoverPage() {
-  const router = useRouter();
   const [games, setGames] = useState<unknown[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

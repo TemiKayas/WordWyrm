@@ -49,7 +49,6 @@ const RARITY_RATES: Record<Character['rarity'], number> = {
 };
 
 export default function ShopPage() {
-    const router = useRouter();
     const { profilePictureId, setProfilePictureId } = useProfile();
     const [coins, setCoins] = useState(700);
     const [unlockedCharacters, setUnlockedCharacters] = useState<number[]>([1, 9]);

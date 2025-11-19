@@ -34,12 +34,14 @@ import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { redirect } from 'next/navigation';
 import { getGameTypeConfig } from '@/lib/game-types';
+import Link from 'next/link';
 
 export default async function GameAnalyticsPage({
   params,
 }: {
-  params: { gameId: string };
+  params: Promise<{ gameId: string }>;
 }) {
+  const { gameId } = await params;
   const session = await auth();
 
   // Redirect to login if not authenticated
@@ -54,7 +56,7 @@ export default async function GameAnalyticsPage({
 
   // Get game with sessions and verify ownership
   const game = await db.game.findUnique({
-    where: { id: params.gameId },
+    where: { id: gameId },
     include: {
       teacher: {
         include: {
@@ -90,10 +92,16 @@ export default async function GameAnalyticsPage({
   // Check if game exists
   if (!game) {
     return (
-      <div className="min-h-screen bg-gray-50 p-8">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Game Not Found</h1>
-          <p className="text-gray-600">The game you're looking for doesn't exist.</p>
+      <div className="min-h-screen bg-[#fffaf2] p-8 flex items-center justify-center">
+        <div className="max-w-4xl mx-auto bg-white rounded-[20px] border-[3px] border-[#ff3875] p-8 text-center">
+          <h1 className="font-quicksand font-bold text-[#473025] text-[32px] mb-4">Game Not Found</h1>
+          <p className="font-quicksand text-[#473025]/70 text-[16px] mb-6">The game you&apos;re looking for doesn&apos;t exist.</p>
+          <a
+            href="/teacher/dashboard"
+            className="inline-block bg-[#95b607] text-white font-quicksand font-bold px-6 py-3 rounded-[15px] border-[3px] border-[#006029] hover:bg-[#7a9700] transition-colors"
+          >
+            Back to Dashboard
+          </a>
         </div>
       </div>
     );
@@ -124,65 +132,78 @@ export default async function GameAnalyticsPage({
     : 0;
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen bg-[#fffaf2] p-6 md:p-8">
+      <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-6">
           <a
             href="/teacher/dashboard"
-            className="text-[#95b607] hover:underline mb-4 inline-block"
+            className="text-[#95b607] hover:text-[#7a9700] font-quicksand font-bold mb-4 inline-flex items-center gap-2 transition-colors"
           >
-            &larr; Back to Dashboard
+            <span className="text-xl">&larr;</span>
+            <span>Back to Dashboard</span>
           </a>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">{game.title}</h1>
-          <p className="text-gray-600">
-            {config.name} • {game.quiz.numQuestions} Questions • Share Code: {game.shareCode}
+          <h1 className="font-quicksand font-bold text-[#473025] text-[32px] md:text-[40px] mb-2 mt-4">{game.title}</h1>
+          <p className="font-quicksand text-[#473025]/70 text-[16px]">
+            {config.name} • {game.quiz.numQuestions} Questions • Share Code: <span className="font-bold text-[#95b607]">{game.shareCode}</span>
           </p>
         </div>
 
+        {/* AI Class Analysis Button */}
+        {game.gameSessions.length > 0 && (
+          <div className="mb-6">
+            <Link
+              href={`/teacher/analytics/${gameId}/class-analysis`}
+              className="inline-block bg-[#95b607] hover:bg-[#7a9700] text-white font-quicksand font-bold px-6 py-3 rounded-lg transition-colors"
+            >
+              Analyze Class Performance
+            </Link>
+          </div>
+        )}
+
         {/* Summary Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-sm font-medium text-gray-500 mb-2">Total Players</h3>
-            <p className="text-3xl font-bold text-gray-900">{totalSessions}</p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
+          <div className="bg-gradient-to-br from-[#96b902]/10 to-[#7a9700]/10 border-[3px] border-[#96b902] rounded-[15px] p-6 shadow-sm">
+            <h3 className="font-quicksand font-bold text-[#473025]/60 text-[14px] mb-2 uppercase tracking-wide">Total Players</h3>
+            <p className="font-quicksand font-bold text-[#473025] text-[36px] md:text-[40px]">{totalSessions}</p>
           </div>
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-sm font-medium text-gray-500 mb-2">Average Score</h3>
-            <p className="text-3xl font-bold text-gray-900">{Math.round(averageScore)}</p>
+          <div className="bg-gradient-to-br from-[#ff9f22]/10 to-[#fd9227]/10 border-[3px] border-[#ff9f22] rounded-[15px] p-6 shadow-sm">
+            <h3 className="font-quicksand font-bold text-[#473025]/60 text-[14px] mb-2 uppercase tracking-wide">Average Score</h3>
+            <p className="font-quicksand font-bold text-[#473025] text-[36px] md:text-[40px]">{Math.round(averageScore)}</p>
           </div>
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-sm font-medium text-gray-500 mb-2">Average Accuracy</h3>
-            <p className="text-3xl font-bold text-gray-900">
+          <div className="bg-gradient-to-br from-[#ff3875]/10 to-[#ff5a8f]/10 border-[3px] border-[#ff3875] rounded-[15px] p-6 shadow-sm">
+            <h3 className="font-quicksand font-bold text-[#473025]/60 text-[14px] mb-2 uppercase tracking-wide">Average Accuracy</h3>
+            <p className="font-quicksand font-bold text-[#473025] text-[36px] md:text-[40px]">
               {Math.round(averageAccuracy * 100)}%
             </p>
           </div>
         </div>
 
         {/* Sessions Table */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-900">Student Results</h2>
+        <div className="bg-white rounded-[20px] shadow-sm border-[2px] border-[#473025]/10 overflow-hidden">
+          <div className="px-6 py-5 border-b-[2px] border-[#473025]/10 bg-gradient-to-r from-[#fffaf2] to-white">
+            <h2 className="font-quicksand font-bold text-[#473025] text-[24px] md:text-[28px]">Student Results</h2>
           </div>
 
           {game.gameSessions.length === 0 ? (
             <div className="px-6 py-12 text-center">
-              <p className="text-gray-500">No students have played this game yet.</p>
+              <p className="font-quicksand text-[#473025]/60 text-[18px]">No students have played this game yet.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+              <table className="min-w-full divide-y divide-[#473025]/10">
+                <thead className="bg-gradient-to-r from-[#fffaf2] to-[#fff5e9]">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-4 text-left text-xs font-quicksand font-bold text-[#473025]/70 uppercase tracking-wider">
                       Student
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-4 text-left text-xs font-quicksand font-bold text-[#473025]/70 uppercase tracking-wider">
                       Score
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-4 text-left text-xs font-quicksand font-bold text-[#473025]/70 uppercase tracking-wider">
                       Correct Answers
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-4 text-left text-xs font-quicksand font-bold text-[#473025]/70 uppercase tracking-wider">
                       Accuracy
                     </th>
                     {/* ANALYTICS SYSTEM - Dynamic columns based on game type
@@ -193,17 +214,17 @@ export default async function GameAnalyticsPage({
                     {config.metrics.map((metric) => (
                       <th
                         key={metric.key}
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                        className="px-6 py-4 text-left text-xs font-quicksand font-bold text-[#473025]/70 uppercase tracking-wider"
                       >
                         {metric.label}
                       </th>
                     ))}
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-4 text-left text-xs font-quicksand font-bold text-[#473025]/70 uppercase tracking-wider">
                       Completed
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-white divide-y divide-[#473025]/10">
                   {game.gameSessions.map((session) => {
                     const accuracy = session.totalQuestions && session.totalQuestions > 0
                       ? ((session.correctAnswers || 0) / session.totalQuestions) * 100
@@ -212,30 +233,36 @@ export default async function GameAnalyticsPage({
                     // ANALYTICS SYSTEM - Extract game-specific metadata
                     // The metadata JSON field contains game-specific stats saved by the game
                     // e.g., { longestStreak: 12, finalLength: 25 } for Snake
-                    const metadata = session.metadata as Record<string, any> | null;
+                    const metadata = session.metadata as Record<string, unknown> | null;
 
                     return (
-                      <tr key={session.id} className="hover:bg-gray-50">
+                      <tr key={session.id} className="hover:bg-[#fffaf2]/50 transition-colors">
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">
-                            {session.student.user.name}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            {session.student.user.email}
-                          </div>
+                          {/* QUESTION ANALYTICS - Click to view detailed breakdown */}
+                          <a
+                            href={`/teacher/analytics/${gameId}/student/${session.id}`}
+                            className="block hover:bg-[#fff5e9] p-2 -m-2 rounded transition-colors"
+                          >
+                            <div className="font-quicksand font-bold text-[#95b607] hover:text-[#7a9700] text-[14px] hover:underline">
+                              {session.student ? session.student.user.name : (session.guestName || 'Guest Player')} →
+                            </div>
+                            <div className="font-quicksand text-[#473025]/60 text-[12px]">
+                              {session.student ? session.student.user.email : 'Guest (not logged in)'}
+                            </div>
+                          </a>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-semibold text-gray-900">
+                          <div className="font-quicksand font-bold text-[#95b607] text-[16px]">
                             {session.score || 0}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">
+                          <div className="font-quicksand text-[#473025] text-[14px]">
                             {session.correctAnswers || 0} / {session.totalQuestions || 0}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">
+                          <div className="font-quicksand font-bold text-[#473025] text-[14px]">
                             {Math.round(accuracy)}%
                           </div>
                         </td>
@@ -253,20 +280,20 @@ export default async function GameAnalyticsPage({
                           const value = metadata?.[metric.key];
 
                           // Apply formatter if one is defined, otherwise use raw value
-                          const displayValue = metric.format && value !== undefined
+                          const displayValue: string | number = metric.format && value !== undefined
                             ? metric.format(value)
-                            : value !== undefined
+                            : value !== undefined && (typeof value === 'string' || typeof value === 'number')
                             ? value
                             : 'N/A';
 
                           return (
                             <td key={metric.key} className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-900">{displayValue}</div>
+                              <div className="font-quicksand text-[#473025] text-[14px]">{displayValue}</div>
                             </td>
                           );
                         })}
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-500">
+                          <div className="font-quicksand text-[#473025]/60 text-[13px]">
                             {session.completedAt
                               ? new Date(session.completedAt).toLocaleDateString()
                               : 'In Progress'}

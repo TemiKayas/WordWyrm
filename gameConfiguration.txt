@@ -1,0 +1,249 @@
+================================================================================
+GAME CONFIGURATION FOR ANALYTICS TRACKING
+================================================================================
+
+This document outlines the required implementation for any game type to properly
+integrate with the WordWyrm analytics dashboard and AI analysis features.
+
+================================================================================
+OVERVIEW
+================================================================================
+
+The analytics system tracks individual question responses during gameplay and
+stores them in the database. This data powers:
+- Question-by-question breakdown on student detail pages
+- AI-powered individual student analysis
+- AI-powered class-wide analysis
+
+================================================================================
+REQUIRED DATA STRUCTURE
+================================================================================
+
+Each game must track responses in this format:
+
+questionResponses: Record<string, {
+  questionText: string;      // The full question text
+  selectedAnswer: string;    // What the student selected
+  correctAnswer: string;     // The correct answer
+  correct: boolean;          // Whether they got it right
+}>
+
+Example:
+{
+  "q0": {
+    "questionText": "What is the capital of France?",
+    "selectedAnswer": "Paris",
+    "correctAnswer": "Paris",
+    "correct": true
+  },
+  "q1": {
+    "questionText": "What is 2 + 2?",
+    "selectedAnswer": "5",
+    "correctAnswer": "4",
+    "correct": false
+  }
+}
+
+Key naming convention: Use "q0", "q1", "q2", etc. for question keys.
+
+================================================================================
+IMPLEMENTATION STEPS
+================================================================================
+
+STEP 1: Add Tracking Variable
+--------------------------------------------------------------------------------
+At the top of your game class/component, initialize the tracking object:
+
+// TypeScript
+private questionResponses: Record<string, {
+  questionText: string;
+  selectedAnswer: string;
+  correctAnswer: string;
+  correct: boolean;
+}> = {};
+
+// JavaScript
+this.questionResponses = {};
+
+
+STEP 2: Track Correct Answers
+--------------------------------------------------------------------------------
+When a player answers correctly, record the response:
+
+this.questionResponses[`q${currentQuestionIndex}`] = {
+  questionText: currentQuestion.question,
+  selectedAnswer: selectedAnswer,        // What they chose
+  correctAnswer: currentQuestion.answer, // The correct answer
+  correct: true
+};
+
+
+STEP 3: Track Wrong Answers
+--------------------------------------------------------------------------------
+When a player answers incorrectly, record the response:
+
+this.questionResponses[`q${currentQuestionIndex}`] = {
+  questionText: currentQuestion.question,
+  selectedAnswer: selectedAnswer,        // What they chose (wrong)
+  correctAnswer: currentQuestion.answer, // The correct answer
+  correct: false
+};
+
+
+STEP 4: Pass Data to saveGameSession()
+--------------------------------------------------------------------------------
+When the game ends and you call saveGameSession(), include the questionResponses:
+
+await saveGameSession(
+  sessionId,
+  score,
+  correctAnswers,
+  incorrectAnswers,
+  completed,
+  questionResponses  // <-- Add this parameter
+);
+
+The saveGameSession() function in app/actions/game.ts already accepts this
+parameter and will store it in the database.
+
+
+STEP 5: Reset on Game Restart (if applicable)
+--------------------------------------------------------------------------------
+If your game has a restart feature, reset the tracking object:
+
+this.questionResponses = {};
+
+
+================================================================================
+EXAMPLE: SNAKE GAME IMPLEMENTATION
+================================================================================
+
+Reference file: lib/phaser/SnakeScene.ts
+
+1. Variable declaration (lines 88-94):
+   private questionResponses: Record<string, {
+     questionText: string;
+     selectedAnswer: string;
+     correctAnswer: string;
+     correct: boolean;
+   }> = {};
+
+2. Tracking correct answer (lines 1208-1215):
+   const selectedAnswer = this.currentQuestion!.options[eatenApple.answerIndex];
+   this.questionResponses[`q${this.currentQuestionIndex}`] = {
+     questionText: this.currentQuestion!.question,
+     selectedAnswer: selectedAnswer,
+     correctAnswer: this.currentQuestion!.answer,
+     correct: true
+   };
+
+3. Tracking wrong answer (lines 1281-1287):
+   this.questionResponses[`q${this.currentQuestionIndex}`] = {
+     questionText: this.currentQuestion!.question,
+     selectedAnswer: studentAnswer,
+     correctAnswer: this.currentQuestion!.answer,
+     correct: false
+   };
+
+4. Saving session (lines 2048, 2063):
+   await saveGameSession(
+     this.sessionId,
+     this.score,
+     this.correctAnswers,
+     this.incorrectAnswers,
+     true,
+     this.questionResponses
+   );
+
+
+================================================================================
+IMPORTANT NOTES
+================================================================================
+
+1. Question Index Consistency
+   - Use the same question index throughout (q0, q1, q2...)
+   - Don't skip indices or use different naming
+
+2. Track Every Question
+   - Record both correct AND incorrect answers
+   - Missing questions will show as gaps in the analytics
+
+3. Store Original Question Text
+   - Always store the full question text, not just an ID
+   - This allows the AI to analyze the content of questions
+
+4. Handle Edge Cases
+   - If a player skips a question, still record it (with correct: false)
+   - If a player answers the same question multiple times, only keep the
+     final answer (overwrite the previous entry)
+
+5. Don't Modify After Saving
+   - Once saveGameSession() is called, the data is final
+   - Any game restart should clear and start fresh
+
+
+================================================================================
+TESTING YOUR IMPLEMENTATION
+================================================================================
+
+1. Play through a game and answer some questions correctly and incorrectly
+
+2. Check the database:
+   - Look at the GameSession record
+   - Verify questionResponses contains the expected data
+
+3. Test the analytics pages:
+   - Go to /teacher/analytics/[gameId]
+   - Click on a student name
+   - Verify the question breakdown shows correctly
+   - Click "View AI Analysis" to test the AI analysis
+
+4. Test class analysis:
+   - Have multiple students play the game
+   - Click "Analyze Class Performance"
+   - Verify the class-wide insights are generated
+
+
+================================================================================
+TROUBLESHOOTING
+================================================================================
+
+Issue: Questions not showing in analytics
+- Check that questionResponses is being passed to saveGameSession()
+- Verify the data structure matches the expected format
+- Check browser console for errors during save
+
+Issue: Wrong answers showing as correct (or vice versa)
+- Verify you're checking the answer correctly before setting correct: true/false
+- Make sure selectedAnswer matches what the student actually chose
+
+Issue: Missing questions in breakdown
+- Ensure every question is recorded, even if skipped
+- Check that question indices are sequential (q0, q1, q2...)
+
+Issue: AI analysis fails
+- Verify there are enough questions answered (at least 1)
+- Check that questionText is not empty or undefined
+- Look at server logs for Gemini API errors
+
+
+================================================================================
+FUTURE CONSIDERATIONS
+================================================================================
+
+Optional enhancements you could add:
+- Time per question (add timeSpent field)
+- Number of attempts per question
+- Hints used
+- Difficulty rating
+
+These would require:
+1. Adding fields to the questionResponses structure
+2. Updating the tracking logic in each game
+3. Updating the analytics pages to display the new data
+4. Updating the AI prompts to consider the new data
+
+
+================================================================================
+END OF DOCUMENT
+================================================================================

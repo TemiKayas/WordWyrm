@@ -142,7 +142,7 @@ export class GameDataService {
   }
 
   /**
-   * Save game session - uses localStorage in Phaser Editor, API in production
+   * Save game session - uses localStorage in Phaser Editor, server action in production
    */
   async saveGameSession(data: {
     score: number;
@@ -156,15 +156,67 @@ export class GameDataService {
       console.log('[GameDataService] Saving to localStorage:', data);
       localStorage.setItem('towerDefenseSession', JSON.stringify(data));
     } else {
-      console.log('[GameDataService] Saving to API:', data);
+      console.log('[GameDataService] Saving game session to database:', data);
       try {
-        await fetch('/api/game-session', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data)
+        // Get game ID from URL parameters
+        const params = new URLSearchParams(window.location.search);
+        const gameId = params.get('gameId');
+
+        if (!gameId) {
+          console.warn('[GameDataService] No game ID found in URL, skipping session save');
+          return;
+        }
+
+        // Prepare metadata with Tower Defense-specific statistics
+        const metadata = {
+          wavesCompleted: data.waveNumber,
+          towersBuilt: data.towersPlaced,
+          enemiesDefeated: 0, // TODO: Track this in the scene
+          goldEarned: data.gold,
+          livesRemaining: data.lives
+        };
+
+        // Calculate total questions answered (use waveNumber as proxy)
+        const totalQuestions = data.waveNumber;
+
+        // Dynamically import the server action to avoid bundling issues
+        const { saveGameSession } = await import('@/app/actions/game');
+
+        // First try to save without a guest name (for logged-in users)
+        let result = await saveGameSession({
+          gameId,
+          score: data.score,
+          correctAnswers: data.correctAnswers,
+          totalQuestions,
+          metadata
         });
+
+        // If failed and asks for player name, prompt for guest name
+        if (!result.success && result.error.includes('player name')) {
+          const guestName = prompt('Please enter your name to save your score:');
+
+          if (guestName && guestName.trim()) {
+            result = await saveGameSession({
+              gameId,
+              score: data.score,
+              correctAnswers: data.correctAnswers,
+              totalQuestions,
+              metadata,
+              guestName: guestName.trim()
+            });
+          } else {
+            console.log('No name provided, score not saved');
+            return;
+          }
+        }
+
+        if (!result.success) {
+          console.error('Failed to save game session:', result.error);
+        } else {
+          console.log('Game session saved successfully!');
+        }
       } catch (error) {
-        console.error('Error saving session:', error);
+        console.error('[GameDataService] Error saving session:', error);
       }
     }
   }
