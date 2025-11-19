@@ -670,10 +670,11 @@ export async function saveGameSession(params: {
   totalQuestions: number;
   timeSpent?: number;
   metadata?: Record<string, unknown>;  // Game-specific statistics (flexible JSON)
+  questionResponses?: Record<string, unknown>;  // QUESTION ANALYTICS - Individual question data
   guestName?: string;  // Name for guest players (if not logged in)
 }): Promise<ActionResult<{ sessionId: string }>> {
   try {
-    const { gameId, score, correctAnswers, totalQuestions, timeSpent, metadata, guestName } = params;
+    const { gameId, score, correctAnswers, totalQuestions, timeSpent, metadata, questionResponses, guestName } = params;
 
     // Get current user session
     const session = await auth();
@@ -717,6 +718,7 @@ export async function saveGameSession(params: {
             totalQuestions,
             timeSpent,
             metadata: metadata as Prisma.InputJsonValue | undefined,
+            questionResponses: questionResponses as Prisma.InputJsonValue | undefined,  // QUESTION ANALYTICS
             completedAt: new Date(),
           },
         });
@@ -733,6 +735,7 @@ export async function saveGameSession(params: {
             totalQuestions,
             timeSpent,
             metadata: metadata as Prisma.InputJsonValue | undefined,
+            questionResponses: questionResponses as Prisma.InputJsonValue | undefined,  // QUESTION ANALYTICS
             completedAt: new Date(),
           },
         });
@@ -750,6 +753,7 @@ export async function saveGameSession(params: {
           totalQuestions,
           timeSpent,
           metadata: metadata as Prisma.InputJsonValue | undefined,
+          questionResponses: questionResponses as Prisma.InputJsonValue | undefined,  // QUESTION ANALYTICS
           completedAt: new Date(),
         },
       });

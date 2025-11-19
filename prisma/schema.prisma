@@ -289,6 +289,7 @@ model GameSession {
   timeSpent   Int?      // Time spent in seconds
   answersJson Json?     // Store student answers if needed for review
   metadata    Json?     // Game-specific statistics (e.g., streak, longest streak, towers built)
+  questionResponses Json?  // QUESTION ANALYTICS - Detailed per-question data: { "q0": { questionText, selectedAnswer, correctAnswer, correct }, ... }
 
   game    Game    @relation(fields: [gameId], references: [id], onDelete: Cascade)
   student Student? @relation(fields: [studentId], references: [id], onDelete: Cascade)

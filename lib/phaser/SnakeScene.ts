@@ -85,6 +85,14 @@ export default class SnakeScene extends Phaser.Scene {
   private gameId?: string; // Game ID for saving session (undefined in demo mode)
   private startTime = 0; // Timestamp when game started (for calculating time spent)
 
+  // QUESTION ANALYTICS - Track each individual question response
+  private questionResponses: Record<string, {
+    questionText: string;
+    selectedAnswer: string;
+    correctAnswer: string;
+    correct: boolean;
+  }> = {};
+
   private exitButton!: Phaser.GameObjects.Rectangle;
 
   // Input
@@ -1197,6 +1205,15 @@ export default class SnakeScene extends Phaser.Scene {
         this.streak++;
         this.correctAnswers++;
 
+        // QUESTION ANALYTICS - Record this correct answer
+        const selectedAnswer = this.currentQuestion!.options[eatenApple.answerIndex];
+        this.questionResponses[`q${this.currentQuestionIndex}`] = {
+          questionText: this.currentQuestion!.question,
+          selectedAnswer: selectedAnswer,
+          correctAnswer: this.currentQuestion!.answer,
+          correct: true
+        };
+
         // ANALYTICS SYSTEM - Track longest streak achieved
         // This is saved to the database for analytics dashboard display
         // Updates whenever the current streak surpasses the previous record
@@ -1260,6 +1277,15 @@ export default class SnakeScene extends Phaser.Scene {
       } else {
         // Wrong answer!
         const studentAnswer = this.currentQuestion!.options[eatenApple.answerIndex];
+
+        // QUESTION ANALYTICS - Record this wrong answer
+        this.questionResponses[`q${this.currentQuestionIndex}`] = {
+          questionText: this.currentQuestion!.question,
+          selectedAnswer: studentAnswer,
+          correctAnswer: this.currentQuestion!.answer,
+          correct: false
+        };
+
         this.streak = 0; // Reset streak
         this.streakText.setText(`Streak: ${this.streak}`);
         this.wrongAnswer(`Wrong answer! Correct: ${this.currentQuestion!.answer}`, studentAnswer);
@@ -2018,7 +2044,8 @@ export default class SnakeScene extends Phaser.Scene {
         correctAnswers: this.correctAnswers,
         totalQuestions: this.quizData.questions.length,
         timeSpent,
-        metadata  // Snake-specific stats go here
+        metadata,  // Snake-specific stats go here
+        questionResponses: this.questionResponses  // QUESTION ANALYTICS - Individual question data
       });
 
       // If failed and asks for player name, prompt for guest name
@@ -2033,6 +2060,7 @@ export default class SnakeScene extends Phaser.Scene {
             totalQuestions: this.quizData.questions.length,
             timeSpent,
             metadata,
+            questionResponses: this.questionResponses,  // QUESTION ANALYTICS
             guestName: guestName.trim()
           });
         } else {
