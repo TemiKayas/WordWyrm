@@ -9,6 +9,7 @@ import { TowerManager } from '@/lib/tower-defense/managers/TowerManager';
 import { AbilityManager } from '@/lib/tower-defense/managers/AbilityManager';
 import { StageManager } from '@/lib/tower-defense/managers/StageManager';
 import { gameDataService } from '@/lib/tower-defense/GameDataService';
+import { MobileSupport } from '@/lib/phaser/MobileSupport';
 
 // DEBUG: Set to false to hide stage debug buttons
 const ENABLE_STAGE_DEBUG_BUTTONS = true;
@@ -24,6 +25,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
   private towerManager!: TowerManager;
   private abilityManager!: AbilityManager;
   private stageManager!: StageManager;
+  private mobileSupport!: MobileSupport;
   private allPaths: PathPoint[][] = []; // array of enemy movement paths
   private pathGraphicsArray: Phaser.GameObjects.Graphics[] = []; // current path graphics (one per path)
   private backgroundImage?: Phaser.GameObjects.Image; // current background image
@@ -310,6 +312,10 @@ export default class TowerDefenseScene extends Phaser.Scene {
     // Initialize managers after paths are set
     this.enemyManager = new EnemyManager(this, this.allPaths);
     this.towerManager = new TowerManager(this, this.allPaths);
+
+    // Initialize mobile support (orientation enforcement, pause handling)
+    this.mobileSupport = new MobileSupport(this);
+    this.mobileSupport.setup();
 
     // Initialize tower prices from centralized stats
     this.initializeTowerPrices();
@@ -2095,6 +2101,11 @@ export default class TowerDefenseScene extends Phaser.Scene {
   // Phaser lifecycle: Main game loop (runs ~60 times per second)
   // Handles: enemy spawning, movement, tower attacks, projectiles, DoT, boss timer
   update(time: number, delta: number) {
+    // Check if paused due to mobile state (orientation/visibility)
+    if (this.mobileSupport && this.mobileSupport.isPaused()) {
+      return;
+    }
+
     // Handle keyboard shortcuts even when game not started
     const enterKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER);
     const key1 = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.ONE);
@@ -4305,5 +4316,14 @@ export default class TowerDefenseScene extends Phaser.Scene {
 
     // Calculate distance to nearest point
     return Math.sqrt((px - nearestX) * (px - nearestX) + (py - nearestY) * (py - nearestY));
+  }
+
+  /**
+   * Phaser lifecycle: Clean up event listeners when scene is shut down
+   */
+  shutdown() {
+    if (this.mobileSupport) {
+      this.mobileSupport.destroy();
+    }
   }
 }
