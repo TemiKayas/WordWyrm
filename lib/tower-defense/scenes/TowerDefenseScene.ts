@@ -315,7 +315,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
 
     // Initialize mobile support (orientation enforcement, pause handling)
     this.mobileSupport = new MobileSupport(this);
-    this.mobileSupport.setup();
+    this.mobileSupport.setup(undefined, undefined, 'UIScene');
 
     // Initialize tower prices from centralized stats
     this.initializeTowerPrices();

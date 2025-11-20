@@ -36,6 +36,7 @@ export class MobileSupport {
     private visibilityHandler?: () => void;
     private swipeHandler?: SwipeHandler;
     private gameStartedCallback?: () => boolean;
+    private overlaySceneName?: string;
 
     constructor(scene: Phaser.Scene) {
         this.scene = scene;
@@ -45,10 +46,12 @@ export class MobileSupport {
      * Initialize mobile support
      * @param swipeHandler - Optional handler for swipe directions
      * @param gameStartedCallback - Optional callback to check if game has started (for visibility pause)
+     * @param overlaySceneName - Optional scene name to bring to top when overlays are hidden (e.g., 'UIScene')
      */
-    setup(swipeHandler?: SwipeHandler, gameStartedCallback?: () => boolean) {
+    setup(swipeHandler?: SwipeHandler, gameStartedCallback?: () => boolean, overlaySceneName?: string) {
         this.swipeHandler = swipeHandler;
         this.gameStartedCallback = gameStartedCallback;
+        this.overlaySceneName = overlaySceneName;
 
         // Detect if device is mobile/touch
         this.isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
@@ -184,6 +187,15 @@ export class MobileSupport {
 
         this.isPausedForOrientation = true;
 
+        // Bring this scene to top so overlay appears above all other scenes (e.g., UIScene)
+        if (this.scene.scene) {
+            try {
+                this.scene.scene.bringToTop();
+            } catch (e) {
+                console.warn('Failed to bring scene to top:', e);
+            }
+        }
+
         const width = this.scene.scale.width;
         const height = this.scene.scale.height;
 
@@ -235,10 +247,28 @@ export class MobileSupport {
             this.orientationOverlay = undefined;
         }
         this.isPausedForOrientation = false;
+
+        // Restore overlay scene (e.g., UIScene) to top if specified
+        if (this.overlaySceneName && this.scene.scene) {
+            try {
+                this.scene.scene.bringToTop(this.overlaySceneName);
+            } catch (e) {
+                console.warn('Failed to restore overlay scene order:', e);
+            }
+        }
     }
 
     private showCountdownOverlay() {
         if (this.countdownOverlay) return;
+
+        // Bring this scene to top so overlay appears above all other scenes (e.g., UIScene)
+        if (this.scene.scene) {
+            try {
+                this.scene.scene.bringToTop();
+            } catch (e) {
+                console.warn('Failed to bring scene to top:', e);
+            }
+        }
 
         const width = this.scene.scale.width;
         const height = this.scene.scale.height;
@@ -302,6 +332,15 @@ export class MobileSupport {
             this.countdownOverlay = undefined;
         }
         this.isPausedForVisibility = false;
+
+        // Restore overlay scene (e.g., UIScene) to top if specified
+        if (this.overlaySceneName && this.scene.scene) {
+            try {
+                this.scene.scene.bringToTop(this.overlaySceneName);
+            } catch (e) {
+                console.warn('Failed to restore overlay scene order:', e);
+            }
+        }
     }
 
     private setupVisibilityDetection() {
