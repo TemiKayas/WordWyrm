@@ -139,6 +139,13 @@ export default function TeacherDashboard() {
             </div>
             <div className="flex gap-3">
               <Button
+                onClick={() => router.push('/teacher/games')}
+                variant="primary"
+                size="sm"
+              >
+                All Games
+              </Button>
+              <Button
                 onClick={() => router.push('/teacher/discover')}
                 variant="orange"
                 size="sm"

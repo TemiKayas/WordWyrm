@@ -1,9 +1,12 @@
 ================================================================================
-GAME CONFIGURATION FOR ANALYTICS TRACKING
+GAME CONFIGURATION FOR WORDWYRM GAMES
 ================================================================================
 
 This document outlines the required implementation for any game type to properly
-integrate with the WordWyrm analytics dashboard and AI analysis features.
+integrate with:
+- Analytics dashboard and AI analysis features
+- Mobile support (orientation, swipe controls, pause handling)
+- Session saving (only tracks class members)
 
 ================================================================================
 OVERVIEW
@@ -225,6 +228,203 @@ Issue: AI analysis fails
 - Verify there are enough questions answered (at least 1)
 - Check that questionText is not empty or undefined
 - Look at server logs for Gemini API errors
+
+
+================================================================================
+MOBILE SUPPORT INTEGRATION
+================================================================================
+
+WordWyrm provides a reusable MobileSupport class for all Phaser games.
+
+File: lib/phaser/MobileSupport.ts
+
+FEATURES:
+- Mobile device detection
+- Landscape orientation enforcement with overlay
+- Swipe controls for direction-based games
+- Tab/app switch pause with 3-2-1 countdown
+- Browser gesture prevention (pull-to-refresh, back-swipe)
+
+--------------------------------------------------------------------------------
+BASIC USAGE (No Swipe Controls)
+--------------------------------------------------------------------------------
+
+import { MobileSupport } from '@/lib/phaser/MobileSupport';
+
+export default class YourScene extends Phaser.Scene {
+  private mobileSupport!: MobileSupport;
+
+  create() {
+    // ... your game setup ...
+
+    // Initialize mobile support
+    this.mobileSupport = new MobileSupport(this);
+    this.mobileSupport.setup();
+  }
+
+  update(time: number, delta: number) {
+    // Check if paused due to mobile state (orientation/visibility)
+    if (this.mobileSupport.isPaused()) {
+      return;
+    }
+
+    // ... your game logic ...
+  }
+
+  shutdown() {
+    // Clean up event listeners
+    this.mobileSupport.destroy();
+  }
+}
+
+--------------------------------------------------------------------------------
+WITH SWIPE CONTROLS (For Direction-Based Games)
+--------------------------------------------------------------------------------
+
+import { MobileSupport, SwipeHandler } from '@/lib/phaser/MobileSupport';
+
+export default class YourScene extends Phaser.Scene {
+  private mobileSupport!: MobileSupport;
+  private direction = 'RIGHT';
+  private nextDirection = 'RIGHT';
+  private gameStarted = false;
+
+  create() {
+    // ... your game setup ...
+
+    // Initialize mobile support with swipe handler
+    this.mobileSupport = new MobileSupport(this);
+
+    const swipeHandler: SwipeHandler = {
+      onSwipeUp: () => {
+        if (this.direction !== 'DOWN') this.nextDirection = 'UP';
+      },
+      onSwipeDown: () => {
+        if (this.direction !== 'UP') this.nextDirection = 'DOWN';
+      },
+      onSwipeLeft: () => {
+        if (this.direction !== 'RIGHT') this.nextDirection = 'LEFT';
+      },
+      onSwipeRight: () => {
+        if (this.direction !== 'LEFT') this.nextDirection = 'RIGHT';
+      }
+    };
+
+    // Pass swipe handler and game started callback
+    this.mobileSupport.setup(
+      swipeHandler,
+      () => this.gameStarted  // Used to determine if visibility pause should show countdown
+    );
+  }
+
+  update(time: number, delta: number) {
+    if (this.mobileSupport.isPaused()) {
+      return;
+    }
+
+    // ... your game logic ...
+  }
+
+  shutdown() {
+    this.mobileSupport.destroy();
+  }
+}
+
+--------------------------------------------------------------------------------
+IMPORTANT NOTES
+--------------------------------------------------------------------------------
+
+1. Orientation Overlay
+   - Automatically shows when device is in portrait mode
+   - Game is paused behind the overlay
+   - Disappears when user rotates to landscape
+
+2. Countdown Overlay
+   - Shows 3-2-1 countdown when:
+     - First entering landscape mode on mobile
+     - Returning from tab/app switch
+   - Gives user time to get ready before game resumes
+
+3. Desktop Behavior
+   - All mobile features are disabled on desktop
+   - isMobile check uses 'ontouchstart' and maxTouchPoints
+
+4. Swipe Controls
+   - Minimum 30px swipe distance threshold
+   - Uses dominant axis (horizontal vs vertical)
+   - Prevents accidental direction changes
+
+
+================================================================================
+SESSION SAVING AND ANALYTICS
+================================================================================
+
+IMPORTANT: Analytics are ONLY tracked for class members!
+
+When a game ends, call saveGameSession() to save the player's results.
+The server will automatically:
+- Check if the user is authenticated
+- Check if they are a member of the game's class
+- Only save analytics for class members
+- Return success (with sessionId: 'not-tracked') for non-class members
+
+This allows anyone to play via QR code/share link, but only class members
+will have their results appear in the teacher's analytics dashboard.
+
+--------------------------------------------------------------------------------
+EXAMPLE SAVE SESSION IMPLEMENTATION
+--------------------------------------------------------------------------------
+
+async saveSession() {
+  // Skip if no gameId (demo mode)
+  if (!this.gameId) {
+    return;
+  }
+
+  try {
+    const { saveGameSession } = await import('@/app/actions/game');
+
+    const result = await saveGameSession({
+      gameId: this.gameId,
+      score: this.score,
+      correctAnswers: this.correctAnswers,
+      totalQuestions: this.quizData.questions.length,
+      timeSpent: Math.floor((Date.now() - this.startTime) / 1000),
+      metadata: {
+        // Your game-specific stats
+        longestStreak: this.longestStreak,
+        finalLength: this.snake.length
+      },
+      questionResponses: this.questionResponses
+    });
+
+    if (!result.success) {
+      console.error('Failed to save game session:', result.error);
+    } else if (result.data.sessionId === 'not-tracked') {
+      console.log('Game completed (analytics not tracked - not a class member)');
+    } else {
+      console.log('Game session saved successfully!');
+    }
+  } catch (error) {
+    console.error('Error saving game session:', error);
+  }
+}
+
+--------------------------------------------------------------------------------
+KEY POINTS
+--------------------------------------------------------------------------------
+
+1. No Guest Names
+   - Don't prompt for names - non-class members are simply not tracked
+   - This keeps analytics clean and relevant
+
+2. Silent Success
+   - saveGameSession returns success even if not tracked
+   - Check sessionId === 'not-tracked' to know if analytics were saved
+
+3. Class Membership Check
+   - Server checks if user is in the game's class
+   - Only authenticated students in the class get full analytics
 
 
 ================================================================================

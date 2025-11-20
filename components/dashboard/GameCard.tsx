@@ -19,6 +19,7 @@ interface GameCardProps {
   onEdit?: () => void;
   onDelete?: () => void;
   onViewAnalytics?: () => void;  // ANALYTICS SYSTEM - Navigate to analytics dashboard
+  onInfo?: () => void;  // Navigate to game preview page with share code/QR
 }
 
 export default function GameCard({
@@ -33,6 +34,7 @@ export default function GameCard({
   onEdit,
   onDelete,
   onViewAnalytics,
+  onInfo,
 }: GameCardProps) {
   const [showMenu, setShowMenu] = useState(false);
 
@@ -48,6 +50,11 @@ export default function GameCard({
 
   const handleViewAnalytics = () => {
     onViewAnalytics?.();
+    setShowMenu(false);
+  };
+
+  const handleInfo = () => {
+    onInfo?.();
     setShowMenu(false);
   };
 
@@ -84,6 +91,22 @@ export default function GameCard({
                 </svg>
                 Edit Quiz
               </button>
+              {/* Info button - Show share code/QR code for published games */}
+              {!isDraft && onInfo && (
+                <>
+                  <div className="h-[1px] bg-[#473025]/20 mx-2"/>
+                  <button
+                    onClick={handleInfo}
+                    className="w-full px-4 py-3 text-left font-quicksand font-bold text-[#473025] text-[14px] hover:bg-[#fff5e8] transition-colors cursor-pointer flex items-center gap-2"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <circle cx="8" cy="8" r="7" stroke="#473025" strokeWidth="1.5"/>
+                      <path d="M8 11V8M8 5H8.01" stroke="#473025" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    Info
+                  </button>
+                </>
+              )}
               {/* ANALYTICS SYSTEM - Show analytics button only for published games (not drafts) */}
               {!isDraft && onViewAnalytics && (
                 <>
