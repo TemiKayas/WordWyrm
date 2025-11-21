@@ -82,11 +82,7 @@ export default function GamesView({ onCreateGame, classId, hideTitle = false }: 
   const drafts = games.filter(g => !g.hasGame);
 
   const handlePlay = (game: Game) => {
-    if (game.gameMode === 'SNAKE') {
-      router.push(`/play/snake?gameId=${game.gameId}`);
-    } else if (game.gameMode === 'TOWER_DEFENSE') {
-      router.push(`/play/td?gameId=${game.gameId}`);
-    } else if (game.shareCode) {
+    if (game.shareCode) {
       router.push(`/play/phaser/${game.shareCode}`);
     }
   };
@@ -100,6 +96,13 @@ export default function GamesView({ onCreateGame, classId, hideTitle = false }: 
   const handleViewAnalytics = (game: Game) => {
     if (game.gameId) {
       router.push(`/teacher/analytics/${game.gameId}`);
+    }
+  };
+
+  // Navigate to game preview page with share code/QR
+  const handleInfo = (game: Game) => {
+    if (game.gameId) {
+      router.push(`/teacher/game-preview?gameId=${game.gameId}`);
     }
   };
 
@@ -196,6 +199,7 @@ export default function GamesView({ onCreateGame, classId, hideTitle = false }: 
                 onEdit={() => handleEdit(game)}
                 onDelete={() => handleDelete(game)}
                 onViewAnalytics={() => handleViewAnalytics(game)}
+                onInfo={() => handleInfo(game)}
               />
             ))}
           </div>

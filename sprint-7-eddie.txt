@@ -354,6 +354,326 @@ DELETED FILES:
 
 
 ================================================================================
+FEATURE 3: PUBLIC/PRIVATE GAME ACCESS CONTROL
+================================================================================
+
+OVERVIEW
+--------
+Games can be set to public or private. Private games only allow class members
+and the teacher to play. Public games allow anyone but show a login prompt.
+Analytics are only tracked for class members.
+
+--------------------------------------------------------------------------------
+ACCESS CONTROL LOGIC
+--------------------------------------------------------------------------------
+
+File: app/actions/game.ts
+
+Updated getGameWithQuiz() to return accessState and isAuthenticated:
+
+Access States:
+- 'allowed' - User can play and will be tracked (class member or teacher)
+- 'allowed_no_track' - User can play but won't be tracked (public game, not in class)
+- 'private_denied' - Game is private and user doesn't have access
+- 'prompt_login' - Game is public but user isn't logged in
+
+Logic Flow:
+1. If user is teacher who created game -> 'allowed'
+2. If user is class member -> 'allowed'
+3. If user is logged in but not in class:
+   - Public game -> 'allowed_no_track'
+   - Private game -> 'private_denied'
+4. If user is not logged in:
+   - Public game -> 'prompt_login'
+   - Private game -> 'private_denied'
+
+--------------------------------------------------------------------------------
+GAME ROUTER PAGE UPDATES
+--------------------------------------------------------------------------------
+
+File: app/play/phaser/[shareCode]/page.tsx
+
+New Components:
+
+1. LoginPromptPopup - Shows for unauthenticated users on public games
+   - "You're not logged in" message
+   - "Sign Up or Log In" button -> redirects to /login with callbackUrl
+   - X button to dismiss and continue as guest
+
+2. AccessDeniedPage - Shows for private games without access
+   - Different messages for logged in vs not logged in:
+     - Logged in: "You are not a member of the class this game belongs to."
+     - Not logged in: "This game is private. Please log in to access it."
+   - Only shows "Log In" button when not logged in
+
+State Management:
+- showLoginPrompt - Whether to show login popup
+- showAccessDenied - Whether to show access denied page
+- isUserLoggedIn - Whether user was authenticated (for access denied message)
+- pendingRedirect - URL to redirect to after popup dismissal
+
+--------------------------------------------------------------------------------
+LOGIN CALLBACK URL FIX
+--------------------------------------------------------------------------------
+
+File: app/actions/auth.ts
+
+Fixed login redirect to allow /play routes:
+
+Before: Only allowed /teacher and /student routes as callbacks
+After: Also allows /play routes for anyone
+
+```typescript
+const isPlayRoute = callbackUrl.startsWith('/play');
+
+if (isPlayRoute ||
+    (isTeacherRoute && user.role === 'TEACHER') ||
+    (isStudentRoute && user.role === 'STUDENT')) {
+  redirectPath = callbackUrl;
+}
+```
+
+--------------------------------------------------------------------------------
+ANALYTICS TRACKING UPDATES
+--------------------------------------------------------------------------------
+
+File: app/actions/game.ts - saveGameSession()
+
+Only tracks analytics for class members:
+- Returns { sessionId: 'not-tracked' } for non-class members
+- No guest name prompting - simply don't track
+
+Files Updated:
+- lib/phaser/SnakeScene.ts - Removed guest name handling
+- lib/tower-defense/GameDataService.ts - Removed guest name handling
+
+
+================================================================================
+FEATURE 4: STYLED NOTIFICATION POPUPS
+================================================================================
+
+OVERVIEW
+--------
+Replaced browser alert() calls with styled in-game popup cards that match
+the WordWyrm design system.
+
+--------------------------------------------------------------------------------
+SNAKE GAME IMPLEMENTATION
+--------------------------------------------------------------------------------
+
+File: lib/phaser/SnakeScene.ts
+
+Added showNotification() method (Phaser-based popup):
+- Semi-transparent dark overlay
+- Cream card with brown border
+- Colored circle icon (green/red/orange based on type)
+- Message text with word wrap
+- Green "OK" button with hover effect
+
+Types: 'success', 'error', 'info'
+
+Messages:
+- Success: "Game completed! Your score has been saved."
+- Info: "Game completed! Your score was not saved because you are not a member of this class."
+- Error: "Failed to save your score. Please try again."
+
+--------------------------------------------------------------------------------
+TOWER DEFENSE IMPLEMENTATION
+--------------------------------------------------------------------------------
+
+File: lib/tower-defense/GameDataService.ts
+
+Added showNotification() method (DOM-based popup):
+- Same styling as Snake for consistency
+- Uses document.createElement for DOM elements
+- Works from service class (not Phaser scene)
+
+
+================================================================================
+FEATURE 5: TEACHER DASHBOARD IMPROVEMENTS
+================================================================================
+
+--------------------------------------------------------------------------------
+ALL GAMES BUTTON
+--------------------------------------------------------------------------------
+
+File: app/teacher/dashboard/page.tsx
+
+Added "All Games" button next to "Discover Games" in dashboard header.
+Links to /teacher/games where teachers can see all their games with
+share codes and QR codes.
+
+--------------------------------------------------------------------------------
+INFO OPTION IN GAME CARD
+--------------------------------------------------------------------------------
+
+File: components/dashboard/GameCard.tsx
+- Added onInfo prop to interface
+- Added "Info" button in dropdown menu (only for published games)
+- Uses info icon (circle with "i")
+
+File: components/dashboard/GamesView.tsx
+- Added handleInfo() that navigates to /teacher/game-preview?gameId=...
+- Passed onInfo handler to GameCard components
+
+--------------------------------------------------------------------------------
+STANDARDIZED PLAY ROUTING
+--------------------------------------------------------------------------------
+
+File: components/dashboard/GamesView.tsx
+
+Changed handlePlay() to always use the router:
+```typescript
+const handlePlay = (game: Game) => {
+  if (game.shareCode) {
+    router.push(`/play/phaser/${game.shareCode}`);
+  }
+};
+```
+
+Previously had special cases for SNAKE and TOWER_DEFENSE that bypassed router.
+
+--------------------------------------------------------------------------------
+GAME PREVIEW PAGE FIXES
+--------------------------------------------------------------------------------
+
+File: app/teacher/game-preview/page.tsx
+
+1. Fixed Launch Game button:
+   - Was hardcoded to /play/td (Tower Defense)
+   - Now uses /play/phaser/${shareCode} to go through router
+
+2. Moved Back to Dashboard button:
+   - Was inside game card
+   - Now in header area (top right) for consistency
+   - Orange styling with back arrow icon
+
+
+================================================================================
+FEATURE 6: MOBILE SUPPORT FOR SNAKE GAME
+================================================================================
+
+OVERVIEW
+--------
+Mobile-responsive features for the Snake game including landscape orientation
+enforcement, swipe controls, and tab/app visibility pause.
+
+--------------------------------------------------------------------------------
+MOBILE SUPPORT MODULE (REUSABLE)
+--------------------------------------------------------------------------------
+
+File: lib/phaser/MobileSupport.ts (NEW FILE)
+
+Reusable class for all Phaser games:
+- Mobile detection
+- Landscape orientation overlay with "Please rotate your phone" message
+- Swipe controls (optional - pass handler or skip)
+- Tab/app visibility pause with 3-2-1 countdown
+- Browser gesture prevention
+
+Usage:
+```typescript
+const mobileSupport = new MobileSupport(this);
+mobileSupport.setup(swipeHandler, () => this.gameStarted);
+```
+
+--------------------------------------------------------------------------------
+SNAKE GAME INTEGRATION
+--------------------------------------------------------------------------------
+
+File: lib/phaser/SnakeScene.ts
+
+Implemented inline (before module was created):
+- Orientation overlay
+- Swipe controls for direction changes
+- Visibility pause with countdown
+
+Bug Fix - Snake not moving on start:
+- Issue: If user switched tabs before starting, isPausedForVisibility stayed true
+- Fix: Only set isPausedForVisibility when gameStarted is true
+
+```typescript
+if (document.hidden) {
+  if (this.gameStarted && !this.gameOver) {
+    this.isPausedForVisibility = true;
+  }
+}
+```
+
+--------------------------------------------------------------------------------
+TOWER DEFENSE STATUS
+--------------------------------------------------------------------------------
+
+Tower Defense has NOT been updated to use MobileSupport module yet.
+Left for teammate to implement. See gameConfiguration.txt for integration docs.
+
+
+================================================================================
+UPDATED TESTING CHECKLIST
+================================================================================
+
+PUBLIC/PRIVATE GAME ACCESS:
+[ ] Create public and private games (toggle in game edit page)
+[ ] Test private game - not logged in -> Access denied page
+[ ] Test private game - logged in, not in class -> Access denied with "not a member" message
+[ ] Test private game - class member -> Plays, tracked
+[ ] Test public game - not logged in -> Login prompt popup
+[ ] Test public game - dismiss popup -> Plays as guest, not tracked
+[ ] Test public game - click login -> Redirects back to game after login
+[ ] Test public game - logged in, not in class -> Plays, not tracked (no popup)
+[ ] Test public game - class member -> Plays, tracked
+
+NOTIFICATION POPUPS:
+[ ] Complete game as class member -> Success popup (green)
+[ ] Complete game as non-class member -> Info popup (orange)
+[ ] (Simulate error) -> Error popup (red)
+
+DASHBOARD IMPROVEMENTS:
+[ ] Click "All Games" button -> Goes to /teacher/games
+[ ] Click three-dot menu -> Info option appears
+[ ] Click Info -> Goes to game preview page
+[ ] Game preview Launch Game button -> Opens correct game type
+[ ] Game preview Back to Dashboard button -> In header area
+
+MOBILE SUPPORT (Snake):
+[ ] Open on mobile in portrait -> "Please rotate" overlay
+[ ] Rotate to landscape -> Overlay disappears, game loads
+[ ] Swipe controls work for direction changes
+[ ] Switch app/tab during game -> Pauses
+[ ] Return to app/tab -> Shows 3-2-1 countdown
+[ ] Switch tab before starting -> No pause issue
+
+
+================================================================================
+FILES SUMMARY (UPDATED)
+================================================================================
+
+NEW FILES:
+- app/actions/analytics.ts
+- app/teacher/analytics/[gameId]/student/[sessionId]/page.tsx
+- app/teacher/analytics/[gameId]/student/[sessionId]/analysis/page.tsx
+- app/teacher/analytics/[gameId]/class-analysis/page.tsx
+- gameConfiguration.txt
+- lib/phaser/MobileSupport.ts
+
+MODIFIED FILES:
+- prisma/schema.prisma (questionResponses field)
+- lib/phaser/SnakeScene.ts (tracking, mobile support, notifications, visibility fix)
+- lib/tower-defense/GameDataService.ts (notifications, removed guest name)
+- app/actions/game.ts (access control, saveGameSession updates)
+- app/actions/auth.ts (callbackUrl fix for /play routes)
+- app/actions/pdf.ts (processContentForQuiz)
+- app/play/phaser/[shareCode]/page.tsx (access control UI, login prompt, access denied)
+- app/teacher/dashboard/page.tsx (All Games button)
+- app/teacher/game-preview/page.tsx (Launch Game fix, Back button moved)
+- app/teacher/analytics/[gameId]/page.tsx (clickable names, analysis link)
+- lib/processors/ai-generator.ts (validation, prompt updates)
+- app/teacher/components/PDFUploadForm.tsx (text input)
+- components/dashboard/GameCard.tsx (Info option)
+- components/dashboard/GamesView.tsx (handleInfo, standardized play routing)
+
+
+================================================================================
 KNOWN ISSUES / NOTES
 ================================================================================
 
@@ -367,6 +687,14 @@ KNOWN ISSUES / NOTES
 
 4. Text-only quizzes create placeholder PDF records
    - This maintains database relationships but blobUrl is empty
+
+5. Mobile support only implemented for Snake game
+   - MobileSupport.ts module is ready for Tower Defense integration
+   - TD teammate should import and use it
+
+6. QR code testing requires Vercel preview deployment
+   - Local testing with phone requires same WiFi network
+   - School/campus WiFi may have device isolation
 
 
 ================================================================================

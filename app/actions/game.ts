@@ -19,6 +19,13 @@ type GameWithQuiz = Game & {
   };
 };
 
+// Access state for games
+type GameAccessState =
+  | 'allowed'           // User can play and will be tracked (class member or teacher)
+  | 'allowed_no_track'  // User can play but won't be tracked (not in class)
+  | 'private_denied'    // Game is private and user doesn't have access
+  | 'prompt_login';     // Game is public but user isn't logged in - show login prompt
+
 // creates a new game with full settings (title, description, game mode, etc.)
 export async function createGame(params: {
   quizId: string;
@@ -167,10 +174,10 @@ export async function createGameFromQuiz(
 }
 
 // gets specific game with associated quiz by ID or share code
-// returns ActionResult with game data or err msg on fail
+// returns ActionResult with game data and access state
 export async function getGameWithQuiz(
   idOrShareCode: string
-): Promise<ActionResult<{ game: GameWithQuiz }>> {
+): Promise<ActionResult<{ game: GameWithQuiz; accessState: GameAccessState; isAuthenticated: boolean }>> {
   try {
     const session = await auth();
 
@@ -219,19 +226,25 @@ export async function getGameWithQuiz(
       return { success: false, error: 'Game not found' };
     }
 
-    // If game is public and active, allow access to anyone
-    if (game.isPublic && game.active) {
-      return { success: true, data: { game } };
+    // Check if game is active
+    if (!game.active) {
+      return { success: false, error: 'This game is no longer active' };
     }
 
-    // For private games, check authentication and membership
+    // Determine access state based on game visibility and user auth
+    let accessState: GameAccessState;
+
+    // Track if user is authenticated
+    const isAuthenticated = !!session?.user;
+
+    // Check if user is authenticated
     if (session?.user) {
-      // If user is the teacher who created the game, allow access
+      // If user is the teacher who created the game, always allow full access
       if (session.user.role === 'TEACHER' && game.teacher.userId === session.user.id) {
-        return { success: true, data: { game } };
+        return { success: true, data: { game, accessState: 'allowed', isAuthenticated } };
       }
 
-      // For students (or other teachers), check class membership
+      // Check if user is a class member
       const membership = await db.classMembership.findUnique({
         where: {
           classId_userId: {
@@ -241,22 +254,28 @@ export async function getGameWithQuiz(
         },
       });
 
-      if (!membership) {
-        return {
-          success: false,
-          error: 'You must be a member of this class to access this game. Please join the class first.'
-        };
+      if (membership) {
+        // Class member - will be tracked
+        accessState = 'allowed';
+      } else if (game.isPublic) {
+        // Public game but not a class member - won't be tracked
+        accessState = 'allowed_no_track';
+      } else {
+        // Private game and not a class member - denied
+        return { success: true, data: { game, accessState: 'private_denied', isAuthenticated } };
       }
     } else {
-      // If no session, require login
-      return {
-        success: false,
-        error: 'Please log in to access this game.'
-      };
+      // User is not logged in
+      if (game.isPublic) {
+        // Public game - prompt to login (they can still play as guest)
+        accessState = 'prompt_login';
+      } else {
+        // Private game and not logged in - denied
+        return { success: true, data: { game, accessState: 'private_denied', isAuthenticated } };
+      }
     }
 
-    // return game data on success.
-    return { success: true, data: { game } };
+    return { success: true, data: { game, accessState, isAuthenticated } };
   } catch (error) {
     // log the error and return a generic err msg
     console.error('Failed to get game:', error);
@@ -671,16 +690,26 @@ export async function saveGameSession(params: {
   timeSpent?: number;
   metadata?: Record<string, unknown>;  // Game-specific statistics (flexible JSON)
   questionResponses?: Record<string, unknown>;  // QUESTION ANALYTICS - Individual question data
-  guestName?: string;  // Name for guest players (if not logged in)
 }): Promise<ActionResult<{ sessionId: string }>> {
   try {
-    const { gameId, score, correctAnswers, totalQuestions, timeSpent, metadata, questionResponses, guestName } = params;
+    const { gameId, score, correctAnswers, totalQuestions, timeSpent, metadata, questionResponses } = params;
 
     // Get current user session
     const session = await auth();
     let studentId: string | null = null;
+    let isClassMember = false;
 
-    // If user is logged in, try to get their student profile
+    // Get the game to check class membership
+    const game = await db.game.findUnique({
+      where: { id: gameId },
+      select: { classId: true },
+    });
+
+    if (!game) {
+      return { success: false, error: 'Game not found' };
+    }
+
+    // If user is logged in, try to get their student profile and check class membership
     if (session?.user) {
       const student = await db.student.findUnique({
         where: { userId: session.user.id },
@@ -688,66 +717,60 @@ export async function saveGameSession(params: {
 
       if (student) {
         studentId = student.id;
+
+        // Check if student is in the same class as the game
+        const membership = await db.classMembership.findUnique({
+          where: {
+            classId_userId: {
+              classId: game.classId,
+              userId: session.user.id,
+            },
+          },
+        });
+
+        isClassMember = !!membership;
       }
     }
 
-    // If no student ID and no guest name, require guest name
-    if (!studentId && !guestName) {
-      return { success: false, error: 'Please provide a player name' };
+    // Only save analytics for class members
+    // Anyone can play via QR code/link, but only class members get tracked
+    if (!isClassMember) {
+      // Not a class member - don't track analytics
+      // Return success so the game doesn't show an error
+      return { success: true, data: { sessionId: 'not-tracked' } };
     }
 
-    // Create game session (guest or authenticated)
-    // For logged-in students, we update existing sessions if they exist
-    // For guests, we always create new sessions
-    if (studentId) {
-      // Logged-in student - find existing session or create new one
-      const existingSession = await db.gameSession.findFirst({
-        where: {
-          gameId,
-          studentId,
+    // Create or update game session for class member
+    // Find existing session or create new one
+    const existingSession = await db.gameSession.findFirst({
+      where: {
+        gameId,
+        studentId,
+      },
+    });
+
+    if (existingSession) {
+      // Update existing session
+      const gameSession = await db.gameSession.update({
+        where: { id: existingSession.id },
+        data: {
+          score,
+          correctAnswers,
+          totalQuestions,
+          timeSpent,
+          metadata: metadata as Prisma.InputJsonValue | undefined,
+          questionResponses: questionResponses as Prisma.InputJsonValue | undefined,  // QUESTION ANALYTICS
+          completedAt: new Date(),
         },
       });
 
-      if (existingSession) {
-        // Update existing session
-        const gameSession = await db.gameSession.update({
-          where: { id: existingSession.id },
-          data: {
-            score,
-            correctAnswers,
-            totalQuestions,
-            timeSpent,
-            metadata: metadata as Prisma.InputJsonValue | undefined,
-            questionResponses: questionResponses as Prisma.InputJsonValue | undefined,  // QUESTION ANALYTICS
-            completedAt: new Date(),
-          },
-        });
-
-        return { success: true, data: { sessionId: gameSession.id } };
-      } else {
-        // Create new session
-        const gameSession = await db.gameSession.create({
-          data: {
-            gameId,
-            studentId,
-            score,
-            correctAnswers,
-            totalQuestions,
-            timeSpent,
-            metadata: metadata as Prisma.InputJsonValue | undefined,
-            questionResponses: questionResponses as Prisma.InputJsonValue | undefined,  // QUESTION ANALYTICS
-            completedAt: new Date(),
-          },
-        });
-
-        return { success: true, data: { sessionId: gameSession.id } };
-      }
+      return { success: true, data: { sessionId: gameSession.id } };
     } else {
-      // Guest player - always create new session
+      // Create new session
       const gameSession = await db.gameSession.create({
         data: {
           gameId,
-          guestName,
+          studentId,
           score,
           correctAnswers,
           totalQuestions,
