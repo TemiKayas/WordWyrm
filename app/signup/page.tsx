@@ -27,6 +27,12 @@ export default function SignupPage() {
         }
         // No else needed - server action will redirect on successful auto-signin
       } catch (err) {
+        // Ignore redirect errors - Next.js handles them
+        if (err && typeof err === 'object' && 'digest' in err &&
+            typeof err.digest === 'string' && err.digest.startsWith('NEXT_REDIRECT')) {
+          throw err; // Re-throw to let Next.js handle it
+        }
+
         console.error('Signup error:', err);
         setError('An unexpected error occurred');
       }

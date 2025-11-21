@@ -34,6 +34,7 @@ import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { redirect } from 'next/navigation';
 import { getGameTypeConfig } from '@/lib/game-types';
+import Link from 'next/link';
 
 export default async function GameAnalyticsPage({
   params,
@@ -148,6 +149,18 @@ export default async function GameAnalyticsPage({
           </p>
         </div>
 
+        {/* AI Class Analysis Button */}
+        {game.gameSessions.length > 0 && (
+          <div className="mb-6">
+            <Link
+              href={`/teacher/analytics/${gameId}/class-analysis`}
+              className="inline-block bg-[#95b607] hover:bg-[#7a9700] text-white font-quicksand font-bold px-6 py-3 rounded-lg transition-colors"
+            >
+              Analyze Class Performance
+            </Link>
+          </div>
+        )}
+
         {/* Summary Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
           <div className="bg-gradient-to-br from-[#96b902]/10 to-[#7a9700]/10 border-[3px] border-[#96b902] rounded-[15px] p-6 shadow-sm">
@@ -225,12 +238,18 @@ export default async function GameAnalyticsPage({
                     return (
                       <tr key={session.id} className="hover:bg-[#fffaf2]/50 transition-colors">
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="font-quicksand font-bold text-[#473025] text-[14px]">
-                            {session.student ? session.student.user.name : (session.guestName || 'Guest Player')}
-                          </div>
-                          <div className="font-quicksand text-[#473025]/60 text-[12px]">
-                            {session.student ? session.student.user.email : 'Guest (not logged in)'}
-                          </div>
+                          {/* QUESTION ANALYTICS - Click to view detailed breakdown */}
+                          <a
+                            href={`/teacher/analytics/${gameId}/student/${session.id}`}
+                            className="block hover:bg-[#fff5e9] p-2 -m-2 rounded transition-colors"
+                          >
+                            <div className="font-quicksand font-bold text-[#95b607] hover:text-[#7a9700] text-[14px] hover:underline">
+                              {session.student ? session.student.user.name : (session.guestName || 'Guest Player')} →
+                            </div>
+                            <div className="font-quicksand text-[#473025]/60 text-[12px]">
+                              {session.student ? session.student.user.email : 'Guest (not logged in)'}
+                            </div>
+                          </a>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="font-quicksand font-bold text-[#95b607] text-[16px]">

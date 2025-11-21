@@ -85,6 +85,14 @@ export default class SnakeScene extends Phaser.Scene {
   private gameId?: string; // Game ID for saving session (undefined in demo mode)
   private startTime = 0; // Timestamp when game started (for calculating time spent)
 
+  // QUESTION ANALYTICS - Track each individual question response
+  private questionResponses: Record<string, {
+    questionText: string;
+    selectedAnswer: string;
+    correctAnswer: string;
+    correct: boolean;
+  }> = {};
+
   private exitButton!: Phaser.GameObjects.Rectangle;
 
   // Input
@@ -95,6 +103,20 @@ export default class SnakeScene extends Phaser.Scene {
     S: Phaser.Input.Keyboard.Key;
     D: Phaser.Input.Keyboard.Key;
   };
+
+  // Mobile support
+  private isMobile = false;
+  private isLandscape = true;
+  private orientationOverlay?: Phaser.GameObjects.Container;
+  private countdownOverlay?: Phaser.GameObjects.Container;
+  private swipeStartX = 0;
+  private swipeStartY = 0;
+  private isPausedForOrientation = false;
+  private isPausedForVisibility = false;
+  private visibilityHandler?: () => void;
+
+  // Notification popup
+  private notificationPopup?: Phaser.GameObjects.Container;
 
   constructor() {
     super({ key: 'SnakeScene' });
@@ -174,6 +196,9 @@ export default class SnakeScene extends Phaser.Scene {
       S: this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.S),
       D: this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.D)
     };
+
+    // Setup mobile support
+    this.setupMobileSupport();
 
     // Exit button (top left) - always on top
     this.exitButton = this.add.rectangle(70, 30, 120, 40, 0xff4444).setDepth(3000);
@@ -1112,7 +1137,7 @@ export default class SnakeScene extends Phaser.Scene {
   }
 
   update(time: number, delta: number) {
-    if (!this.gameStarted || this.gamePaused || this.gameOver || this.isPausedForQuestion) {
+    if (!this.gameStarted || this.gamePaused || this.gameOver || this.isPausedForQuestion || this.isPausedForOrientation || this.isPausedForVisibility) {
       return;
     }
 
@@ -1197,6 +1222,15 @@ export default class SnakeScene extends Phaser.Scene {
         this.streak++;
         this.correctAnswers++;
 
+        // QUESTION ANALYTICS - Record this correct answer
+        const selectedAnswer = this.currentQuestion!.options[eatenApple.answerIndex];
+        this.questionResponses[`q${this.currentQuestionIndex}`] = {
+          questionText: this.currentQuestion!.question,
+          selectedAnswer: selectedAnswer,
+          correctAnswer: this.currentQuestion!.answer,
+          correct: true
+        };
+
         // ANALYTICS SYSTEM - Track longest streak achieved
         // This is saved to the database for analytics dashboard display
         // Updates whenever the current streak surpasses the previous record
@@ -1260,6 +1294,15 @@ export default class SnakeScene extends Phaser.Scene {
       } else {
         // Wrong answer!
         const studentAnswer = this.currentQuestion!.options[eatenApple.answerIndex];
+
+        // QUESTION ANALYTICS - Record this wrong answer
+        this.questionResponses[`q${this.currentQuestionIndex}`] = {
+          questionText: this.currentQuestion!.question,
+          selectedAnswer: studentAnswer,
+          correctAnswer: this.currentQuestion!.answer,
+          correct: false
+        };
+
         this.streak = 0; // Reset streak
         this.streakText.setText(`Streak: ${this.streak}`);
         this.wrongAnswer(`Wrong answer! Correct: ${this.currentQuestion!.answer}`, studentAnswer);
@@ -1985,6 +2028,85 @@ export default class SnakeScene extends Phaser.Scene {
    *
    * The analytics dashboard will automatically display your metrics!
    */
+
+  /**
+   * Show a styled notification popup
+   */
+  showNotification(message: string, type: 'success' | 'error' | 'info' = 'info') {
+    // Remove existing notification if any
+    if (this.notificationPopup) {
+      this.notificationPopup.destroy();
+    }
+
+    const width = this.scale.width;
+    const height = this.scale.height;
+
+    // Create container
+    this.notificationPopup = this.add.container(width / 2, height / 2);
+
+    // Semi-transparent background overlay
+    const overlay = this.add.rectangle(0, 0, width, height, 0x000000, 0.5);
+    overlay.setOrigin(0.5);
+
+    // Card background
+    const cardWidth = Math.min(400, width * 0.8);
+    const cardHeight = 180;
+    const card = this.add.rectangle(0, 0, cardWidth, cardHeight, 0xfffcf8);
+    card.setStrokeStyle(4, 0x473025);
+
+    // Icon based on type
+    let iconColor = 0x473025;
+    if (type === 'success') iconColor = 0x96b902;
+    else if (type === 'error') iconColor = 0xff4880;
+    else iconColor = 0xff9f22;
+
+    const icon = this.add.circle(0, -40, 20, iconColor);
+
+    // Message text
+    const text = this.add.text(0, 20, message, {
+      fontFamily: 'Quicksand, sans-serif',
+      fontSize: '16px',
+      color: '#473025',
+      align: 'center',
+      wordWrap: { width: cardWidth - 40 }
+    });
+    text.setOrigin(0.5);
+
+    // OK button
+    const buttonWidth = 100;
+    const buttonHeight = 36;
+    const button = this.add.rectangle(0, 70, buttonWidth, buttonHeight, 0x96b902);
+    button.setStrokeStyle(2, 0x7a9700);
+    button.setInteractive({ useHandCursor: true });
+
+    const buttonText = this.add.text(0, 70, 'OK', {
+      fontFamily: 'Quicksand, sans-serif',
+      fontSize: '14px',
+      color: '#ffffff',
+      fontStyle: 'bold'
+    });
+    buttonText.setOrigin(0.5);
+
+    // Add all to container
+    this.notificationPopup.add([overlay, card, icon, text, button, buttonText]);
+
+    // Button click handler
+    button.on('pointerdown', () => {
+      if (this.notificationPopup) {
+        this.notificationPopup.destroy();
+        this.notificationPopup = undefined;
+      }
+    });
+
+    // Button hover effect
+    button.on('pointerover', () => {
+      button.setFillStyle(0x7a9700);
+    });
+    button.on('pointerout', () => {
+      button.setFillStyle(0x96b902);
+    });
+  }
+
   async saveSession() {
     // Only save if we have a gameId (not demo mode)
     // Demo mode doesn't have a gameId because it's not tied to a real game record
@@ -2012,39 +2134,26 @@ export default class SnakeScene extends Phaser.Scene {
 
       // Call the server action to save the session
       // The server action handles authentication and database writes
-      let result = await saveGameSession({
+      // Only class members will have their analytics tracked
+      const result = await saveGameSession({
         gameId: this.gameId,
         score: this.score,
         correctAnswers: this.correctAnswers,
         totalQuestions: this.quizData.questions.length,
         timeSpent,
-        metadata  // Snake-specific stats go here
+        metadata,  // Snake-specific stats go here
+        questionResponses: this.questionResponses  // QUESTION ANALYTICS - Individual question data
       });
-
-      // If failed and asks for player name, prompt for guest name
-      if (!result.success && result.error.includes('player name')) {
-        const guestName = prompt('Please enter your name to save your score:');
-
-        if (guestName && guestName.trim()) {
-          result = await saveGameSession({
-            gameId: this.gameId,
-            score: this.score,
-            correctAnswers: this.correctAnswers,
-            totalQuestions: this.quizData.questions.length,
-            timeSpent,
-            metadata,
-            guestName: guestName.trim()
-          });
-        } else {
-          console.log('No name provided, score not saved');
-          return;
-        }
-      }
 
       if (!result.success) {
         console.error('Failed to save game session:', result.error);
+        this.showNotification('Failed to save your score. Please try again.', 'error');
+      } else if (result.data.sessionId === 'not-tracked') {
+        console.log('Game completed (analytics not tracked - not a class member)');
+        this.showNotification('Game completed! Your score was not saved because you are not a member of this class.', 'info');
       } else {
         console.log('Game session saved successfully!');
+        this.showNotification('Game completed! Your score has been saved.', 'success');
       }
     } catch (error) {
       console.error('Error saving game session:', error);
@@ -2261,5 +2370,280 @@ export default class SnakeScene extends Phaser.Scene {
 
     // Restart scene (clean slate)
     this.scene.restart({ quiz: this.quizData });
+  }
+
+  // =============================================================================
+  // MOBILE SUPPORT
+  // =============================================================================
+
+  private setupMobileSupport() {
+    // Detect if device is mobile/touch
+    this.isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+    if (!this.isMobile) {
+      return; // Desktop - no mobile features needed
+    }
+
+    // Prevent default touch behaviors (pull-to-refresh, back-swipe)
+    this.preventBrowserGestures();
+
+    // Setup swipe controls
+    this.setupSwipeControls();
+
+    // Setup orientation detection
+    this.setupOrientationDetection();
+
+    // Setup visibility change detection (tab/app switch)
+    this.setupVisibilityDetection();
+
+    // Check initial orientation
+    this.checkOrientation();
+  }
+
+  private preventBrowserGestures() {
+    // Prevent pull-to-refresh and other touch gestures
+    const gameCanvas = this.game.canvas;
+
+    gameCanvas.style.touchAction = 'none';
+
+    // Prevent default on touchmove to stop scrolling
+    gameCanvas.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+    }, { passive: false });
+
+    // Prevent context menu on long press
+    gameCanvas.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+    });
+  }
+
+  private setupSwipeControls() {
+    // Track swipe start
+    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      this.swipeStartX = pointer.x;
+      this.swipeStartY = pointer.y;
+    });
+
+    // Detect swipe on pointer up
+    this.input.on('pointerup', (pointer: Phaser.Input.Pointer) => {
+      const swipeEndX = pointer.x;
+      const swipeEndY = pointer.y;
+
+      const deltaX = swipeEndX - this.swipeStartX;
+      const deltaY = swipeEndY - this.swipeStartY;
+
+      // Minimum swipe distance threshold
+      const minSwipeDistance = 30;
+
+      // Calculate swipe distance
+      const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+      if (distance < minSwipeDistance) {
+        return; // Too short, not a swipe
+      }
+
+      // Determine swipe direction (use dominant axis)
+      if (Math.abs(deltaX) > Math.abs(deltaY)) {
+        // Horizontal swipe
+        if (deltaX > 0 && this.direction !== Direction.LEFT) {
+          this.nextDirection = Direction.RIGHT;
+        } else if (deltaX < 0 && this.direction !== Direction.RIGHT) {
+          this.nextDirection = Direction.LEFT;
+        }
+      } else {
+        // Vertical swipe
+        if (deltaY > 0 && this.direction !== Direction.UP) {
+          this.nextDirection = Direction.DOWN;
+        } else if (deltaY < 0 && this.direction !== Direction.DOWN) {
+          this.nextDirection = Direction.UP;
+        }
+      }
+    });
+  }
+
+  private setupOrientationDetection() {
+    // Listen for orientation changes
+    window.addEventListener('orientationchange', () => {
+      // Small delay to let the browser update dimensions
+      setTimeout(() => this.checkOrientation(), 100);
+    });
+
+    // Also listen for resize as fallback
+    window.addEventListener('resize', () => {
+      setTimeout(() => this.checkOrientation(), 100);
+    });
+  }
+
+  private checkOrientation() {
+    if (!this.isMobile) return;
+
+    const wasLandscape = this.isLandscape;
+    this.isLandscape = window.innerWidth > window.innerHeight;
+
+    if (!this.isLandscape) {
+      // Portrait mode - show rotate prompt
+      this.showOrientationOverlay();
+    } else if (wasLandscape === false && this.isLandscape) {
+      // Just rotated to landscape - show countdown
+      this.hideOrientationOverlay();
+      this.showCountdownOverlay();
+    }
+  }
+
+  private showOrientationOverlay() {
+    if (this.orientationOverlay) return; // Already showing
+
+    this.isPausedForOrientation = true;
+
+    const width = this.scale.width;
+    const height = this.scale.height;
+
+    const elements: Phaser.GameObjects.GameObject[] = [];
+
+    // Dark overlay
+    const overlay = this.add.rectangle(
+      width / 2,
+      height / 2,
+      width,
+      height,
+      0x000000,
+      0.9
+    ).setDepth(5000);
+    elements.push(overlay);
+
+    // Rotate icon (using text as placeholder)
+    const rotateIcon = this.add.text(
+      width / 2,
+      height / 2 - 60,
+      '📱↔️',
+      {
+        fontSize: '64px'
+      }
+    ).setOrigin(0.5).setDepth(5001);
+    elements.push(rotateIcon);
+
+    // Message
+    const message = this.add.text(
+      width / 2,
+      height / 2 + 20,
+      'Please rotate your device\nto landscape mode to play',
+      {
+        fontSize: '24px',
+        color: '#ffffff',
+        fontFamily: 'Quicksand, sans-serif',
+        fontStyle: 'bold',
+        align: 'center'
+      }
+    ).setOrigin(0.5).setDepth(5001);
+    elements.push(message);
+
+    this.orientationOverlay = this.add.container(0, 0, elements);
+  }
+
+  private hideOrientationOverlay() {
+    if (this.orientationOverlay) {
+      this.orientationOverlay.destroy();
+      this.orientationOverlay = undefined;
+    }
+    this.isPausedForOrientation = false;
+  }
+
+  private showCountdownOverlay() {
+    if (this.countdownOverlay) return;
+
+    const width = this.scale.width;
+    const height = this.scale.height;
+
+    const elements: Phaser.GameObjects.GameObject[] = [];
+
+    // Semi-transparent overlay
+    const overlay = this.add.rectangle(
+      width / 2,
+      height / 2,
+      width,
+      height,
+      0x000000,
+      0.7
+    ).setDepth(4000);
+    elements.push(overlay);
+
+    // Countdown text
+    const countdownText = this.add.text(
+      width / 2,
+      height / 2,
+      '3',
+      {
+        fontSize: '120px',
+        color: '#ffffff',
+        fontFamily: 'Quicksand, sans-serif',
+        fontStyle: 'bold'
+      }
+    ).setOrigin(0.5).setDepth(4001);
+    elements.push(countdownText);
+
+    this.countdownOverlay = this.add.container(0, 0, elements);
+
+    // Countdown sequence
+    let count = 3;
+
+    const countdownTimer = this.time.addEvent({
+      delay: 1000,
+      callback: () => {
+        count--;
+        if (count > 0) {
+          countdownText.setText(count.toString());
+          // Pulse animation
+          this.tweens.add({
+            targets: countdownText,
+            scale: { from: 1.2, to: 1 },
+            duration: 300,
+            ease: 'Power2'
+          });
+        } else {
+          // Countdown finished
+          this.hideCountdownOverlay();
+        }
+      },
+      repeat: 2
+    });
+  }
+
+  private hideCountdownOverlay() {
+    if (this.countdownOverlay) {
+      this.countdownOverlay.destroy();
+      this.countdownOverlay = undefined;
+    }
+    this.isPausedForVisibility = false;
+  }
+
+  private setupVisibilityDetection() {
+    this.visibilityHandler = () => {
+      if (document.hidden) {
+        // Tab/app switched away - pause game (only if game has started)
+        if (this.gameStarted && !this.gameOver) {
+          this.isPausedForVisibility = true;
+        }
+      } else {
+        // Tab/app returned
+        if (this.isPausedForVisibility) {
+          if (this.gameStarted && !this.gameOver) {
+            // Game is running - show countdown before resuming
+            this.showCountdownOverlay();
+          } else {
+            // Game hasn't started or already ended - just reset the flag
+            this.isPausedForVisibility = false;
+          }
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', this.visibilityHandler);
+  }
+
+  // Clean up event listeners when scene is destroyed
+  shutdown() {
+    if (this.visibilityHandler) {
+      document.removeEventListener('visibilitychange', this.visibilityHandler);
+    }
   }
 }

@@ -120,6 +120,11 @@ export async function signup(
       data: { message: 'Account created successfully', role: user.role },
     };
   } catch (error) {
+    // Re-throw redirect errors (this is how Next.js handles redirects)
+    if (isRedirectError(error)) {
+      throw error;
+    }
+
     if (error instanceof z.ZodError) {
       return {
         success: false,
@@ -173,8 +178,13 @@ export async function login(
       // Validate callback URL is safe and matches user's role
       const isTeacherRoute = callbackUrl.startsWith('/teacher');
       const isStudentRoute = callbackUrl.startsWith('/student');
+      const isPlayRoute = callbackUrl.startsWith('/play');
 
-      if ((isTeacherRoute && user.role === 'TEACHER') ||
+      // Allow callback if:
+      // - It's a /play route (accessible by anyone)
+      // - It matches user's role (/teacher for teachers, /student for students)
+      if (isPlayRoute ||
+          (isTeacherRoute && user.role === 'TEACHER') ||
           (isStudentRoute && user.role === 'STUDENT')) {
         redirectPath = callbackUrl;
       }

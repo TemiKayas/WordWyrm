@@ -11,8 +11,8 @@ export async function generateGameQRCode(
   shareCode: string,
   baseUrl: string
 ): Promise<string> {
-  // construct the game URL
-  const gameUrl = `${baseUrl}/play/phaser/${shareCode}`;
+  // construct the game URL using the join link
+  const gameUrl = `${baseUrl}/join/${shareCode}`;
 
   // generate QR code as buffer
   const qrBuffer = await QRCode.toBuffer(gameUrl, {
