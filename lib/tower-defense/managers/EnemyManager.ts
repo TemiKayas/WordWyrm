@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 import { Enemy, EnemyType, PathPoint } from '@/lib/tower-defense/types/GameTypes';
 
 /**

@@ -27,9 +27,8 @@ export default function Navbar({
   userName,
   userRole
 }: NavbarProps) {
-  const router = useRouter();
   const [showUserDropdown, setShowUserDropdown] = useState(false);
-  const { profilePictureId } = useProfile();
+  useProfile();
 
   const handleMenuClick = (e: React.MouseEvent) => {
     e.preventDefault();

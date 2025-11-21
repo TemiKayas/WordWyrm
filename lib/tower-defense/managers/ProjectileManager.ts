@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 import { Projectile, Tower, Enemy } from '@/lib/tower-defense/types/GameTypes';
 import { PROJECTILE_SPRITE_SCALES, PROJECTILE_ROTATION_OFFSETS } from '@/lib/tower-defense/config/GameConfig';
 

@@ -102,7 +102,7 @@ export default function PDFUploadForm({ onFileSelect }: PDFUploadFormProps) {
         setTimeout(() => {
           router.push(`/teacher/game-settings?quizId=${result.data.quizId}`);
         }, 1500);
-      } catch (error) {
+      } catch {
         showToast('An unexpected error occurred', 'error');
       }
     });

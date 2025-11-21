@@ -50,7 +50,7 @@ export default function JoinGamePage() {
             setGameInfo(null);
             setError('Game not found. Please check the code.');
           }
-        } catch (err) {
+        } catch {
           setGameInfo(null);
           setError('Failed to load game info.');
         } finally {
@@ -106,7 +106,7 @@ export default function JoinGamePage() {
     try {
       // Navigate to the game play page
       router.push(`/play/phaser/${gameCode}`);
-    } catch (err) {
+    } catch {
       setError('Failed to join game. Please try again.');
       setIsJoining(false);
     }

@@ -44,7 +44,12 @@ export default function SlidingSidebar({ isOpen, onClose }: SlidingSidebarProps)
   ];
 
   const handlePlayClick = () => {
-    router.push(`${rolePrefix}/games`);
+    // Students go to /join, teachers go to their games page
+    if (isStudent) {
+      router.push('/join');
+    } else {
+      router.push(`${rolePrefix}/games`);
+    }
     onClose();
   };
 

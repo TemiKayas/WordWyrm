@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 import { Quiz, QuizQuestion } from '@/lib/processors/ai-generator';
 import { EnemyType, Enemy, Tower, PathPoint } from '@/lib/tower-defense/types/GameTypes';
 import { TOWER_SPRITE_SCALES, PROJECTILE_SPRITE_SCALES, TEXT_STYLES, BALANCE_CONSTANTS } from '@/lib/tower-defense/config/GameConfig';
@@ -9,7 +9,10 @@ import { TowerManager } from '@/lib/tower-defense/managers/TowerManager';
 import { AbilityManager } from '@/lib/tower-defense/managers/AbilityManager';
 import { StageManager } from '@/lib/tower-defense/managers/StageManager';
 import { gameDataService } from '@/lib/tower-defense/GameDataService';
+
 import { MobileSupport } from '@/lib/phaser/MobileSupport';
+import { GameEvents, GAME_EVENTS } from '@/lib/tower-defense/events/GameEvents';
+import type UIScene from '@/lib/tower-defense/editor/UIScene';
 
 // DEBUG: Set to false to hide stage debug buttons
 const ENABLE_STAGE_DEBUG_BUTTONS = true;
@@ -29,7 +32,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
   private allPaths: PathPoint[][] = []; // array of enemy movement paths
   private pathGraphicsArray: Phaser.GameObjects.Graphics[] = []; // current path graphics (one per path)
   private backgroundImage?: Phaser.GameObjects.Image; // current background image
-  private uiScene: any; // Reference to UIScene for updating displays and handling events
+  private uiScene!: UIScene; // Reference to UIScene for updating displays and handling events
 
   // Wave management
   private enemySpawnTimer: number = 0; // ms since last spawn
@@ -265,7 +268,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
     // Use 'create' event which fires after scene.create() completes
     this.scene.get('UIScene').events.once('create', () => {
       console.log('[TowerDefenseScene] UIScene created, getting reference...');
-      this.uiScene = this.scene.get('UIScene') as any;
+      this.uiScene = this.scene.get('UIScene') as UIScene;
 
       // Wire up UI event handlers now that UI elements exist
       console.log('[TowerDefenseScene] Setting up UI event handlers...');
@@ -1846,7 +1849,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
         // Position circle at center of container bounds (spriteSize/2, spriteSize/2)
         // This aligns with the sprite centers which are at (0, 0) with origin (0.5, 0.5)
         container.setInteractive(new Phaser.Geom.Circle(spriteSize / 2, spriteSize / 2, spriteSize / 2), Phaser.Geom.Circle.Contains);
-        (container.input! as any).cursor = 'pointer';
+        (container.input! as { cursor?: string }).cursor = 'pointer';
       }
 
       towerGraphics = container;
@@ -2094,7 +2097,6 @@ export default class TowerDefenseScene extends Phaser.Scene {
     }
 
     // Emit resize event for UIScene and other listeners
-    const { GameEvents, GAME_EVENTS } = require('@/lib/tower-defense/events/GameEvents');
     GameEvents.emit(GAME_EVENTS.RESIZE, gameSize);
   }
 
@@ -2705,7 +2707,14 @@ export default class TowerDefenseScene extends Phaser.Scene {
         deleteConfirmed = true;
       } else {
         // Second click: Actually delete the tower
-        this.deleteTower();
+        if (this.selectedTower) {
+          this.towerManager.removeTower(this.selectedTower);
+          this.selectedTower = null;
+          if (this.upgradeContainer) {
+            this.upgradeContainer.destroy();
+            this.upgradeContainer = undefined;
+          }
+        }
       }
     });
 
