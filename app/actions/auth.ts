@@ -120,6 +120,11 @@ export async function signup(
       data: { message: 'Account created successfully', role: user.role },
     };
   } catch (error) {
+    // Re-throw redirect errors (this is how Next.js handles redirects)
+    if (isRedirectError(error)) {
+      throw error;
+    }
+
     if (error instanceof z.ZodError) {
       return {
         success: false,
