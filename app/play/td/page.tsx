@@ -127,7 +127,18 @@ function TowerDefenseContent() {
 
   // render TowerDefenseGame with quiz data
   return (
-    <div id="phaser-container" className="w-full h-screen flex items-center justify-center bg-[#8bc34a]">
+    <div
+      id="phaser-container"
+      className="w-full h-screen bg-[#8bc34a]"
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100vw',
+        height: '100vh',
+        overflow: 'hidden'
+      }}
+    >
       <TowerDefenseGame quiz={quiz} />
     </div>
   );
