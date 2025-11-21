@@ -25,6 +25,13 @@ export const metadata: Metadata = {
   description: "Create interactive quizzes from PDFs using AI-powered content generation",
 };
 
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false, // Prevent zoom on mobile for game controls
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{

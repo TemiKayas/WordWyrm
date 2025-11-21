@@ -41,19 +41,12 @@ const TowerDefenseGame = ({ quiz }: TowerDefenseGameProps) => {
           antialias: true, // Enable antialiasing for smooth text
           pixelArt: false, // Disable pixel art mode for crisp text
           scale: {
-            mode: Phaser.Scale.FIT, // Changed from ENVELOP - maintains aspect ratio with black bars
+            mode: Phaser.Scale.FIT, // Maintains aspect ratio with letterboxing - ensures full game visible
             autoCenter: Phaser.Scale.CENTER_BOTH,
             parent: gameRef.current,
             width: 1920,
             height: 1080,
-            min: {
-              width: 1280,  // Minimum supported resolution (720p width)
-              height: 720
-            },
-            max: {
-              width: 3840,  // Maximum (4K)
-              height: 2160
-            },
+            // Remove min/max constraints to allow more flexible scaling on mobile
             expandParent: false,
             autoRound: true
           },
@@ -110,7 +103,17 @@ const TowerDefenseGame = ({ quiz }: TowerDefenseGameProps) => {
   }, [quiz]); // rerun if quiz changes
 
   // div that contains the phaser game canvas
-  return <div ref={gameRef} style={{ width: '100%', height: '100vh' }} />;
+  return (
+    <div
+      ref={gameRef}
+      style={{
+        width: '100%',
+        height: '100%', // Fill parent container
+        overflow: 'hidden',
+        position: 'relative'
+      }}
+    />
+  );
 };
 
 export default TowerDefenseGame;
