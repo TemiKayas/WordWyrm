@@ -1,0 +1,366 @@
+WORDWYRM POTENTIAL FIXES
+========================
+Generated: 2025-11-23
+Reference document for all identified issues in codebase
+
+=============================================================================
+CRITICAL PRIORITY
+=============================================================================
+
+1. DATABASE MODEL NAMING MISMATCH
+   Location: app/actions/pdf.ts (lines 79, 248, 524, 809, 878)
+   Issue: Code may be calling db.pDF with incorrect casing
+   Impact: PDF uploads could fail with "not a function" errors
+   Fix: Verify Prisma client naming and update all db.pDF calls to match
+   Status: NEEDS VERIFICATION
+
+=============================================================================
+HIGH PRIORITY
+=============================================================================
+
+2. MISSING ENVIRONMENT VARIABLE VALIDATION
+   Locations:
+   - lib/processors/ai-generator.ts:3
+   - app/actions/analytics.ts:119, 322
+   - app/api/explain/route.ts:16
+   Issue: Uses process.env.GEMINI_API_KEY! without checking if it exists
+   Impact: Unclear errors in production if API key not set
+   Fix: Add validation at startup or better error messages:
+         if (!process.env.GEMINI_API_KEY) {
+           throw new Error('GEMINI_API_KEY environment variable is required');
+         }
+
+3. IMAGE UPLOAD NOT CONNECTED IN EDIT GAME PAGE
+   Location: app/teacher/games/edit/page.tsx:203-210
+   Issue: coverImageFile state exists but never passed to updateGame()
+   Impact: Teachers can select cover images but they never save
+   Fix: Update handleSaveAll() to pass coverImageFile to updateGame:
+         const gRes = await updateGame({
+           gameId,
+           title,
+           description,
+           imageFile: coverImageFile,  // ADD THIS
+           active: isActive,
+           isPublic: isPublic,
+           gameMode: gameMode,
+         });
+
+4. NO ERROR BOUNDARY IMPLEMENTATION
+   Location: app/layout.tsx
+   Issue: No global error boundaries to catch React errors
+   Impact: Component crashes result in blank white screen
+   Fix: Add error boundary wrapper around major sections
+         - Create components/ErrorBoundary.tsx
+         - Wrap children in layout.tsx
+
+=============================================================================
+MEDIUM PRIORITY
+=============================================================================
+
+5. INCOMPLETE TODO COMMENTS
+   Locations:
+   - lib/game-types.ts:93 - Tower Defense Metrics
+     "// TODO: Update these metrics based on actual tower defense implementation"
+   - lib/tower-defense/scenes/TowerDefenseScene.ts:3952 - Free Upgrade Tracking
+     "// TODO: Implement free upgrade tracking"
+   Issue: Unfinished features indicated by TODO comments
+   Impact: Features may not work as expected
+   Fix: Either implement the TODOs or remove them if not needed
+
+6. WEAK ERROR HANDLING - SILENT FAILURES
+   Locations:
+   - app/actions/auth.ts:109, 135, 235
+   - app/actions/quiz.ts:102, 144, 192, 243, 289, 368
+   - app/actions/pdf.ts:145, 336, 377, 434, 598, 697, 950
+   - app/actions/game.ts:97, 168, 281
+   Issue: Errors logged with console.error() but generic messages returned
+   Impact: Difficult to debug production issues
+   Fix: Return detailed errors in development, log to Sentry in production
+         - Add environment check
+         - Return error.message in dev
+         - Log to monitoring service in prod
+
+7. CONTENT VALIDATION FAILS OPEN
+   Location: lib/processors/ai-generator.ts:80-84
+   Issue: validateContentForQuiz() returns { valid: true } if validation fails
+   Impact: Invalid content could be accepted if Gemini API is down
+   Fix: Consider failing closed or adding a flag to indicate validation failed:
+         return { valid: false, error: 'Validation service unavailable' };
+
+8. HARDCODED FALLBACK URLS
+   Locations: app/actions/game.ts:76, 149
+   Code: const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+   Issue: QR codes could point to localhost if NEXTAUTH_URL not set
+   Impact: QR codes won't work in production
+   Fix: Fail loudly in production if NEXTAUTH_URL not set:
+         if (process.env.NODE_ENV === 'production' && !process.env.NEXTAUTH_URL) {
+           throw new Error('NEXTAUTH_URL must be set in production');
+         }
+
+9. MIDDLEWARE ROUTE PROTECTION
+   Location: middleware.ts:76-80
+   Issue: /shop and /discover routes not explicitly protected
+   Impact: Routes are public (may be intentional)
+   Fix: Verify if these should be protected, add auth checks if needed
+
+10. NO RATE LIMITING ON AI API CALLS
+    Locations:
+    - lib/processors/ai-generator.ts
+    - app/api/explain/route.ts
+    Issue: No rate limiting on Gemini API calls
+    Impact: Could lead to unexpected costs from abuse
+    Fix: Implement rate limiting per user/IP
+          - Use upstash/ratelimit or similar
+          - Add per-user limits in database
+          - Track API usage
+
+11. NO DATABASE TRANSACTIONS FOR MULTI-STEP OPERATIONS
+    Location: app/actions/pdf.ts:159-334 (uploadAndProcessMultiplePDFs)
+    Issue: Multiple DB writes without transaction wrapping
+    Impact: If one step fails, previous steps not rolled back (data inconsistency)
+    Fix: Use Prisma transactions:
+          await db.$transaction(async (tx) => {
+            // All database operations here
+            const pdf = await tx.pDF.create(...);
+            const content = await tx.processedContent.create(...);
+            const quiz = await tx.quiz.create(...);
+          });
+
+=============================================================================
+LOW PRIORITY - CODE QUALITY
+=============================================================================
+
+12. MAGIC NUMBERS AND HARDCODED VALUES
+    Examples:
+    - PDF size limit: 25 * 1024 * 1024 (should be constant)
+    - Share code length: 6 (hardcoded in multiple places)
+    - Invite code length: 6 (duplicate of share code logic)
+    - QR code size: 512 (should be configurable)
+    - Gemini model name: 'gemini-2.0-flash-exp' (hardcoded in multiple files)
+    Fix: Create lib/constants.ts:
+          export const PDF_MAX_SIZE = 25 * 1024 * 1024;
+          export const SHARE_CODE_LENGTH = 6;
+          export const QR_CODE_SIZE = 512;
+          export const GEMINI_MODEL = 'gemini-2.0-flash-exp';
+
+13. DUPLICATE CODE - SHARE CODE GENERATION
+    Locations:
+    - lib/utils/share-code.ts (game share codes)
+    - app/actions/class.ts:26-47 (invite codes)
+    Issue: Same logic maintained in two places
+    Fix: Consolidate into single utility function
+          - Update lib/utils/share-code.ts to be generic
+          - Use for both game codes and invite codes
+
+14. RACE CONDITION IN SHARE CODE GENERATION
+    Location: lib/utils/share-code.ts:14-22
+    Issue: Only tries 10 times before throwing error
+    Impact: Could fail in high-traffic scenarios (unlikely with 1B+ combinations)
+    Fix: Increase attempts to 50 or 100, add exponential backoff
+    
+15. PRISMA TYPE SAFETY BYPASSES
+    Location: app/actions/game.ts:761-762, 778-779
+    Code: metadata: metadata as Prisma.InputJsonValue | undefined
+    Issue: Type casting bypasses TypeScript checks
+    Fix: Define proper types for metadata and questionResponses
+          - Create interfaces for these JSON structures
+          - Use Prisma.validator
+
+16. NO FILE CLEANUP ON ERROR
+    Location: app/actions/pdf.ts:73-153
+    Issue: If processing fails after Blob upload, file orphaned
+    Impact: Wasted storage space
+    Fix: Add cleanup in catch blocks:
+          try {
+            const blobUrl = await uploadPDF(file);
+            const pdf = await db.pDF.create(...);
+            // processing
+          } catch (error) {
+            if (blobUrl) await deletePDF(blobUrl);
+            throw error;
+          }
+
+17. ESLINT DISABLED DURING BUILDS
+    Location: next.config.ts:22-24
+    Issue: eslint.ignoreDuringBuilds = true
+    Impact: Could ship code with linting errors
+    Fix: Remove this setting once all linting errors are fixed
+          - Fix remaining 45 warnings
+          - Remove ignoreDuringBuilds setting
+
+18. NO VIRUS SCANNING ON FILE UPLOADS
+    Locations: All file upload endpoints
+    Issue: PDFs and images uploaded without virus scanning
+    Impact: Security risk
+    Fix: Add virus scanning service
+          - Use ClamAV or cloud service
+          - Scan before saving to blob storage
+
+19. NO CONTENT INSPECTION FOR MALICIOUS PDFS
+    Location: app/actions/pdf.ts
+    Issue: PDF validation only checks size and mime type
+    Impact: Malicious PDFs could exploit vulnerabilities
+    Fix: Add additional validation
+          - Check PDF structure
+          - Limit PDF features
+          - Use safe PDF parser
+
+=============================================================================
+LINTING ISSUES (45 warnings)
+=============================================================================
+
+20. UNUSED VARIABLES
+    - app/actions/analytics.ts:302 - 'qId' is defined but never used
+    - app/shop/page.tsx:4 - 'useRouter' is defined but never used
+    - app/student/discover/page.tsx:4 - 'useRouter' is defined but never used
+    - app/teacher/discover/page.tsx:4 - 'useRouter' is defined but never used
+    - app/teacher/games/edit/page.tsx:5 - Multiple unused imports
+    - app/teacher/games/page.tsx:30 - 'router' assigned but never used
+    - app/teacher/settings/page.tsx:8 - 'router' assigned but never used
+    - components/shared/Navbar.tsx:6 - 'useRouter' is defined but never used
+    - lib/phaser/SnakeScene.ts - Multiple unused variables
+    - lib/tower-defense/managers/StageManager.ts:126 - 'newBgKey' unused
+    - lib/tower-defense/scenes/TowerDefenseScene.ts - Multiple unused variables
+    Fix: Remove all unused imports and variables
+
+21. IMAGE OPTIMIZATION
+    Locations (10 instances):
+    - app/login/page.tsx:55
+    - app/page.tsx:247
+    - app/signup/page.tsx:62
+    - app/teacher/game-preview/page.tsx:159, 206, 237, 259, 278
+    - app/teacher/games/edit/page.tsx:413
+    - app/teacher/settings/page.tsx:23
+    - components/dashboard/GameCard.tsx:169
+    - components/discover/PublicGameCard.tsx:65
+    - components/fileupload/FileUploadDropZone.tsx:142
+    Issue: Using <img> instead of Next.js <Image /> component
+    Impact: Slower LCP, higher bandwidth usage
+    Fix: Replace all <img> tags with <Image /> from next/image
+          - Import Image from 'next/image'
+          - Add width and height props
+          - Configure remote image domains in next.config.ts
+
+22. MISSING ALT TEXT
+    Location: app/page.tsx:247
+    Issue: img element missing alt prop
+    Impact: Accessibility violation
+    Fix: Add alt="" for decorative images or descriptive text
+
+23. UNESCAPED ENTITIES (FIXED)
+    Previously in: app/teacher/analytics/[gameId]/student/[sessionId]/page.tsx
+    Status: ALREADY FIXED (apostrophes now use &apos;)
+
+=============================================================================
+CONFIGURATION IMPROVEMENTS
+=============================================================================
+
+24. ADD ENVIRONMENT VARIABLE SCHEMA
+    Create: .env.example
+    Contents:
+    ```
+    # Database
+    DATABASE_URL="postgresql://..."
+
+    # Auth
+    NEXTAUTH_URL="http://localhost:3000"
+    NEXTAUTH_SECRET="generate-with-openssl-rand-base64-32"
+
+    # AI
+    GEMINI_API_KEY="your-api-key-here"
+
+    # Storage
+    BLOB_READ_WRITE_TOKEN="your-vercel-blob-token"
+    ```
+
+25. ADD STARTUP VALIDATION SCRIPT
+    Create: lib/validate-env.ts
+    Run on app startup to check all required env vars exist
+
+26. ADD SENTRY OR ERROR TRACKING
+    Setup: Sentry, LogRocket, or similar
+    Purpose: Track production errors better than console.error
+
+27. ADD RATE LIMITING MIDDLEWARE
+    Library: @upstash/ratelimit or similar
+    Apply to: API routes, Server Actions calling Gemini
+
+28. CONFIGURE REMOTE IMAGE DOMAINS
+    Location: next.config.ts
+    Add: Vercel Blob domain to images.remotePatterns
+
+=============================================================================
+TESTING RECOMMENDATIONS
+=============================================================================
+
+29. ADD UNIT TESTS
+    Priority areas:
+    - lib/utils/share-code.ts
+    - lib/processors/ai-generator.ts
+    - Server actions (auth.ts, game.ts, quiz.ts)
+
+30. ADD INTEGRATION TESTS
+    Test flows:
+    - Teacher uploads PDF → generates quiz → creates game
+    - Student joins game → plays → submits answers
+    - Teacher views analytics
+
+31. ADD E2E TESTS
+    Tool: Playwright or Cypress
+    Critical paths:
+    - Full teacher workflow
+    - Full student workflow
+    - Game creation and joining
+
+=============================================================================
+DOCUMENTATION IMPROVEMENTS
+=============================================================================
+
+32. UPDATE CLAUDE.md
+    Add sections for:
+    - Environment variables required
+    - How to run tests
+    - Deployment checklist
+    - Troubleshooting common issues
+
+33. ADD INLINE DOCUMENTATION
+    Add JSDoc comments to:
+    - All server actions
+    - Complex utility functions
+    - Type definitions
+
+=============================================================================
+SUMMARY
+=============================================================================
+
+Total Issues: 33
+
+By Priority:
+- Critical: 1
+- High: 4
+- Medium: 7
+- Low: 9
+- Linting: 3
+- Configuration: 5
+- Testing: 3
+- Documentation: 2
+
+Immediate Action Items (Before Production):
+1. Verify and fix database naming issue (CRITICAL)
+2. Add environment variable validation
+3. Connect image upload functionality
+4. Add error boundary
+5. Fix all linting errors
+6. Add database transactions
+7. Add rate limiting
+
+Nice-to-Have (Post-Launch):
+- Consolidate duplicate code
+- Extract magic numbers
+- Add comprehensive tests
+- Set up error tracking
+- Improve documentation
+
+=============================================================================
+END OF REPORT
+=============================================================================

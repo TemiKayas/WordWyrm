@@ -142,8 +142,16 @@ export default class SnakeScene extends Phaser.Scene {
     const width = this.scale.width;
     const height = this.scale.height;
 
+    // Detect mobile for responsive panel sizing
+    this.isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
     // Calculate playable area (left side, excluding question panel)
-    const panelWidth = 400;
+    // Use narrower panel on mobile devices for more game space
+    // Panel takes 35% of width on mobile, between 240px-320px, or 400px on desktop
+    let panelWidth = 400; // Desktop default
+    if (this.isMobile && width < 1024) {
+      panelWidth = Math.max(240, Math.min(320, width * 0.35));
+    }
     const availableWidth = width - panelWidth;
 
     // Make game area square
@@ -280,9 +288,13 @@ export default class SnakeScene extends Phaser.Scene {
       0xfffaf2
     );
 
+    // Responsive font sizes based on panel width
+    const titleFontSize = panelWidth < 320 ? '20px' : '28px';
+    const instructionFontSize = panelWidth < 320 ? '13px' : '16px';
+
     // Title
     this.add.text(panelStartX + panelWidth / 2, 40, 'SNAKE QUIZ', {
-      fontSize: '28px',
+      fontSize: titleFontSize,
       color: '#473025',
       fontFamily: 'Quicksand, sans-serif',
       fontStyle: 'bold'
@@ -294,7 +306,7 @@ export default class SnakeScene extends Phaser.Scene {
       100,
       'Eat the apple matching\nthe correct answer!',
       {
-        fontSize: '16px',
+        fontSize: instructionFontSize,
         color: '#473025',
         fontFamily: 'Quicksand, sans-serif',
         align: 'center',
@@ -333,11 +345,19 @@ export default class SnakeScene extends Phaser.Scene {
 
     const width = this.scale.width;
     const height = this.scale.height;
-    const panelWidth = 400;
+    // Use same responsive panel width logic as create()
+    let panelWidth = 400; // Desktop default
+    if (this.isMobile && width < 1024) {
+      panelWidth = Math.max(240, Math.min(320, width * 0.35));
+    }
     const leftAreaWidth = width - panelWidth;
     const panelStartX = leftAreaWidth;
 
     const elements: Phaser.GameObjects.GameObject[] = [];
+
+    // Responsive font sizes
+    const questionNumFontSize = panelWidth < 320 ? '12px' : '14px';
+    const questionTextFontSize = panelWidth < 320 ? '14px' : '18px';
 
     // Question number
     const questionNum = this.add.text(
@@ -345,7 +365,7 @@ export default class SnakeScene extends Phaser.Scene {
       160,
       `Question ${this.currentQuestionIndex + 1}/${this.quizData.questions.length}`,
       {
-        fontSize: '14px',
+        fontSize: questionNumFontSize,
         color: '#95b607',
         fontFamily: 'Quicksand, sans-serif',
         fontStyle: 'bold'
@@ -359,7 +379,7 @@ export default class SnakeScene extends Phaser.Scene {
       200,
       this.currentQuestion.question,
       {
-        fontSize: '18px',
+        fontSize: questionTextFontSize,
         color: '#473025',
         fontFamily: 'Quicksand, sans-serif',
         fontStyle: 'bold',
@@ -375,23 +395,30 @@ export default class SnakeScene extends Phaser.Scene {
     const startY = 200 + questionText.height + 30;
     let currentY = startY;
 
+    // Responsive answer font sizes
+    const answerLetterFontSize = panelWidth < 320 ? '13px' : '15px';
+    const answerTextFontSize = panelWidth < 320 ? '11px' : '13px';
+    const colorBoxSize = panelWidth < 320 ? 24 : 30;
+    const answerStartX = panelWidth < 320 ? 60 : 70;
+    const answerTextStartX = panelWidth < 320 ? 85 : 100;
+
     this.shuffledOptions.forEach((shuffledOption, displayIndex) => {
       // Color indicator square (use shuffled color)
       const colorBox = this.add.rectangle(
         panelStartX + 30,
         currentY + 15,
-        30,
-        30,
+        colorBoxSize,
+        colorBoxSize,
         shuffledOption.color
       );
 
       // Answer letter
       const letter = this.add.text(
-        panelStartX + 70,
+        panelStartX + answerStartX,
         currentY,
         String.fromCharCode(65 + displayIndex) + ')',
         {
-          fontSize: '15px',
+          fontSize: answerLetterFontSize,
           color: '#473025',
           fontFamily: 'Quicksand, sans-serif',
           fontStyle: 'bold'
@@ -400,11 +427,11 @@ export default class SnakeScene extends Phaser.Scene {
 
       // Answer text
       const answerText = this.add.text(
-        panelStartX + 100,
+        panelStartX + answerTextStartX,
         currentY,
         shuffledOption.option,
         {
-          fontSize: '13px',
+          fontSize: answerTextFontSize,
           color: '#473025',
           fontFamily: 'Quicksand, sans-serif',
           wordWrap: { width: panelWidth - 120 },
