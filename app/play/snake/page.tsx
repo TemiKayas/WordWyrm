@@ -20,6 +20,27 @@ function SnakeGameContent() {
   const [loading, setLoading] = useState(true);
   // State for errors during fetch
   const [error, setError] = useState<string | null>(null);
+  // State for orientation check
+  const [isLandscape, setIsLandscape] = useState(true);
+
+  // Effect hook to check orientation
+  useEffect(() => {
+    const checkOrientation = () => {
+      setIsLandscape(window.innerWidth > window.innerHeight);
+    };
+
+    // Check on mount
+    checkOrientation();
+
+    // Listen for orientation/resize changes
+    window.addEventListener('resize', checkOrientation);
+    window.addEventListener('orientationchange', checkOrientation);
+
+    return () => {
+      window.removeEventListener('resize', checkOrientation);
+      window.removeEventListener('orientationchange', checkOrientation);
+    };
+  }, []);
 
   // Effect hook to fetch game data on mount
   useEffect(() => {
@@ -133,9 +154,23 @@ function SnakeGameContent() {
   // ANALYTICS SYSTEM - Pass gameId to enable session tracking
   // If no gameId in URL params, game runs in demo mode (no analytics)
   return (
-    <div id="phaser-container" className="w-full h-screen flex items-center justify-center bg-[#2d3436]">
-      <SnakeGame quiz={quiz} gameId={gameId || undefined} />
-    </div>
+    <>
+      {/* Orientation overlay that shows OVER the game if rotated to portrait */}
+      {!isLandscape && (
+        <div className="fixed inset-0 bg-black flex flex-col items-center justify-center z-[9999]">
+          <div className="text-6xl mb-8">📱</div>
+          <div className="text-white font-quicksand font-bold text-2xl text-center px-8">
+            Please rotate your device
+            <br />
+            to landscape mode
+          </div>
+        </div>
+      )}
+
+      <div id="phaser-container" className="w-full h-screen flex items-center justify-center bg-[#2d3436]">
+        <SnakeGame quiz={quiz} gameId={gameId || undefined} />
+      </div>
+    </>
   );
 }
 
