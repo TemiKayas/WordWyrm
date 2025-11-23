@@ -358,14 +358,17 @@ export default class SnakeScene extends Phaser.Scene {
 
     const elements: Phaser.GameObjects.GameObject[] = [];
 
-    // Responsive font sizes
-    const questionNumFontSize = panelWidth < 320 ? '12px' : '14px';
-    const questionTextFontSize = panelWidth < 320 ? '14px' : '18px';
+    // Responsive font sizes and spacing
+    const isMobileLayout = panelWidth < 350;
+    const questionNumFontSize = isMobileLayout ? '10px' : '14px';
+    const questionTextFontSize = isMobileLayout ? '12px' : '18px';
+    const topMargin = isMobileLayout ? 20 : 160;
+    const questionTextMargin = isMobileLayout ? 50 : 200;
 
     // Question number
     const questionNum = this.add.text(
       panelStartX + panelWidth / 2,
-      160,
+      topMargin,
       `Question ${this.currentQuestionIndex + 1}/${this.quizData.questions.length}`,
       {
         fontSize: questionNumFontSize,
@@ -379,7 +382,7 @@ export default class SnakeScene extends Phaser.Scene {
     // Question text
     const questionText = this.add.text(
       panelStartX + panelWidth / 2,
-      200,
+      questionTextMargin,
       this.currentQuestion.question,
       {
         fontSize: questionTextFontSize,
@@ -387,29 +390,30 @@ export default class SnakeScene extends Phaser.Scene {
         fontFamily: 'Quicksand, sans-serif',
         fontStyle: 'bold',
         align: 'left',
-        wordWrap: { width: panelWidth - 40 },
-        lineSpacing: 3
+        wordWrap: { width: panelWidth - 30 },
+        lineSpacing: 2
       }
     ).setOrigin(0.5, 0);
     elements.push(questionText);
 
     // Answer options with colored squares (using shuffled options)
     // Start after question text with dynamic spacing
-    const startY = 200 + questionText.height + 30;
+    const startY = questionTextMargin + questionText.height + (isMobileLayout ? 15 : 30);
     let currentY = startY;
 
     // Responsive answer font sizes
-    const answerLetterFontSize = panelWidth < 320 ? '13px' : '15px';
-    const answerTextFontSize = panelWidth < 320 ? '11px' : '13px';
-    const colorBoxSize = panelWidth < 320 ? 24 : 30;
-    const answerStartX = panelWidth < 320 ? 60 : 70;
-    const answerTextStartX = panelWidth < 320 ? 85 : 100;
+    const answerLetterFontSize = isMobileLayout ? '11px' : '15px';
+    const answerTextFontSize = isMobileLayout ? '10px' : '13px';
+    const colorBoxSize = isMobileLayout ? 20 : 30;
+    const colorBoxMargin = isMobileLayout ? 20 : 30;
+    const answerStartX = isMobileLayout ? 50 : 70;
+    const answerTextStartX = isMobileLayout ? 75 : 100;
 
     this.shuffledOptions.forEach((shuffledOption, displayIndex) => {
       // Color indicator square (use shuffled color)
       const colorBox = this.add.rectangle(
-        panelStartX + 30,
-        currentY + 15,
+        panelStartX + colorBoxMargin,
+        currentY + 12,
         colorBoxSize,
         colorBoxSize,
         shuffledOption.color
@@ -437,8 +441,8 @@ export default class SnakeScene extends Phaser.Scene {
           fontSize: answerTextFontSize,
           color: '#473025',
           fontFamily: 'Quicksand, sans-serif',
-          wordWrap: { width: panelWidth - 120 },
-          lineSpacing: 2
+          wordWrap: { width: panelWidth - (isMobileLayout ? 85 : 120) },
+          lineSpacing: 1
         }
       ).setOrigin(0, 0);
 
@@ -446,7 +450,7 @@ export default class SnakeScene extends Phaser.Scene {
 
       // Calculate dynamic spacing based on text height
       const textHeight = answerText.height;
-      const spacing = Math.max(textHeight + 20, 50); // At least 50px, or text height + 20px padding
+      const spacing = isMobileLayout ? Math.max(textHeight + 10, 35) : Math.max(textHeight + 20, 50);
       currentY += spacing;
     });
 
