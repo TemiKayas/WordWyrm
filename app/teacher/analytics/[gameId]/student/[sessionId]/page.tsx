@@ -76,7 +76,7 @@ export default async function StudentDetailPage({
       <div className="min-h-screen bg-gray-50 p-8">
         <div className="max-w-4xl mx-auto">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Session Not Found</h1>
-          <p className="text-gray-600">This game session doesn't exist.</p>
+          <p className="text-gray-600">This game session doesn&apos;t exist.</p>
         </div>
       </div>
     );
@@ -118,7 +118,7 @@ export default async function StudentDetailPage({
         {/* Header */}
         <div className="bg-white rounded-lg shadow p-6 mb-6">
           <h1 className="text-3xl font-bold text-gray-900 mb-2 font-quicksand">
-            {studentName}'s Performance
+            {studentName}&apos;s Performance
           </h1>
           <p className="text-gray-600 font-quicksand mb-4">
             {gameSession.game.title}
@@ -200,7 +200,7 @@ export default async function StudentDetailPage({
 
                         <div className="space-y-1">
                           <p className="text-sm font-quicksand">
-                            <span className="text-gray-600">Student's Answer: </span>
+                            <span className="text-gray-600">Student&apos;s Answer: </span>
                             <span className={`font-semibold ${
                               response.correct ? 'text-green-700' : 'text-red-700'
                             }`}>
