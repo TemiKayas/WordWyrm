@@ -208,6 +208,9 @@ export default class SnakeScene extends Phaser.Scene {
     // Setup mobile support
     this.setupMobileSupport();
 
+    // Listen for window resize to reposition elements
+    this.scale.on('resize', this.handleResize, this);
+
     // Exit button (top left) - always on top
     this.exitButton = this.add.rectangle(70, 30, 120, 40, 0xff4444).setDepth(3000);
     this.exitButton.setInteractive({ useHandCursor: true });
@@ -2522,20 +2525,25 @@ export default class SnakeScene extends Phaser.Scene {
 
     this.isPausedForOrientation = true;
 
+    // Hide question panel so it doesn't show through
+    if (this.questionPanel) {
+      this.questionPanel.setVisible(false);
+    }
+
     const width = this.scale.width;
     const height = this.scale.height;
 
     const elements: Phaser.GameObjects.GameObject[] = [];
 
-    // Dark overlay
+    // Dark overlay - fully opaque to block everything underneath
     const overlay = this.add.rectangle(
       width / 2,
       height / 2,
       width,
       height,
       0x000000,
-      0.9
-    ).setDepth(5000);
+      1.0
+    ).setDepth(10000);
     elements.push(overlay);
 
     // Rotate icon (using text as placeholder)
@@ -2546,7 +2554,7 @@ export default class SnakeScene extends Phaser.Scene {
       {
         fontSize: '64px'
       }
-    ).setOrigin(0.5).setDepth(5001);
+    ).setOrigin(0.5).setDepth(10001);
     elements.push(rotateIcon);
 
     // Message
@@ -2561,7 +2569,7 @@ export default class SnakeScene extends Phaser.Scene {
         fontStyle: 'bold',
         align: 'center'
       }
-    ).setOrigin(0.5).setDepth(5001);
+    ).setOrigin(0.5).setDepth(10001);
     elements.push(message);
 
     this.orientationOverlay = this.add.container(0, 0, elements);
@@ -2572,7 +2580,33 @@ export default class SnakeScene extends Phaser.Scene {
       this.orientationOverlay.destroy();
       this.orientationOverlay = undefined;
     }
+
+    // Show question panel again when orientation is correct
+    if (this.questionPanel) {
+      this.questionPanel.setVisible(true);
+    }
+
     this.isPausedForOrientation = false;
+  }
+
+  private handleResize(gameSize: Phaser.Structs.Size) {
+    const width = gameSize.width;
+    const height = gameSize.height;
+
+    // Recalculate panel width for new screen size
+    let panelWidth = 400;
+    if (this.isMobile && width < 1024) {
+      panelWidth = Math.max(240, Math.min(320, width * 0.35));
+    }
+
+    // Reposition question panel if it exists
+    if (this.questionPanel) {
+      const leftAreaWidth = width - panelWidth;
+      const panelStartX = leftAreaWidth;
+
+      // Recreate the question panel with new dimensions
+      this.showQuestion();
+    }
   }
 
   private showCountdownOverlay() {
