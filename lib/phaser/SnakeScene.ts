@@ -147,10 +147,10 @@ export default class SnakeScene extends Phaser.Scene {
 
     // Calculate playable area (left side, excluding question panel)
     // Use narrower panel on mobile devices for more game space
-    // Panel takes 35% of width on mobile, between 240px-320px, or 400px on desktop
+    // Panel takes 25% of width on mobile (min 220px, max 280px), or 400px on desktop
     let panelWidth = 400; // Desktop default
     if (this.isMobile && width < 1024) {
-      panelWidth = Math.max(240, Math.min(320, width * 0.35));
+      panelWidth = Math.max(220, Math.min(280, width * 0.25));
     }
     const availableWidth = width - panelWidth;
 
@@ -351,7 +351,7 @@ export default class SnakeScene extends Phaser.Scene {
     // Use same responsive panel width logic as create()
     let panelWidth = 400; // Desktop default
     if (this.isMobile && width < 1024) {
-      panelWidth = Math.max(240, Math.min(320, width * 0.35));
+      panelWidth = Math.max(220, Math.min(280, width * 0.25));
     }
     const leftAreaWidth = width - panelWidth;
     const panelStartX = leftAreaWidth;
@@ -2424,14 +2424,11 @@ export default class SnakeScene extends Phaser.Scene {
     // Setup swipe controls
     this.setupSwipeControls();
 
-    // Setup orientation detection
-    this.setupOrientationDetection();
+    // Orientation is handled at React level - NO Phaser overlays
+    // this.setupOrientationDetection(); // DISABLED
 
     // Setup visibility change detection (tab/app switch)
     this.setupVisibilityDetection();
-
-    // Check initial orientation
-    this.checkOrientation();
   }
 
   private preventBrowserGestures() {
@@ -2600,7 +2597,7 @@ export default class SnakeScene extends Phaser.Scene {
     // Recalculate panel width for new screen size
     let panelWidth = 400;
     if (this.isMobile && width < 1024) {
-      panelWidth = Math.max(240, Math.min(320, width * 0.35));
+      panelWidth = Math.max(220, Math.min(280, width * 0.25));
     }
 
     // Reposition question panel if it exists
