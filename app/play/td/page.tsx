@@ -136,6 +136,8 @@ function TowerDefenseContent() {
         left: 0,
         width: '100vw',
         height: '100vh',
+        // Safari iOS-specific fix for dynamic address bar
+        minHeight: '-webkit-fill-available',
         overflow: 'hidden'
       }}
     >
