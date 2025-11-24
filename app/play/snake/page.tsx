@@ -168,6 +168,10 @@ function SnakeGameContent() {
       )}
 
       <div id="phaser-container" className="w-full h-screen flex items-center justify-center bg-[#2d3436]">
+        {/* DEPLOYMENT TEST - This should appear as a banner at the top */}
+        <div className="fixed top-0 left-0 right-0 bg-yellow-400 text-black text-center py-4 z-[10000] font-bold text-2xl">
+          🚨 DEPLOYMENT TEST v{Date.now()} - IF YOU SEE THIS, CODE IS DEPLOYING 🚨
+        </div>
         <SnakeGame quiz={quiz} gameId={gameId || undefined} />
       </div>
     </>
