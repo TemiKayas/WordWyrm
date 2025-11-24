@@ -106,13 +106,19 @@ export default function ShopPage() {
     return (
         <TeacherPageLayout>
             <>
-                <div className="h-[calc(100vh-4rem)] overflow-auto bg-[#FFFAF2] px-4 py-4">
-                    <div className="max-w-6xl mx-auto h-full flex flex-col gap-4">
+                <div className="h-[calc(100vh-6rem)] overflow-auto relative">
+                    {/* Background sketch image */}
+                    <div
+                        className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-30 pointer-events-none"
+                        style={{ backgroundImage: 'url(/images/shop-background-sketch.png)' }}
+                    />
+
+                    <div className="relative z-10 max-w-6xl mx-auto h-full flex flex-col gap-4 px-4 py-6">
                         <div className="text-center">
-                            <h1 className="font-quicksand font-bold text-[#473025] text-2xl mb-1">
+                            <h1 className="font-quicksand font-bold text-[#473025] text-[32px] md:text-[40px] mb-2">
                                 Dragon Drops Shop
                             </h1>
-                            <p className="font-quicksand text-[#BE9F91] text-sm">
+                            <p className="font-quicksand text-[#473025]/70 text-[16px]">
                                 Spend coins to unlock special profile pictures!
                             </p>
                         </div>
