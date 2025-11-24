@@ -147,10 +147,10 @@ export default class SnakeScene extends Phaser.Scene {
 
     // Calculate playable area (left side, excluding question panel)
     // Use narrower panel on mobile devices for more game space
-    // Panel takes 25% of width on mobile (min 220px, max 280px), or 400px on desktop
+    // Panel takes 30% of width on mobile (min 240px, max 320px), or 400px on desktop
     let panelWidth = 400; // Desktop default
     if (this.isMobile && width < 1024) {
-      panelWidth = Math.max(220, Math.min(280, width * 0.25));
+      panelWidth = Math.max(240, Math.min(320, width * 0.30));
     }
     const availableWidth = width - panelWidth;
 
@@ -514,13 +514,14 @@ export default class SnakeScene extends Phaser.Scene {
     if (wasCorrect !== undefined) {
       // Show correct/incorrect feedback with Continue and Explanation buttons
       if (wasCorrect) {
-        // "Correct!" text in green
+        // "Correct!" text in green - responsive size for mobile
+        const correctFontSize = this.isMobile ? '40px' : '64px';
         const correctText = this.add.text(
           this.gameOffsetX + (size / 2),
           this.gameOffsetY + (size / 2) - 120,
           'CORRECT!',
           {
-            fontSize: '64px',
+            fontSize: correctFontSize,
             color: '#00b894',
             fontFamily: 'Quicksand, sans-serif',
             fontStyle: 'bold',
@@ -698,12 +699,14 @@ export default class SnakeScene extends Phaser.Scene {
 
     } else {
       // First question - show pause with Continue button (no countdown)
+      // Responsive font size for mobile
+      const overlayFontSize = this.isMobile ? '32px' : '48px';
       const pauseText = this.add.text(
         this.gameOffsetX + (size / 2),
         this.gameOffsetY + (size / 2) - 40,
         'Read the question!',
         {
-          fontSize: '48px',
+          fontSize: overlayFontSize,
           color: '#ffffff',
           fontFamily: 'Quicksand, sans-serif',
           fontStyle: 'bold',
