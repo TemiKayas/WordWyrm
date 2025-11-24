@@ -34,7 +34,7 @@ export default function JoinGameWithCodePage() {
           setError('Game not found. Please check the code and try again.');
           setIsLoading(false);
         }
-      } catch (err) {
+      } catch {
         setError('Failed to load game. Please try again.');
         setIsLoading(false);
       }

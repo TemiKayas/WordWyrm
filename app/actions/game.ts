@@ -5,7 +5,7 @@ import { db } from '@/lib/db';
 import { generateUniqueShareCode } from '@/lib/utils/share-code';
 import { generateGameQRCode } from '@/lib/utils/qr-code';
 import type { Game, Quiz, ProcessedContent, PDF, Subject } from '@prisma/client';
-import { GameMode } from '@prisma/client';
+import { GameMode, Prisma } from '@prisma/client';
 
 //type of server action results, success or fail, T is the type of return.
 type ActionResult<T> =
@@ -516,7 +516,7 @@ export async function getPublicGames(
 > {
   try {
     // Build where clause
-    const where: any = {
+    const where: Record<string, unknown> = {
       isPublic: true,
       active: true,
     };
@@ -540,7 +540,7 @@ export async function getPublicGames(
     }
 
     // Build orderBy
-    const orderBy: any = filters?.sortBy === 'mostPlayed'
+    const orderBy: Record<string, unknown>[] = filters?.sortBy === 'mostPlayed'
       ? [{ gameSessions: { _count: 'desc' } }]
       : [{ createdAt: 'desc' }];
 
@@ -610,5 +610,157 @@ export async function getPublicGames(
   } catch (error) {
     console.error('Failed to get public games:', error);
     return { success: false, error: 'Failed to retrieve public games' };
+  }
+}
+
+/**
+ * =============================================================================
+ * SAVE GAME SESSION - ANALYTICS SYSTEM
+ * =============================================================================
+ *
+ * This function saves or updates a student's game session with their performance data.
+ * It's used by all game types to record student progress and enable analytics.
+ *
+ * UNIVERSAL FIELDS (same for all game types):
+ * - score: The final score the student achieved
+ * - correctAnswers: Number of questions answered correctly
+ * - totalQuestions: Total number of questions in the quiz
+ * - timeSpent: Time in seconds the student spent playing (optional)
+ *
+ * GAME-SPECIFIC FIELDS (stored in metadata):
+ * - metadata: A flexible JSON object for game-specific statistics
+ *   Examples:
+ *   - Snake: { longestStreak: 12, finalLength: 25 }
+ *   - Tower Defense: { wavesCompleted: 15, towersBuilt: 8, enemiesDefeated: 250 }
+ *   - Traditional: { accuracy: 0.85, averageTimePerQuestion: 12 }
+ *
+ * HOW TO USE IN YOUR GAME:
+ *
+ * 1. Import the function:
+ *    import { saveGameSession } from '@/app/actions/game';
+ *
+ * 2. Call it when the game ends:
+ *    const result = await saveGameSession({
+ *      gameId: 'your-game-id',
+ *      score: 1000,
+ *      correctAnswers: 8,
+ *      totalQuestions: 10,
+ *      timeSpent: 180,  // 3 minutes
+ *      metadata: {
+ *        // Your game-specific stats (must match keys in lib/game-types.ts)
+ *        customMetric1: value1,
+ *        customMetric2: value2
+ *      }
+ *    });
+ *
+ *    if (result.success) {
+ *      console.log('Session saved!', result.data.sessionId);
+ *    }
+ *
+ * IMPORTANT NOTES:
+ * - Uses upsert: If student played this game before, it updates their session
+ * - Requires authentication: Student must be logged in
+ * - The metadata object should match the metrics defined in lib/game-types.ts
+ * - The analytics dashboard automatically reads these values to display stats
+ */
+export async function saveGameSession(params: {
+  gameId: string;
+  score: number;
+  correctAnswers: number;
+  totalQuestions: number;
+  timeSpent?: number;
+  metadata?: Record<string, unknown>;  // Game-specific statistics (flexible JSON)
+  guestName?: string;  // Name for guest players (if not logged in)
+}): Promise<ActionResult<{ sessionId: string }>> {
+  try {
+    const { gameId, score, correctAnswers, totalQuestions, timeSpent, metadata, guestName } = params;
+
+    // Get current user session
+    const session = await auth();
+    let studentId: string | null = null;
+
+    // If user is logged in, try to get their student profile
+    if (session?.user) {
+      const student = await db.student.findUnique({
+        where: { userId: session.user.id },
+      });
+
+      if (student) {
+        studentId = student.id;
+      }
+    }
+
+    // If no student ID and no guest name, require guest name
+    if (!studentId && !guestName) {
+      return { success: false, error: 'Please provide a player name' };
+    }
+
+    // Create game session (guest or authenticated)
+    // For logged-in students, we update existing sessions if they exist
+    // For guests, we always create new sessions
+    if (studentId) {
+      // Logged-in student - find existing session or create new one
+      const existingSession = await db.gameSession.findFirst({
+        where: {
+          gameId,
+          studentId,
+        },
+      });
+
+      if (existingSession) {
+        // Update existing session
+        const gameSession = await db.gameSession.update({
+          where: { id: existingSession.id },
+          data: {
+            score,
+            correctAnswers,
+            totalQuestions,
+            timeSpent,
+            metadata: metadata as Prisma.InputJsonValue | undefined,
+            completedAt: new Date(),
+          },
+        });
+
+        return { success: true, data: { sessionId: gameSession.id } };
+      } else {
+        // Create new session
+        const gameSession = await db.gameSession.create({
+          data: {
+            gameId,
+            studentId,
+            score,
+            correctAnswers,
+            totalQuestions,
+            timeSpent,
+            metadata: metadata as Prisma.InputJsonValue | undefined,
+            completedAt: new Date(),
+          },
+        });
+
+        return { success: true, data: { sessionId: gameSession.id } };
+      }
+    } else {
+      // Guest player - always create new session
+      const gameSession = await db.gameSession.create({
+        data: {
+          gameId,
+          guestName,
+          score,
+          correctAnswers,
+          totalQuestions,
+          timeSpent,
+          metadata: metadata as Prisma.InputJsonValue | undefined,
+          completedAt: new Date(),
+        },
+      });
+
+      return { success: true, data: { sessionId: gameSession.id } };
+    }
+  } catch (error) {
+    console.error('Failed to save game session:', error);
+    return {
+      success: false,
+      error: 'Failed to save your score. Please try again.',
+    };
   }
 }

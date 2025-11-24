@@ -279,7 +279,8 @@ model Game {
 model GameSession {
   id          String    @id @default(cuid())
   gameId      String
-  studentId   String
+  studentId   String?   // Optional - null for guest players
+  guestName   String?   // Name for guest players (required if studentId is null)
   startedAt   DateTime  @default(now())
   completedAt DateTime?
   score       Int?
@@ -287,11 +288,11 @@ model GameSession {
   correctAnswers Int?
   timeSpent   Int?      // Time spent in seconds
   answersJson Json?     // Store student answers if needed for review
+  metadata    Json?     // Game-specific statistics (e.g., streak, longest streak, towers built)
 
   game    Game    @relation(fields: [gameId], references: [id], onDelete: Cascade)
-  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  student Student? @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
-  @@unique([gameId, studentId])
   @@index([gameId])
   @@index([studentId])
 }

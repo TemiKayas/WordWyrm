@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 import { PathPoint } from '@/lib/tower-defense/types/GameTypes';
 import { Stage1Config } from '../config/Stage1Config';
 import { Stage2Config } from '../config/Stage2Config';

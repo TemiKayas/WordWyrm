@@ -1,5 +1,4 @@
 import React from 'react';
-import { COLORS } from '@/lib/constants/colors';
 
 type ButtonVariant =
   | 'primary'      // Brown button

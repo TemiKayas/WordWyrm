@@ -93,7 +93,7 @@ export default function ClassSelectionModal({ isOpen, onClose }: ClassSelectionM
           ) : classes.length === 0 ? (
             <div className="text-center py-12">
               <p className="font-quicksand text-[#473025] text-[18px] mb-4">
-                You don't have any classes yet!
+                You don&apos;t have any classes yet!
               </p>
               <p className="font-quicksand text-[#473025]/70 text-[14px] mb-6">
                 Create a class first to organize your games.

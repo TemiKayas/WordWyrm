@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 import { Enemy, Tower, DotEffect, EnemyType } from '@/lib/tower-defense/types/GameTypes';
 import { TEXT_STYLES } from '@/lib/tower-defense/config/GameConfig';
 

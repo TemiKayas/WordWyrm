@@ -1,0 +1,290 @@
+================================================================================
+SPRINT 6: UNIVERSAL ANALYTICS DASHBOARD & SNAKE GAME IMPROVEMENTS
+================================================================================
+
+This document explains the reusable analytics system implemented for WordWyrm
+and all improvements made to the Snake game during Sprint 6.
+
+================================================================================
+1. UNIVERSAL ANALYTICS DASHBOARD - HOW IT WORKS
+================================================================================
+
+OVERVIEW:
+We created a configuration-driven analytics system that works for ALL game types
+(Snake, Tower Defense, Traditional, future games) WITHOUT requiring changes to
+the dashboard code when adding new games.
+
+THE SYSTEM HAS 3 MAIN PARTS:
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 1. GAME TYPE REGISTRY (lib/game-types.ts)                                  │
+│    - Defines what metrics each game type tracks                            │
+│    - Example: Snake tracks "longestStreak"                                 │
+│    - Tower Defense might track "wavesCompleted", "towersBuilt"             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 2. METADATA STORAGE (Database)                                             │
+│    - GameSession.metadata field stores game-specific stats as JSON         │
+│    - Universal fields: score, correctAnswers, totalQuestions, timeSpent    │
+│    - Game-specific data goes in metadata JSON field                        │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 3. DYNAMIC DASHBOARD (app/teacher/analytics/[gameId]/page.tsx)             │
+│    - Reads game.gameMode from database                                     │
+│    - Looks up config from game-types.ts                                    │
+│    - Automatically renders columns based on config                         │
+│    - NO CODE CHANGES needed when adding new games!                         │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+DATA FLOW:
+┌──────────────┐      ┌──────────────┐      ┌──────────────┐      ┌──────────┐
+│ Game Ends    │ ---> │ Save Session │ ---> │ Database     │ ---> │Dashboard │
+│ (SnakeScene) │      │ with metadata│      │ (JSON field) │      │(Displays)│
+└──────────────┘      └──────────────┘      └──────────────┘      └──────────┘
+  Tracks stats      saveGameSession()      Stores flexible      Reads config
+                                            game data            + renders
+
+WHAT THE DASHBOARD DISPLAYS:
+
+Universal Columns (same for all games):
+  • Student Name
+  • Score
+  • Correct Answers (e.g., "3/10")
+  • Accuracy (e.g., "75%")
+
+Dynamic Columns (from game-types.ts config):
+  • Snake: Longest Streak
+  • Tower Defense: Waves Completed, Towers Built, Enemies Defeated (example)
+  • Traditional: Accuracy, Avg Time/Question
+  • Future games: Whatever metrics you configure!
+
+
+================================================================================
+2. HOW TO ADD A NEW GAME TYPE TO ANALYTICS
+================================================================================
+
+FOR DEVELOPERS WORKING ON OTHER GAME TYPES (Tower Defense, etc.):
+
+STEP 1: Add your game's configuration to lib/game-types.ts
+────────────────────────────────────────────────────────────
+
+TOWER_DEFENSE: {
+  name: 'Tower Defense Quiz',
+  description: 'Answer questions to build towers and defend',
+  metrics: [
+    {
+      key: 'wavesCompleted',      // Key in metadata JSON
+      label: 'Waves Completed',   // Column header in dashboard
+      type: 'number'
+    },
+    {
+      key: 'towersBuilt',
+      label: 'Towers Built',
+      type: 'number'
+    }
+  ]
+}
+
+STEP 2: In your game code, save the session when game ends
+───────────────────────────────────────────────────────────
+
+import { saveGameSession } from '@/app/actions/game';
+
+// When game ends:
+await saveGameSession({
+  gameId: this.gameId,
+  score: this.score,
+  correctAnswers: this.correctAnswers,
+  totalQuestions: this.totalQuestions,
+  timeSpent: timeInSeconds,
+  metadata: {
+    wavesCompleted: this.wavesCompleted,    // Must match key in config
+    towersBuilt: this.towersBuilt           // Must match key in config
+  }
+});
+
+STEP 3: That's it!
+──────────────────
+The analytics dashboard will automatically work. No changes needed to the
+dashboard code. Just add your config and save your metadata.
+
+
+================================================================================
+3. FILES MODIFIED IN THIS SPRINT
+================================================================================
+
+DATABASE SCHEMA:
+  📄 prisma/schema.prisma
+     - Added metadata Json? field to GameSession model
+     - Stores game-specific statistics flexibly
+
+GAME TYPE CONFIGURATION:
+  📄 lib/game-types.ts (NEW FILE)
+     - GAME_TYPES registry mapping GameMode to metrics
+     - Snake config: tracks longestStreak only
+     - Tower Defense config: placeholder for your team to update
+     - getGameTypeConfig() helper function
+
+SERVER ACTIONS:
+  📄 app/actions/game.ts
+     - saveGameSession() function (NEW)
+     - Saves/updates game sessions with metadata
+     - Uses upsert: updates if student played before
+
+SNAKE GAME (ANALYTICS INTEGRATION):
+  📄 lib/phaser/SnakeScene.ts
+     - Added gameId tracking
+     - Added longestStreak tracking
+     - Added startTime tracking
+     - saveSession() method calls saveGameSession()
+     - Exit button now navigates to /student/dashboard
+     - Fixed correct answer flow to show "Read the question" screen
+     - Fixed exit button to be clickable on win screen
+
+  📄 components/game/SnakeGame.tsx
+     - Added gameId prop
+     - Passes gameId to SnakeScene via scene.start()
+
+  📄 app/play/snake/page.tsx
+     - Passes gameId from URL params to SnakeGame component
+
+ANALYTICS DASHBOARD:
+  📄 app/teacher/analytics/[gameId]/page.tsx (NEW FILE)
+     - Universal analytics dashboard for all game types
+     - Fetches game + sessions from database
+     - Calls getGameTypeConfig() to get metrics
+     - Dynamically renders table columns
+     - Shows summary stats (total players, avg score, avg accuracy)
+
+GAME ROUTING:
+  📄 app/play/phaser/[shareCode]/page.tsx
+     - Changed from hardcoded Tower Defense to dynamic router
+     - Checks game.gameMode and redirects appropriately
+     - Snake -> /play/snake?gameId=...
+     - Tower Defense -> /play/td?gameId=...
+
+TEACHER DASHBOARD (ANALYTICS BUTTON):
+  📄 components/dashboard/GamesView.tsx
+     - Added handleViewAnalytics() function
+     - Passes onViewAnalytics to GameCard components
+
+  📄 components/dashboard/GameCard.tsx
+     - Added onViewAnalytics prop
+     - Added "View Analytics" button in three-dot menu
+     - Button only shows for published games (not drafts)
+     - Uses BarChart3 icon from lucide-react
+
+
+================================================================================
+4. SNAKE GAME FIXES
+================================================================================
+
+FIX #1: Game Routing
+  PROBLEM: Share codes always loaded Tower Defense
+  SOLUTION: Made router check gameMode and redirect to correct game
+  FILE: app/play/phaser/[shareCode]/page.tsx
+
+FIX #2: Correct Answer Flow
+  PROBLEM: Correct answers skipped "read the question" screen
+  SOLUTION: Rewrote showCorrectFeedback() to match wrong answer flow
+  FILE: lib/phaser/SnakeScene.ts
+
+FIX #3: Exit Button Not Clickable
+  PROBLEM: Exit button disabled on win screen
+  SOLUTION: Re-enable interactive on winGame()
+  FILE: lib/phaser/SnakeScene.ts
+
+FIX #4: Exit Button Wrong Navigation
+  PROBLEM: Exit used window.history.back() (went back to game)
+  SOLUTION: Changed to window.location.href = '/student/dashboard'
+  FILE: lib/phaser/SnakeScene.ts
+
+FIX #5: Simplified Analytics Metrics
+  PROBLEM: Redundant columns (correctAnswers, totalQuestions, finalLength)
+  SOLUTION: Removed redundant metrics, kept only longestStreak
+  FILE: lib/game-types.ts
+
+
+================================================================================
+5. HOW TEACHERS ACCESS ANALYTICS
+================================================================================
+
+STEP 1: Teacher goes to dashboard
+STEP 2: Find a published game (not a draft)
+STEP 3: Click the three-dot menu on the game card
+STEP 4: Click "View Analytics"
+STEP 5: See dashboard with all student results
+
+
+================================================================================
+6. TESTING CHECKLIST
+================================================================================
+
+[ ] Create a Snake game as a teacher
+[ ] Share the game with students (use share code or QR code)
+[ ] Play the game as a student
+[ ] Check that session is saved (no errors in console)
+[ ] Go to teacher dashboard
+[ ] Click three-dot menu on the game
+[ ] Click "View Analytics"
+[ ] Verify data shows correctly:
+    - Total players count
+    - Average score
+    - Average accuracy
+    - Student name
+    - Score
+    - Correct Answers (X/Y format)
+    - Accuracy percentage
+    - Longest Streak
+[ ] Verify "Longest Streak" column exists (no N/A)
+[ ] Verify NO redundant columns (no extra "Questions Correct")
+
+
+================================================================================
+7. IMPORTANT NOTES FOR COLLABORATORS
+================================================================================
+
+FOR TOWER DEFENSE DEVELOPER:
+  ⚠️  Update lib/game-types.ts with your actual metrics
+  ⚠️  Call saveGameSession() when your game ends
+  ⚠️  The dashboard will automatically work - no changes needed to dashboard code
+
+FOR FUTURE GAME DEVELOPERS:
+  ✓  Add your game mode to Prisma schema (GameMode enum)
+  ✓  Add configuration to lib/game-types.ts
+  ✓  Save metadata when game ends
+  ✓  Dashboard automatically adapts!
+
+ARCHITECTURE DECISIONS:
+  • Used JSON field for flexibility (no migrations when adding metrics)
+  • Configuration-driven for extensibility (no dashboard code changes)
+  • Server actions for security (database writes from server only)
+  • Dynamic rendering for reusability (one dashboard for all games)
+
+SEARCH TAGS:
+  All analytics code is tagged with "ANALYTICS SYSTEM" in comments
+  Use Ctrl+F to find: "ANALYTICS SYSTEM"
+
+
+================================================================================
+8. DEMO MODE vs TRACKED MODE
+================================================================================
+
+DEMO MODE (no gameId):
+  • Game runs without analytics
+  • No session saved to database
+  • Used for testing without affecting analytics
+
+TRACKED MODE (with gameId):
+  • Game receives gameId from URL params
+  • Session saved when game ends
+  • Analytics appear in teacher dashboard
+
+
+================================================================================
+END OF SPRINT 6 SUMMARY
+================================================================================
+

@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 
 // Enemy type definitions
 // RED: Low HP, slow (25 HP, 50 speed, 0.85 size, 1 gold)

@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Navbar from '@/components/shared/Navbar';
 import SlidingSidebar from '@/components/shared/SlidingSidebar';
-import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import BackButton from '@/components/ui/BackButton';
 import { getStudentClassDetails } from '@/app/actions/class';
 import Image from 'next/image';
@@ -36,27 +35,9 @@ export default function StudentClassDetailPage() {
   const [classDetails, setClassDetails] = useState<ClassDetails | null>(null);
   const [error, setError] = useState('');
 
-  const [studentData, setStudentData] = useState({
-    name: '',
-    role: 'STUDENT',
-    photo: '/assets/dashboard/avatars/instructor-profile-photo.png',
-  });
-
   useEffect(() => {
     async function fetchData() {
       try {
-        // Fetch user session
-        const response = await fetch('/api/auth/session');
-        const session = await response.json();
-
-        if (session?.user) {
-          setStudentData({
-            name: session.user.name || 'Student',
-            role: 'STUDENT',
-            photo: '/assets/dashboard/avatars/instructor-profile-photo.png',
-          });
-        }
-
         // Fetch class details
         const result = await getStudentClassDetails(classId);
         if (result.success) {
@@ -126,22 +107,16 @@ export default function StudentClassDetailPage() {
           isSidebarOpen ? 'md:ml-[240px] lg:ml-[278px]' : 'ml-0'
         }`}
       >
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="max-w-[996px] mx-auto bg-[#fffbf6] rounded-[15px] shadow-lg border-[3px] border-[#473025]/10 min-h-screen p-4 md:p-6 lg:p-8">
-            <DashboardHeader
-              userName={studentData.name}
-              userRole={studentData.role}
-              userPhoto={studentData.photo}
-            />
-
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="bg-white rounded-[20px] shadow-sm border-[2px] border-[#473025]/10 p-6 md:p-8">
             {/* Class Header */}
-            <div className="mt-8 mb-6">
+            <div className="mb-6">
               <BackButton href="/student/dashboard" variant="text">
                 Back to My Classes
               </BackButton>
-              <h2 className="font-quicksand font-bold text-[#473025] text-[28px] md:text-[32px] mt-2">
+              <h1 className="font-quicksand font-bold text-[#473025] text-[32px] md:text-[40px] mt-4">
                 {classDetails.name}
-              </h2>
+              </h1>
               {classDetails.description && (
                 <p className="font-quicksand text-[#473025]/70 text-[16px] mt-2">
                   {classDetails.description}
@@ -164,51 +139,66 @@ export default function StudentClassDetailPage() {
 
             {/* Games Section */}
             <div className="mt-8">
-              <h3 className="font-quicksand font-bold text-[#473025] text-[22px] md:text-[26px] mb-5 md:mb-7">
+              <h2 className="font-quicksand font-bold text-[#473025] text-[20px] md:text-[24px] mb-6">
                 Available Games
-              </h3>
+              </h2>
 
               {classDetails.games.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
-                  {classDetails.games.map((game) => (
-                    <div
-                      key={game.id}
-                      className="bg-[#fffaf2] border-[3px] border-[#473025]/20 rounded-[15px] p-6 hover:border-[#473025] hover:shadow-md transition-all"
-                    >
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex-1">
-                          <h4 className="font-quicksand font-bold text-[#473025] text-[18px] mb-2">
-                            {game.title}
-                          </h4>
-                          <div className="flex items-center gap-2 mb-2">
-                            <span className="font-quicksand text-[12px] text-[#473025]/60 bg-[#473025]/10 px-2 py-1 rounded-[5px]">
-                              {game.gameMode === 'TOWER_DEFENSE' ? 'Tower Defense' : 'Traditional'}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {classDetails.games.map((game, index) => {
+                    // Rotate through different color schemes
+                    const colorSchemes = [
+                      { bg: 'from-[#96b902]/10 to-[#7a9700]/10', border: 'border-[#96b902]', accent: 'bg-[#96b902]', button: 'bg-[#96b902] border-[#006029] hover:bg-[#7a9700]' },
+                      { bg: 'from-[#ff9f22]/10 to-[#fd9227]/10', border: 'border-[#ff9f22]', accent: 'bg-[#ff9f22]', button: 'bg-[#fd9227] border-[#cc7425] hover:bg-[#e6832b]' },
+                      { bg: 'from-[#ff3875]/10 to-[#ff5a8f]/10', border: 'border-[#ff3875]', accent: 'bg-[#ff3875]', button: 'bg-[#ff3875] border-[#730f11] hover:bg-[#e6326a]' },
+                    ];
+                    const scheme = colorSchemes[index % colorSchemes.length];
+
+                    return (
+                      <div
+                        key={game.id}
+                        className={`bg-gradient-to-br ${scheme.bg} border-[3px] ${scheme.border} rounded-[15px] p-6 hover:shadow-lg hover:scale-[1.02] transition-all`}
+                      >
+                        <div className="flex items-start gap-3 mb-4">
+                          <div className={`w-12 h-12 ${scheme.accent} rounded-[10px] flex items-center justify-center flex-shrink-0`}>
+                            <span className="font-quicksand font-bold text-white text-[20px]">
+                              {game.title.charAt(0).toUpperCase()}
                             </span>
                           </div>
-                          <p className="font-quicksand text-[12px] text-[#473025]/60">
-                            Created {new Date(game.createdAt).toLocaleDateString()}
-                          </p>
+                          <div className="flex-1">
+                            <h3 className="font-quicksand font-bold text-[#473025] text-[18px] mb-2">
+                              {game.title}
+                            </h3>
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="font-quicksand text-[12px] text-[#473025]/70 bg-white/50 px-2 py-1 rounded-[5px]">
+                                {game.gameMode === 'TOWER_DEFENSE' ? 'Tower Defense' : game.gameMode === 'SNAKE' ? 'Snake' : 'Traditional'}
+                              </span>
+                            </div>
+                            <p className="font-quicksand text-[12px] text-[#473025]/60">
+                              Created {new Date(game.createdAt).toLocaleDateString()}
+                            </p>
+                          </div>
                         </div>
-                      </div>
 
-                      <button
-                        onClick={() => handlePlayGame(game.shareCode)}
-                        className="w-full bg-[#fd9227] border-[2px] border-[#730f11] rounded-[15px] h-[46px] flex items-center justify-center gap-2.5 hover:bg-[#e6832b] hover:shadow-md active:scale-[0.98] transition-all cursor-pointer"
-                      >
-                        <div className="w-[20px] h-[20px] relative flex-shrink-0">
-                          <Image
-                            src="/assets/dashboard/create-icon.svg"
-                            alt="Play"
-                            fill
-                            className="object-contain brightness-0 invert"
-                          />
-                        </div>
-                        <span className="font-quicksand font-bold text-white text-[18px]">
-                          Play Game
-                        </span>
-                      </button>
-                    </div>
-                  ))}
+                        <button
+                          onClick={() => handlePlayGame(game.shareCode)}
+                          className={`w-full ${scheme.button} border-[3px] rounded-[15px] h-[46px] flex items-center justify-center gap-2.5 hover:shadow-md active:scale-[0.98] transition-all cursor-pointer`}
+                        >
+                          <div className="w-[20px] h-[20px] relative flex-shrink-0">
+                            <Image
+                              src="/assets/dashboard/play-icon.svg"
+                              alt="Play"
+                              fill
+                              className="object-contain brightness-0 invert"
+                            />
+                          </div>
+                          <span className="font-quicksand font-bold text-white text-[18px]">
+                            Play Game
+                          </span>
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="text-center py-16 md:py-20">

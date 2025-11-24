@@ -10,8 +10,7 @@ import { Search, BookOpen, Gamepad2, SlidersHorizontal, X } from 'lucide-react';
 import Button from '@/components/ui/Button';
 
 export default function DiscoverPage() {
-  const router = useRouter();
-  const [games, setGames] = useState<any[]>([]);
+  const [games, setGames] = useState<unknown[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -203,8 +202,8 @@ export default function DiscoverPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {games.map((game) => (
-              <PublicGameCard key={game.id} game={game} />
+            {(games as Array<{ id: string; [key: string]: unknown }>).map((game) => (
+              <PublicGameCard key={game.id} game={game as never} />
             ))}
           </div>
         )}
