@@ -2600,14 +2600,8 @@ export default class SnakeScene extends Phaser.Scene {
       panelWidth = Math.max(220, Math.min(280, width * 0.25));
     }
 
-    // Reposition question panel if it exists
-    if (this.questionPanel) {
-      const leftAreaWidth = width - panelWidth;
-      const panelStartX = leftAreaWidth;
-
-      // Recreate the question panel with new dimensions
-      this.showQuestion();
-    }
+    // Note: We DON'T call showQuestion() here because that would create duplicate overlays
+    // The question panel will be recreated naturally when the next question is shown
   }
 
   private showCountdownOverlay() {
