@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Menu } from 'lucide-react';
 import ClassSelectionModal from './ClassSelectionModal';
+import Button from '@/components/ui/Button';
 
 interface SlidingSidebarProps {
   isOpen: boolean;
@@ -22,6 +23,13 @@ export default function SlidingSidebar({ isOpen, onClose }: SlidingSidebarProps)
   const rolePrefix = isStudent ? '/student' : '/teacher';
 
   const navItems = [
+    {
+      label: 'Join Game',
+      icon: '/assets/dashboard/gamepad-icon.svg',
+      inactiveIcon: '/assets/dashboard/gamepad-icon.svg',
+      href: '/join',
+      active: pathname === '/join',
+    },
     {
       label: 'Dashboard',
       icon: '/assets/dashboard/dashboard-icon.svg',
@@ -42,6 +50,7 @@ export default function SlidingSidebar({ isOpen, onClose }: SlidingSidebarProps)
       active: pathname === '/shop',
     },
   ];
+
 
   const handlePlayClick = () => {
     // Students go to /join, teachers go to their games page
@@ -83,42 +92,48 @@ export default function SlidingSidebar({ isOpen, onClose }: SlidingSidebarProps)
 
         {/* Play button */}
         <div className="px-4 md:px-6 lg:px-[35px] mb-4">
-          <button
+          <Button
             onClick={handlePlayClick}
-            className="btn-primary w-full h-[50px] md:h-[57px] bg-[#95b607] border-[3px] border-[#006029] rounded-[15px] flex items-center gap-2 md:gap-3 px-3 md:px-4 hover:bg-[#7a9700] cursor-pointer transition-all shadow-[0_6px_0_0_#006029] hover:shadow-[0_8px_0_0_#006029] active:shadow-[0_2px_0_0_#006029] hover:-translate-y-0.5 active:translate-y-1"
+            variant="play"
+            size="lg"
+            fullWidth
+            icon={
+              <div className="w-5 h-5 md:w-6 md:h-6 relative flex-shrink-0">
+                <Image
+                  src="/assets/dashboard/play-icon.svg"
+                  alt="Play"
+                  fill
+                  className="object-contain"
+                />
+              </div>
+            }
+            className="h-[50px] md:h-[57px] text-[24px] md:text-[28px] lg:text-[31px]"
           >
-            <div className="w-5 h-5 md:w-6 md:h-6 relative flex-shrink-0">
-              <Image
-                src="/assets/dashboard/play-icon.svg"
-                alt="Play"
-                fill
-                className="object-contain"
-              />
-            </div>
-            <span className="font-quicksand font-bold text-white text-[24px] md:text-[28px] lg:text-[31px]">
-              Play
-            </span>
-          </button>
+            Play
+          </Button>
         </div>
 
         {/* Create button */}
         <div className="px-4 md:px-6 lg:px-[35px] mb-6 md:mb-8">
-          <button
+          <Button
             onClick={handleCreateClick}
-            className="btn-primary w-full h-[50px] md:h-[57px] bg-[#ff3875] border-[3px] border-[#730f11] rounded-[15px] flex items-center gap-2 md:gap-3 px-3 md:px-4 hover:bg-[#e6326a] cursor-pointer transition-all shadow-[0_6px_0_0_#730f11] hover:shadow-[0_8px_0_0_#730f11] active:shadow-[0_2px_0_0_#730f11] hover:-translate-y-0.5 active:translate-y-1"
+            variant="create"
+            size="lg"
+            fullWidth
+            icon={
+              <div className="w-5 h-5 md:w-6 md:h-6 relative flex-shrink-0">
+                <Image
+                  src="/assets/dashboard/create-icon.svg"
+                  alt="Create"
+                  fill
+                  className="object-contain"
+                />
+              </div>
+            }
+            className="h-[50px] md:h-[57px] text-[24px] md:text-[28px] lg:text-[31px]"
           >
-            <div className="w-5 h-5 md:w-6 md:h-6 relative flex-shrink-0">
-              <Image
-                src="/assets/dashboard/create-icon.svg"
-                alt="Create"
-                fill
-                className="object-contain"
-              />
-            </div>
-            <span className="font-quicksand font-bold text-white text-[24px] md:text-[28px] lg:text-[31px]">
-              Create
-            </span>
-          </button>
+            Create
+          </Button>
         </div>
 
         {/* Navigation items */}

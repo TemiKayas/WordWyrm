@@ -6,6 +6,7 @@ type ButtonVariant =
   | 'success'      // Green button
   | 'play'         // Green play button (alias for success)
   | 'create'       // Red/pink create button
+  | 'join'         // Orange join button
   | 'orange'       // Orange button
   | 'outline'      // Transparent with brown border
   | 'danger'       // Red button for delete actions
@@ -44,6 +45,7 @@ export default function Button({
     success: 'bg-[#95b607] border-[3px] border-[#006029] shadow-[#006029] hover:bg-[#a8cc00] text-white',
     play: 'bg-[#95b607] border-[3px] border-[#006029] shadow-[#006029] hover:bg-[#a8cc00] text-white',
     create: 'bg-[#ff3875] border-[3px] border-[#730f11] shadow-[#730f11] hover:bg-[#ff5a8f] text-white',
+    join: 'bg-[#fd9227] border-[3px] border-[#cc7425] shadow-[#cc7425] hover:bg-[#ffa447] text-white',
     orange: 'bg-[#fd9227] border-[3px] border-[#cc7425] shadow-[#cc7425] hover:bg-[#ffa447] text-white',
     outline: 'bg-transparent border-[3px] border-[#473025] shadow-[#473025] hover:bg-[#fff5e8] text-[#473025]',
     danger: 'bg-[#ff4880] border-[3px] border-[#730f11] shadow-[#730f11] hover:bg-[#ff6b9a] text-white',
