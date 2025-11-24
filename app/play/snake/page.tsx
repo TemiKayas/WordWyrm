@@ -22,11 +22,19 @@ function SnakeGameContent() {
   const [error, setError] = useState<string | null>(null);
   // State for orientation check
   const [isLandscape, setIsLandscape] = useState(true);
+  // State to track if game has ever been loaded (don't unmount once loaded)
+  const [gameLoaded, setGameLoaded] = useState(false);
 
   // Effect hook to check orientation
   useEffect(() => {
     const checkOrientation = () => {
-      setIsLandscape(window.innerWidth > window.innerHeight);
+      const newIsLandscape = window.innerWidth > window.innerHeight;
+      setIsLandscape(newIsLandscape);
+
+      // Mark game as loaded once user rotates to landscape
+      if (newIsLandscape && !gameLoaded) {
+        setGameLoaded(true);
+      }
     };
 
     // Check on mount
@@ -40,7 +48,7 @@ function SnakeGameContent() {
       window.removeEventListener('resize', checkOrientation);
       window.removeEventListener('orientationchange', checkOrientation);
     };
-  }, []);
+  }, [gameLoaded]);
 
   // Effect hook to fetch game data on mount
   useEffect(() => {
@@ -169,7 +177,8 @@ function SnakeGameContent() {
 
       <div id="phaser-container" className="w-full h-screen flex items-center justify-center bg-[#2d3436]">
         {/* Only load Phaser game when in landscape mode to ensure correct layout calculations */}
-        {isLandscape && <SnakeGame quiz={quiz} gameId={gameId || undefined} />}
+        {/* Once loaded, keep it mounted even if rotated to portrait (overlay will cover it) */}
+        {gameLoaded && <SnakeGame quiz={quiz} gameId={gameId || undefined} />}
       </div>
     </>
   );
