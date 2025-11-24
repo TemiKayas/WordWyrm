@@ -360,10 +360,10 @@ export default class SnakeScene extends Phaser.Scene {
 
     // Responsive font sizes and spacing
     const isMobileLayout = panelWidth < 350;
-    const questionNumFontSize = isMobileLayout ? '10px' : '14px';
-    const questionTextFontSize = isMobileLayout ? '12px' : '18px';
-    const topMargin = isMobileLayout ? 20 : 160;
-    const questionTextMargin = isMobileLayout ? 50 : 200;
+    const questionNumFontSize = isMobileLayout ? '14px' : '14px';
+    const questionTextFontSize = isMobileLayout ? '16px' : '18px';
+    const topMargin = isMobileLayout ? 30 : 160;
+    const questionTextMargin = isMobileLayout ? 70 : 200;
 
     // Question number
     const questionNum = this.add.text(
@@ -402,12 +402,12 @@ export default class SnakeScene extends Phaser.Scene {
     let currentY = startY;
 
     // Responsive answer font sizes
-    const answerLetterFontSize = isMobileLayout ? '11px' : '15px';
-    const answerTextFontSize = isMobileLayout ? '10px' : '13px';
-    const colorBoxSize = isMobileLayout ? 20 : 30;
-    const colorBoxMargin = isMobileLayout ? 20 : 30;
-    const answerStartX = isMobileLayout ? 50 : 70;
-    const answerTextStartX = isMobileLayout ? 75 : 100;
+    const answerLetterFontSize = isMobileLayout ? '14px' : '15px';
+    const answerTextFontSize = isMobileLayout ? '13px' : '13px';
+    const colorBoxSize = isMobileLayout ? 24 : 30;
+    const colorBoxMargin = isMobileLayout ? 25 : 30;
+    const answerStartX = isMobileLayout ? 55 : 70;
+    const answerTextStartX = isMobileLayout ? 85 : 100;
 
     this.shuffledOptions.forEach((shuffledOption, displayIndex) => {
       // Color indicator square (use shuffled color)
@@ -441,8 +441,8 @@ export default class SnakeScene extends Phaser.Scene {
           fontSize: answerTextFontSize,
           color: '#473025',
           fontFamily: 'Quicksand, sans-serif',
-          wordWrap: { width: panelWidth - (isMobileLayout ? 85 : 120) },
-          lineSpacing: 1
+          wordWrap: { width: panelWidth - (isMobileLayout ? 95 : 120) },
+          lineSpacing: 2
         }
       ).setOrigin(0, 0);
 
@@ -450,7 +450,7 @@ export default class SnakeScene extends Phaser.Scene {
 
       // Calculate dynamic spacing based on text height
       const textHeight = answerText.height;
-      const spacing = isMobileLayout ? Math.max(textHeight + 10, 35) : Math.max(textHeight + 20, 50);
+      const spacing = isMobileLayout ? Math.max(textHeight + 12, 40) : Math.max(textHeight + 20, 50);
       currentY += spacing;
     });
 
