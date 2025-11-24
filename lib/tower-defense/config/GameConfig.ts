@@ -26,6 +26,15 @@ export const PROJECTILE_SPRITE_SCALES = {
 } as const;
 
 // ============================================
+// ENEMY SPRITE SIZES - Adjust these to change enemy sprite scales
+// EDIT THIS to change enemy sizes - changes apply everywhere
+// ============================================
+export const ENEMY_SPRITE_SCALES = {
+  goblin: 0.08,       // Goblin enemy - 70% smaller than 0.5
+  // Add more enemy types here as needed
+} as const;
+
+// ============================================
 // PROJECTILE ROTATION OFFSETS - Adjust if sprites are oriented incorrectly
 // 0 = sprite points RIGHT in source image
 // Math.PI / 2 (90°) = sprite points DOWN in source image

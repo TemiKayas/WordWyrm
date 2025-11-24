@@ -33,7 +33,8 @@ export interface Enemy {
   type: EnemyType;
   pathId: number; // which path this enemy is following (0, 1, 2, etc.)
   pathIndex: number; // current target waypoint on their path
-  graphics: Phaser.GameObjects.Graphics; // visual representation
+  graphics: Phaser.GameObjects.Graphics; // visual representation (for non-sprite enemies)
+  sprite?: Phaser.GameObjects.Sprite; // sprite representation (for sprite-based enemies like goblins)
   size: number; // scale multiplier for visual size
   healthBarBg?: Phaser.GameObjects.Graphics; // health bar background
   healthBarFill?: Phaser.GameObjects.Graphics; // health bar fill

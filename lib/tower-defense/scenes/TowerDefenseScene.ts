@@ -217,10 +217,18 @@ export default class TowerDefenseScene extends Phaser.Scene {
     this.load.image('icon_powerup', '/assets/game/Icon_PowerUp.PNG');
 
     // Load background maps for each stage
-    this.load.image('grass_map', '/assets/game/GrassMap.PNG'); // Legacy (can remove later)
+    this.load.image('grass_map', '/assets/game/GrassMap1080p.png'); // Updated 1080p version (16:9 aspect ratio)
     this.load.image('stage1_bg', '/assets/game/Stage1_BG.png');
     this.load.image('stage2_bg', '/assets/game/Stage2_BG.png');
     this.load.image('stage3_bg', '/assets/game/Stage3_BG.png');
+
+    // Load enemy sprites - individual frames (much simpler!)
+    this.load.image('goblin_frame_1', '/assets/game/Goblin_1.png');
+    this.load.image('goblin_frame_2', '/assets/game/Goblin_2.png');
+    this.load.image('goblin_frame_3', '/assets/game/Goblin_3.png');
+    this.load.image('goblin_frame_4', '/assets/game/Goblin_4.png');
+    this.load.image('goblin_frame_5', '/assets/game/Goblin_5.png');
+    this.load.image('enemy_goblin_still', '/assets/game/Goblin.png'); // Frozen goblin
   }
 
   create() {
@@ -319,6 +327,23 @@ export default class TowerDefenseScene extends Phaser.Scene {
     // Initialize mobile support (orientation enforcement, pause handling)
     this.mobileSupport = new MobileSupport(this);
     this.mobileSupport.setup(undefined, undefined, 'UIScene');
+
+    // Create goblin walking animation from individual frames
+    if (!this.anims.exists('goblin_walk')) {
+      this.anims.create({
+        key: 'goblin_walk',
+        frames: [
+          { key: 'goblin_frame_1' },
+          { key: 'goblin_frame_2' },
+          { key: 'goblin_frame_3' },
+          { key: 'goblin_frame_4' },
+          { key: 'goblin_frame_5' }
+        ],
+        frameRate: 8, // 8 fps - adjust for desired speed
+        repeat: -1 // Loop forever
+      });
+      console.log('[TowerDefenseScene] Created goblin_walk animation with 5 frames');
+    }
 
     // Initialize tower prices from centralized stats
     this.initializeTowerPrices();

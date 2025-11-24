@@ -1,5 +1,6 @@
 import * as Phaser from 'phaser';
 import { Enemy, EnemyType, PathPoint } from '@/lib/tower-defense/types/GameTypes';
+import { ENEMY_SPRITE_SCALES } from '@/lib/tower-defense/config/GameConfig';
 
 /**
  * EnemyManager
@@ -209,8 +210,26 @@ export class EnemyManager {
 
     // Create visual representation
     const graphics = this.scene.add.graphics();
+    let sprite: Phaser.GameObjects.Sprite | undefined = undefined;
 
-    // Draw different shapes based on enemy type
+    // Create sprite for RED enemies (goblins), graphics for others
+    if (type === EnemyType.RED) {
+      // Use first frame as initial texture
+      sprite = this.scene.add.sprite(startPoint.x, startPoint.y, 'goblin_frame_1');
+      sprite.setScale(ENEMY_SPRITE_SCALES.goblin * size);
+      sprite.setRotation(Math.PI); // Flip 180 degrees to face correct direction
+      sprite.setDepth(2); // Same depth as enemies
+
+      // Play walking animation
+      if (this.scene.anims.exists('goblin_walk')) {
+        sprite.play('goblin_walk');
+        console.log('[EnemyManager] Playing goblin_walk animation');
+      } else {
+        console.warn('[EnemyManager] goblin_walk animation not found');
+      }
+    }
+
+    // Draw different shapes based on enemy type (for non-sprite enemies)
     if (type === EnemyType.BOSS || type === EnemyType.MINI_BOSS) {
       // Hexagon shape for bosses
       graphics.fillStyle(color);
@@ -265,8 +284,8 @@ export class EnemyManager {
       // Add thick armored border
       graphics.lineStyle(4, 0x4a4a4a, 1); // Dark gray metallic border
       graphics.strokeTriangle(0, -15, 15, 10, -15, 10);
-    } else {
-      // Triangle shape for regular enemies (RED, BLUE, YELLOW, SPEEDY)
+    } else if (type !== EnemyType.RED) {
+      // Triangle shape for regular enemies (BLUE, YELLOW, SPEEDY) - skip RED (uses sprite)
       graphics.fillStyle(color);
       graphics.beginPath();
       graphics.moveTo(0, -15);
@@ -282,8 +301,16 @@ export class EnemyManager {
 
     // Make enemy interactive for Lightning Strike ability
     const hitRadius = (type === EnemyType.BOSS || type === EnemyType.MINI_BOSS) ? 20 : 15;
-    graphics.setInteractive(new Phaser.Geom.Circle(0, 0, hitRadius), Phaser.Geom.Circle.Contains);
-    graphics.input!.cursor = 'pointer';
+
+    if (sprite) {
+      // Make sprite interactive (for goblin enemies)
+      sprite.setInteractive(new Phaser.Geom.Circle(0, 0, hitRadius), Phaser.Geom.Circle.Contains);
+      sprite.input!.cursor = 'pointer';
+    } else {
+      // Make graphics interactive (for shape-based enemies)
+      graphics.setInteractive(new Phaser.Geom.Circle(0, 0, hitRadius), Phaser.Geom.Circle.Contains);
+      graphics.input!.cursor = 'pointer';
+    }
 
     // Create health bar background
     const healthBarBg = this.scene.add.graphics();
@@ -315,6 +342,7 @@ export class EnemyManager {
       pathId: pathId, // Which path this enemy is following
       pathIndex: 1, // Start at second waypoint (first is spawn)
       graphics: graphics,
+      sprite: sprite, // Sprite for goblin enemies
       size: size,
       healthBarBg: healthBarBg,
       healthBarFill: healthBarFill,
@@ -326,9 +354,17 @@ export class EnemyManager {
     this.enemies.push(enemy);
 
     // Add Lightning Strike click handler
-    graphics.on('pointerdown', () => {
-      onLightningClick(enemy);
-    });
+    if (sprite) {
+      // Add click handler to sprite (for goblin enemies)
+      sprite.on('pointerdown', () => {
+        onLightningClick(enemy);
+      });
+    } else {
+      // Add click handler to graphics (for shape-based enemies)
+      graphics.on('pointerdown', () => {
+        onLightningClick(enemy);
+      });
+    }
 
     return enemy;
   }
@@ -351,6 +387,7 @@ export class EnemyManager {
       if (enemy.pathIndex >= enemyPath.length) {
         escapes.push({ enemy });
         enemy.graphics.destroy();
+        enemy.sprite?.destroy();
         enemy.healthBarBg?.destroy();
         enemy.healthBarFill?.destroy();
         this.enemies.splice(i, 1);
@@ -374,9 +411,16 @@ export class EnemyManager {
         // Rotate to face direction
         const angle = Math.atan2(dy, dx) + Math.PI / 2;
         enemy.graphics.setRotation(angle);
+        if (enemy.sprite) {
+          // Goblins need 180° base rotation to face correct direction
+          enemy.sprite.setRotation(angle + Math.PI);
+        }
       }
 
       enemy.graphics.setPosition(enemy.x, enemy.y);
+      if (enemy.sprite) {
+        enemy.sprite.setPosition(enemy.x, enemy.y);
+      }
 
       // Update health bars
       if (enemy.healthBarBg && enemy.healthBarFill) {
@@ -416,6 +460,7 @@ export class EnemyManager {
 
         deaths.push({ enemy, goldReward });
         enemy.graphics.destroy();
+        enemy.sprite?.destroy();
         enemy.healthBarBg?.destroy();
         enemy.healthBarFill?.destroy();
         this.enemies.splice(i, 1);
@@ -532,6 +577,7 @@ export class EnemyManager {
   destroy(): void {
     this.enemies.forEach(enemy => {
       enemy.graphics.destroy();
+      enemy.sprite?.destroy();
       enemy.healthBarBg?.destroy();
       enemy.healthBarFill?.destroy();
     });
