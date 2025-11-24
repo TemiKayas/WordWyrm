@@ -157,12 +157,12 @@ function SnakeGameContent() {
     <>
       {/* Orientation overlay that shows OVER the game if rotated to portrait */}
       {!isLandscape && (
-        <div className="fixed inset-0 bg-black flex flex-col items-center justify-center z-[9999]">
-          <div className="text-6xl mb-8">📱</div>
-          <div className="text-white font-quicksand font-bold text-2xl text-center px-8">
-            Please rotate your device
+        <div className="fixed inset-0 bg-red-600 flex flex-col items-center justify-center z-[9999]">
+          <div className="text-9xl mb-8">📱</div>
+          <div className="text-white font-quicksand font-bold text-6xl text-center px-8">
+            TEST - NEW CODE DEPLOYED
             <br />
-            to landscape mode
+            ROTATE TO LANDSCAPE
           </div>
         </div>
       )}
