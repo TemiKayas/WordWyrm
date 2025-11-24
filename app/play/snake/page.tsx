@@ -157,18 +157,19 @@ function SnakeGameContent() {
     <>
       {/* Orientation overlay that shows OVER the game if rotated to portrait */}
       {!isLandscape && (
-        <div className="fixed inset-0 bg-red-600 flex flex-col items-center justify-center z-[9999]">
-          <div className="text-9xl mb-8">📱</div>
-          <div className="text-white font-quicksand font-bold text-6xl text-center px-8">
-            TEST - NEW CODE DEPLOYED
+        <div className="fixed inset-0 bg-black flex flex-col items-center justify-center z-[9999]">
+          <div className="text-6xl mb-8">📱</div>
+          <div className="text-white font-quicksand font-bold text-2xl text-center px-8">
+            Please rotate your device
             <br />
-            ROTATE TO LANDSCAPE
+            to landscape mode
           </div>
         </div>
       )}
 
       <div id="phaser-container" className="w-full h-screen flex items-center justify-center bg-[#2d3436]">
-        <SnakeGame quiz={quiz} gameId={gameId || undefined} />
+        {/* Only load Phaser game when in landscape mode to ensure correct layout calculations */}
+        {isLandscape && <SnakeGame quiz={quiz} gameId={gameId || undefined} />}
       </div>
     </>
   );

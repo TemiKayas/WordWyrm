@@ -29,10 +29,6 @@ const SnakeGame = ({ quiz, gameId }: SnakeGameProps) => {
     const createGame = async () => {
       // Only create if ref is attached and no game instance exists
       if (gameRef.current && !gameInstance.current) {
-        // Delay to ensure DOM is fully rendered and dimensions are accurate
-        // Especially important on mobile where viewport can shift during load (address bar, etc.)
-        await new Promise(resolve => setTimeout(resolve, 300));
-
         // Dynamically import Phaser to reduce bundle size
         const Phaser = await import('phaser');
         // Dynamically import snake scene
