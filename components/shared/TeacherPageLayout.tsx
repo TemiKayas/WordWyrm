@@ -7,10 +7,11 @@ import SlidingSidebar from './SlidingSidebar';
 interface TeacherPageLayoutProps {
   children: React.ReactNode;
   showSignOut?: boolean;
+  defaultSidebarOpen?: boolean;
 }
 
-export default function TeacherPageLayout({ children, showSignOut = true }: TeacherPageLayoutProps) {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+export default function TeacherPageLayout({ children, showSignOut = true, defaultSidebarOpen = false }: TeacherPageLayoutProps) {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(defaultSidebarOpen);
   const [userName, setUserName] = useState('');
   const [userRole, setUserRole] = useState('TEACHER');
 
