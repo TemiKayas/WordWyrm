@@ -137,6 +137,13 @@ export default function StudentDashboard() {
             </div>
             <div className="flex gap-3">
               <Button
+                onClick={() => router.push('/student/history')}
+                variant="primary"
+                size="sm"
+              >
+                Game History
+              </Button>
+              <Button
                 onClick={() => router.push('/join')}
                 variant="success"
                 size="sm"

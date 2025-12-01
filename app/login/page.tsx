@@ -82,7 +82,7 @@ function LoginForm() {
   }
 
   const handleGoogleSignIn = () => {
-    console.log('Google sign in clicked');
+    // Google sign-in not yet implemented
   };
 
   return (

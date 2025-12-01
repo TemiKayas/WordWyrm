@@ -7,12 +7,8 @@ export async function extractTextFromPDF(buffer: Buffer): Promise<string> {
       throw new Error('Invalid buffer provided to PDF extractor');
     }
 
-    console.log('Buffer received, size:', buffer.length, 'bytes');
-
     // Parse the PDF buffer using pdf-parse
     const data = await pdf(buffer);
-
-    console.log('PDF parsed successfully, text length:', data.text.length);
     return data.text;
   } catch (error) {
     console.error('PDF extraction error:', error);

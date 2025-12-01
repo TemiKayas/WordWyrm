@@ -99,6 +99,18 @@ export default function GamesView({ onCreateGame, classId, hideTitle = false }: 
     }
   };
 
+  const handleViewShareCode = (game: Game) => {
+    if (game.gameId) {
+      router.push(`/teacher/game-preview?gameId=${game.gameId}`);
+    }
+  };
+
+  const handleViewLeaderboard = (game: Game) => {
+    if (game.gameId) {
+      router.push(`/teacher/leaderboard/${game.gameId}`);
+    }
+  };
+
   const handleDelete = async (game: Game) => {
     if (!confirm(`Are you sure you want to delete "${game.title}"? This action cannot be undone.`)) {
       return;
@@ -192,6 +204,8 @@ export default function GamesView({ onCreateGame, classId, hideTitle = false }: 
                 onEdit={() => handleEdit(game)}
                 onDelete={() => handleDelete(game)}
                 onViewAnalytics={() => handleViewAnalytics(game)}
+                onViewShareCode={() => handleViewShareCode(game)}
+                onViewLeaderboard={() => handleViewLeaderboard(game)}
               />
             ))}
           </div>

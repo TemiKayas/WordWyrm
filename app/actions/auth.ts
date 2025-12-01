@@ -135,7 +135,7 @@ export async function signup(
     console.error('Signup error:', error);
     return {
       success: false,
-      error: 'Failed to create account. Please try again.',
+      error: 'We couldn\'t create your account. This may be due to a temporary issue. Please try again in a few moments.',
     };
   }
 }
@@ -161,7 +161,7 @@ export async function login(
     if (!user) {
       return {
         success: false,
-        error: 'Invalid email or password',
+        error: 'Invalid email or password. Please check your credentials and try again.',
       };
     }
 
