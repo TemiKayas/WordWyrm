@@ -50,6 +50,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
   private escKey!: Phaser.Input.Keyboard.Key; // ESC for pause
   private gamePaused: boolean = false;
   private pauseOverlay?: Phaser.GameObjects.Container;
+  private questionPopupActive: boolean = false; // Track if any question popup is currently displayed
 
   // Tower placement/selection
   private selectedTowerType: 'basic' | 'sniper' | 'melee' | 'fact' | 'wizard' | null = null; // Start with no tower selected
@@ -805,6 +806,10 @@ export default class TowerDefenseScene extends Phaser.Scene {
 
   showQuestion() {
     this.waitingForQuestion = true;
+    this.questionPopupActive = true; // Pause game while question popup is active
+
+    // Bring this scene to top so overlay appears above UIScene
+    this.scene.bringToTop();
 
     // check if we have questions left
     if (this.currentQuestionIndex >= this.quizData.questions.length) {
@@ -818,6 +823,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
       }
 
       this.waitingForQuestion = false;
+      this.questionPopupActive = false; // Resume game
       this.gameStarted = true;
 
       return;
@@ -836,8 +842,8 @@ export default class TowerDefenseScene extends Phaser.Scene {
     const panelWidth = Math.min(700, gameWidth * 0.85);
     const panelHeight = Math.min(540, height * 0.75);
 
-    // popup background overlay - simple fade in
-    const overlay = this.add.rectangle(centerX, centerY, gameWidth, height, 0x000000, 0);
+    // popup background overlay - covers FULL SCREEN including sidebar
+    const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0);
     this.currentQuizOverlay = overlay;
     this.tweens.add({
       targets: overlay,
@@ -944,8 +950,11 @@ export default class TowerDefenseScene extends Phaser.Scene {
       });
     });
 
-    this.questionPopup = this.add.container(0, 0, [overlay, shadow, panel, headerBg, headerLine, questionNum, questionText, ...answerButtons]);
-    this.questionPopup.setDepth(1000); // Ensure questions always appear on top
+    // Keep overlay separate from container so it covers full screen
+    overlay.setDepth(10000);
+
+    this.questionPopup = this.add.container(0, 0, [shadow, panel, headerBg, headerLine, questionNum, questionText, ...answerButtons]);
+    this.questionPopup.setDepth(10001); // Ensure questions always appear on top
   }
 
   handleAnswer(isCorrect: boolean, overlay: Phaser.GameObjects.Rectangle, panel: Phaser.GameObjects.Rectangle, questionText: Phaser.GameObjects.Text, answerButtons: Phaser.GameObjects.Container[]) {
@@ -1031,6 +1040,8 @@ export default class TowerDefenseScene extends Phaser.Scene {
           feedback.destroy();
           if (explanation) explanation.destroy();
           this.questionPopup?.destroy();
+          // Bring UIScene back to top
+          this.scene.bringToTop('UIScene');
           // Clear quiz references
           this.currentQuizQuestion = undefined;
           this.currentQuizAnswerButtons = undefined;
@@ -1038,6 +1049,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
           this.currentQuizPanel = undefined;
           this.currentQuizTextObj = undefined;
           this.waitingForQuestion = false;
+          this.questionPopupActive = false; // Resume game after question answered
           this.gameStarted = true;
           this.currentQuestionIndex++;
         }
@@ -2108,6 +2120,11 @@ export default class TowerDefenseScene extends Phaser.Scene {
       return;
     }
 
+    // Pause game when question popup is active
+    if (this.questionPopupActive) {
+      return; // Skip all game updates while popup is showing
+    }
+
     // Handle keyboard shortcuts even when game not started
     const enterKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER);
     const key1 = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.ONE);
@@ -2221,6 +2238,8 @@ export default class TowerDefenseScene extends Phaser.Scene {
         if (this.bossQuestionPopup) {
           this.bossQuestionPopup.destroy();
           this.bossQuestionPopup = undefined;
+          // Bring UIScene back to top
+          this.scene.bringToTop('UIScene');
         }
       }
 
@@ -2232,6 +2251,9 @@ export default class TowerDefenseScene extends Phaser.Scene {
       // Check for challenge round (every 10 waves: 10, 20, 30, etc.)
       if (this.waveNumber % 10 === 0) {
         this.startChallengeRound();
+      } else {
+        // Show wave cleared popup for normal waves (not challenge rounds)
+        this.showWaveClearedPopup();
       }
 
       // Decrement buff rounds remaining (if buff is active)
@@ -2241,8 +2263,6 @@ export default class TowerDefenseScene extends Phaser.Scene {
           this.activeBuff = null; // Buff expired
         }
       }
-
-      // No more between-wave questions - waves can start immediately
     }
 
     // Update enemies (manager handles movement, health bars, cleanup)
@@ -2403,7 +2423,11 @@ export default class TowerDefenseScene extends Phaser.Scene {
   }
 
   gameOver() {
-    this.scene.pause();
+    // Pause game with popup flag
+    this.questionPopupActive = true;
+
+    // Bring this scene to top so overlay appears above UIScene
+    this.scene.bringToTop();
 
     // Save game session (works in both Phaser Editor and WordWyrm)
     const score = this.calculateScore();
@@ -2420,40 +2444,102 @@ export default class TowerDefenseScene extends Phaser.Scene {
       console.error('[TowerDefenseScene] Error saving game session:', error);
     });
 
-    // Game over overlay and text (responsive to actual game dimensions)
+    // Responsive dimensions - center in game area (excluding sidebar)
     const width = this.scale.width;
     const height = this.scale.height;
-    const centerX = width / 2;
+    const sidebarWidth = Math.min(220, width * 0.15);
+    const gameWidth = width - sidebarWidth;
+    const centerX = gameWidth / 2;
     const centerY = height / 2;
+    const panelWidth = Math.min(700, gameWidth * 0.85);
+    const panelHeight = Math.min(450, height * 0.65);
 
-    // Full-screen semi-transparent overlay
-    this.add.rectangle(centerX, centerY, width, height, 0x000000, 0.7);
+    // Popup background overlay - covers FULL SCREEN including sidebar
+    const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.85);
+    overlay.setDepth(10000);
 
-    // Game Over title (responsive font size)
-    this.add.text(centerX, centerY, 'GAME OVER!', {
-      fontSize: Math.min(64, width / 20) + 'px',
-      color: '#ff0000',
-      fontFamily: 'Quicksand, sans-serif',
-      fontStyle: 'bold',
-      stroke: '#000000',
-      strokeThickness: 8,
-    }).setOrigin(0.5);
+    // Popup panel with shadow - cream background matching question popups
+    const shadow = this.add.rectangle(centerX + 4, centerY + 4, panelWidth, panelHeight, 0x000000, 0.3);
+    shadow.setDepth(10001);
+    const panel = this.add.rectangle(centerX, centerY, panelWidth, panelHeight, 0xfffaf2);
+    panel.setStrokeStyle(4, 0xc4a46f);
+    panel.setDepth(10002);
 
-    // Waves survived text
-    this.add.text(centerX, centerY + 80, `You survived ${this.waveNumber} waves!`, {
-      fontSize: Math.min(32, width / 40) + 'px',
+    // Simple scale animation
+    panel.setScale(0.9);
+    shadow.setScale(0.9);
+    this.tweens.add({
+      targets: [panel, shadow],
+      scaleX: 1,
+      scaleY: 1,
+      duration: 200,
+      ease: 'Power2'
+    });
+
+    // Header background - red for game over
+    const headerY = centerY - panelHeight/2 + 60;
+    const headerBg = this.add.rectangle(centerX, headerY, panelWidth, 90, 0xcc0000);
+    headerBg.setDepth(10003);
+    const headerLine = this.add.rectangle(centerX, headerY + 45, panelWidth - 40, 4, 0xc4a46f);
+    headerLine.setDepth(10004);
+
+    // Game Over title
+    const titleText = this.add.text(centerX, headerY, 'GAME OVER!', {
+      fontSize: '32px',
       color: '#ffffff',
       fontFamily: 'Quicksand, sans-serif',
       fontStyle: 'bold',
+      resolution: 2
     }).setOrigin(0.5);
+    titleText.setDepth(10005);
 
-    // Display score
-    this.add.text(centerX, centerY + 140, `Score: ${score}`, {
-      fontSize: Math.min(28, width / 48) + 'px',
+    // Stats section
+    const statsY = centerY - 20;
+    const statsText = this.add.text(centerX, statsY,
+      `Waves Survived: ${this.waveNumber}\n\nFinal Score: ${score}\n\nGold Earned: ${this.gold}\n\nCorrect Answers: ${this.totalCorrectAnswers}`,
+      {
+        fontSize: '20px',
+        color: '#5c4a2f',
+        fontFamily: 'Quicksand, sans-serif',
+        align: 'center',
+        lineSpacing: 8,
+        resolution: 2
+      }
+    ).setOrigin(0.5);
+    statsText.setDepth(10005);
+
+    // Retry button
+    const buttonY = centerY + panelHeight/2 - 60;
+    const buttonBg = this.add.rectangle(centerX, buttonY, 200, 50, 0x96b902);
+    buttonBg.setStrokeStyle(3, 0xc4a46f);
+    buttonBg.setInteractive({ useHandCursor: true });
+    buttonBg.setDepth(10005);
+
+    const buttonText = this.add.text(centerX, buttonY, 'PLAY AGAIN', {
+      fontSize: '18px',
       color: '#ffffff',
       fontFamily: 'Quicksand, sans-serif',
       fontStyle: 'bold',
+      resolution: 2
     }).setOrigin(0.5);
+    buttonText.setDepth(10006);
+
+    // Button hover effects
+    buttonBg.on('pointerover', () => {
+      buttonBg.setFillStyle(0xaad402);
+      buttonBg.setScale(1.05);
+      buttonText.setScale(1.05);
+    });
+
+    buttonBg.on('pointerout', () => {
+      buttonBg.setFillStyle(0x96b902);
+      buttonBg.setScale(1);
+      buttonText.setScale(1);
+    });
+
+    buttonBg.on('pointerdown', () => {
+      this.scene.restart();
+    });
   }
 
   // Calculate final score based on performance
@@ -2462,6 +2548,126 @@ export default class TowerDefenseScene extends Phaser.Scene {
            (this.gold * 2) +
            (this.totalCorrectAnswers * 50) +
            (this.totalTowersPlaced * 10);
+  }
+
+  showWaveClearedPopup() {
+    // Pause game with popup flag
+    this.questionPopupActive = true;
+
+    // Bring this scene to top so overlay appears above UIScene
+    this.scene.bringToTop();
+
+    // Responsive dimensions - center in game area (excluding sidebar)
+    const width = this.scale.width;
+    const height = this.scale.height;
+    const sidebarWidth = Math.min(220, width * 0.15);
+    const gameWidth = width - sidebarWidth;
+    const centerX = gameWidth / 2;
+    const centerY = height / 2;
+    const panelWidth = Math.min(600, gameWidth * 0.75);
+    const panelHeight = Math.min(350, height * 0.55);
+
+    // Popup background overlay - covers FULL SCREEN including sidebar
+    const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.85);
+    overlay.setDepth(10000);
+
+    // Popup panel with shadow - cream background matching question popups
+    const shadow = this.add.rectangle(centerX + 4, centerY + 4, panelWidth, panelHeight, 0x000000, 0.3);
+    shadow.setDepth(10001);
+    const panel = this.add.rectangle(centerX, centerY, panelWidth, panelHeight, 0xfffaf2);
+    panel.setStrokeStyle(4, 0xc4a46f);
+    panel.setDepth(10002);
+
+    // Simple scale animation
+    panel.setScale(0.9);
+    shadow.setScale(0.9);
+    this.tweens.add({
+      targets: [panel, shadow],
+      scaleX: 1,
+      scaleY: 1,
+      duration: 200,
+      ease: 'Power2'
+    });
+
+    // Header background - lime green for success
+    const headerY = centerY - panelHeight/2 + 60;
+    const headerBg = this.add.rectangle(centerX, headerY, panelWidth, 90, 0x96b902);
+    headerBg.setDepth(10003);
+    const headerLine = this.add.rectangle(centerX, headerY + 45, panelWidth - 40, 4, 0xc4a46f);
+    headerLine.setDepth(10004);
+
+    // Wave Cleared title
+    const titleText = this.add.text(centerX, headerY, 'WAVE CLEARED!', {
+      fontSize: '28px',
+      color: '#ffffff',
+      fontFamily: 'Quicksand, sans-serif',
+      fontStyle: 'bold',
+      resolution: 2
+    }).setOrigin(0.5);
+    titleText.setDepth(10005);
+
+    // Stats section
+    const statsY = centerY - 10;
+    const statsText = this.add.text(centerX, statsY,
+      `Wave ${this.waveNumber} Complete!\n\nCurrent Score: ${this.calculateScore()}\n\nGold: ${this.gold}`,
+      {
+        fontSize: '20px',
+        color: '#5c4a2f',
+        fontFamily: 'Quicksand, sans-serif',
+        align: 'center',
+        lineSpacing: 10,
+        resolution: 2
+      }
+    ).setOrigin(0.5);
+    statsText.setDepth(10005);
+
+    // Continue button
+    const buttonY = centerY + panelHeight/2 - 60;
+    const buttonBg = this.add.rectangle(centerX, buttonY, 200, 50, 0x96b902);
+    buttonBg.setStrokeStyle(3, 0xc4a46f);
+    buttonBg.setInteractive({ useHandCursor: true });
+    buttonBg.setDepth(10005);
+
+    const buttonText = this.add.text(centerX, buttonY, 'CONTINUE', {
+      fontSize: '18px',
+      color: '#ffffff',
+      fontFamily: 'Quicksand, sans-serif',
+      fontStyle: 'bold',
+      resolution: 2
+    }).setOrigin(0.5);
+    buttonText.setDepth(10006);
+
+    // Button hover effects
+    buttonBg.on('pointerover', () => {
+      buttonBg.setFillStyle(0xaad402);
+      buttonBg.setScale(1.05);
+      buttonText.setScale(1.05);
+    });
+
+    buttonBg.on('pointerout', () => {
+      buttonBg.setFillStyle(0x96b902);
+      buttonBg.setScale(1);
+      buttonText.setScale(1);
+    });
+
+    buttonBg.on('pointerdown', () => {
+      // Destroy popup elements
+      overlay.destroy();
+      shadow.destroy();
+      panel.destroy();
+      headerBg.destroy();
+      headerLine.destroy();
+      titleText.destroy();
+      statsText.destroy();
+      buttonBg.destroy();
+      buttonText.destroy();
+
+      // Bring UIScene back to top
+      this.scene.bringToTop('UIScene');
+
+      // Resume game - player will manually start next wave
+      this.questionPopupActive = false;
+    });
   }
 
   selectTowerForUpgrade(tower: Tower) {
@@ -2837,6 +3043,12 @@ export default class TowerDefenseScene extends Phaser.Scene {
     this.bossQuestion = question;
     this.bossQuestionTimer = 0;
 
+    // Pause game while question popup is active
+    this.questionPopupActive = true;
+
+    // Bring this scene to top so overlay appears above UIScene
+    this.scene.bringToTop();
+
     // Find index for answer tracking
     const questionIndex = this.quizData.questions.findIndex(q => q.question === question.question);
 
@@ -2920,8 +3132,11 @@ export default class TowerDefenseScene extends Phaser.Scene {
       });
     });
 
-    this.bossQuestionPopup = this.add.container(0, 0, [overlay, panel, warningText, timerText, questionText, ...answerButtons]);
-    this.bossQuestionPopup.setDepth(1000); // Ensure questions always appear on top
+    // Keep overlay separate from container so it covers full screen
+    overlay.setDepth(10000);
+
+    this.bossQuestionPopup = this.add.container(0, 0, [panel, warningText, timerText, questionText, ...answerButtons]);
+    this.bossQuestionPopup.setDepth(10001); // Ensure questions always appear on top
   }
 
   // Handle boss question answer (correct or incorrect)
@@ -2933,10 +3148,13 @@ export default class TowerDefenseScene extends Phaser.Scene {
       this.bossAnsweredCorrectly[questionIndex] = isCorrect;
     }
 
-    // Close question popup
+    // Close question popup and resume game
     if (this.bossQuestionPopup) {
       this.bossQuestionPopup.destroy();
       this.bossQuestionPopup = undefined;
+      // Bring UIScene back to top
+      this.scene.bringToTop('UIScene');
+      this.questionPopupActive = false; // Resume game
     }
 
     if (isCorrect) {
@@ -3109,14 +3327,248 @@ export default class TowerDefenseScene extends Phaser.Scene {
   // Requires answering a question correctly to purchase tower (from 3rd tower onward)
   // Wrong answer increases tower price by 25% and cancels purchase
   showTowerPurchaseQuestion(towerType: 'basic' | 'sniper' | 'melee' | 'fact' | 'wizard') {
+    // Pause game while question popup is active
+    this.questionPopupActive = true;
+
+    // Bring this scene to top so overlay appears above UIScene
+    this.scene.bringToTop();
+
     // Pick a random question from quiz pool
     const question = this.quizData.questions[Math.floor(Math.random() * this.quizData.questions.length)];
 
     // Get current tower price and name
     const currentPrice = this.towerPurchasePrice[towerType];
     const towerNames = { basic: 'Ballista', sniper: 'Trebuchet', melee: 'Knight', fact: 'Training Camp', wizard: 'Archmage' };
-    const headerText = `${towerNames[towerType]} (${currentPrice}g)`;
+    const headerText = `Purchase ${towerNames[towerType]} (${currentPrice}g)`;
 
+    // Responsive dimensions - center in game area (excluding sidebar)
+    const width = this.scale.width;
+    const height = this.scale.height;
+    const sidebarWidth = Math.min(220, width * 0.15);
+    const gameWidth = width - sidebarWidth;
+    const centerX = gameWidth / 2;
+    const centerY = height / 2;
+    const panelWidth = Math.min(700, gameWidth * 0.85);
+    const panelHeight = Math.min(540, height * 0.75);
+
+    // Popup background overlay - simple fade in
+    const overlay = this.add.rectangle(centerX, centerY, gameWidth, height, 0x000000, 0);
+    this.tweens.add({
+      targets: overlay,
+      alpha: 0.85,
+      duration: 200,
+      ease: 'Power1'
+    });
+
+    // Popup panel with shadow - cream background matching site
+    const shadow = this.add.rectangle(centerX + 4, centerY + 4, panelWidth, panelHeight, 0x000000, 0.3);
+    const panel = this.add.rectangle(centerX, centerY, panelWidth, panelHeight, 0xfffaf2);
+    panel.setStrokeStyle(4, 0xc4a46f);
+
+    // Simple scale animation
+    panel.setScale(0.9);
+    shadow.setScale(0.9);
+    this.tweens.add({
+      targets: [panel, shadow],
+      scaleX: 1,
+      scaleY: 1,
+      duration: 200,
+      ease: 'Power2'
+    });
+
+    // Header background - lime green matching site
+    const headerY = centerY - panelHeight/2 + 60;
+    const headerBg = this.add.rectangle(centerX, headerY, panelWidth, 90, 0x96b902);
+    const headerLine = this.add.rectangle(centerX, headerY + 45, panelWidth - 40, 4, 0xc4a46f);
+
+    // Tower purchase header
+    const headerTextObj = this.add.text(centerX, headerY - 10, headerText, {
+      fontSize: '18px',
+      color: '#ffffff',
+      fontFamily: 'Quicksand, sans-serif',
+      fontStyle: 'bold',
+      resolution: 2
+    }).setOrigin(0.5);
+
+    // Question text
+    const questionText = this.add.text(centerX, headerY + 20, question.question, {
+      fontSize: '18px',
+      color: '#ffffff',
+      fontFamily: 'Quicksand, sans-serif',
+      fontStyle: 'bold',
+      align: 'center',
+      wordWrap: { width: panelWidth - 60 },
+      resolution: 2
+    }).setOrigin(0.5);
+
+    // Create answer buttons
+    const buttonWidth = panelWidth - 50;
+    const buttonHeight = 60;
+    const startY = centerY - panelHeight/2 + 170;
+    const answerButtons: Phaser.GameObjects.Container[] = [];
+
+    question.options.forEach((option, index) => {
+      const yPos = startY + (index * 68);
+      const isCorrect = option === question.answer;
+
+      // Drop shadow for depth
+      const btnShadow = this.add.rectangle(centerX + 4, yPos + 4, buttonWidth, buttonHeight, 0x000000, 0.15);
+      // Main button background - cream with gold border
+      const btnBg = this.add.rectangle(centerX, yPos, buttonWidth, buttonHeight, 0xfff6e8);
+      btnBg.setInteractive({ useHandCursor: true });
+      btnBg.setStrokeStyle(3, 0xc4a46f);
+
+      const btnText = this.add.text(centerX, yPos, option, {
+        fontSize: '17px',
+        color: '#473025',
+        fontFamily: 'Quicksand, sans-serif',
+        fontStyle: 'bold',
+        align: 'center',
+        wordWrap: { width: buttonWidth - 40 },
+        resolution: 2
+      }).setOrigin(0.5);
+
+      const button = this.add.container(0, 0, [btnShadow, btnBg, btnText]);
+      answerButtons.push(button);
+
+      btnBg.on('pointerover', () => {
+        btnBg.setFillStyle(0x96b902);
+        btnBg.setStrokeStyle(4, 0x7a9700);
+        btnText.setColor('#ffffff');
+        btnBg.setScale(1.02);
+        btnText.setScale(1.02);
+      });
+
+      btnBg.on('pointerout', () => {
+        btnBg.setFillStyle(0xfff6e8);
+        btnBg.setStrokeStyle(3, 0xc4a46f);
+        btnText.setColor('#473025');
+        btnBg.setScale(1);
+        btnText.setScale(1);
+      });
+
+      btnBg.on('pointerdown', () => {
+        // Disable all buttons
+        answerButtons.forEach(btn => {
+          const bg = btn.list[1] as Phaser.GameObjects.Rectangle;
+          bg.removeInteractive();
+        });
+
+        if (isCorrect) {
+          // Correct answer: Convert ghost to real tower
+          console.log('[TowerDefenseScene] Correct answer! Converting ghost tower...');
+
+          // Track correct answer
+          this.totalCorrectAnswers++;
+
+          // Update wizard button state (may unlock at 5 correct answers)
+          this.updateWizardButtonState();
+
+          // Show feedback
+          const feedback = this.add.text(centerX, centerY + panelHeight/2 - 70, 'Correct!', {
+            fontSize: '28px',
+            color: '#96b902',
+            fontFamily: 'Quicksand, sans-serif',
+            fontStyle: 'bold',
+            resolution: 2
+          }).setOrigin(0.5).setAlpha(0);
+
+          this.tweens.add({
+            targets: feedback,
+            alpha: 1,
+            duration: 150,
+            ease: 'Power2'
+          });
+
+          // Close popup after delay
+          this.time.delayedCall(1500, () => {
+            overlay.destroy();
+            shadow.destroy();
+            panel.destroy();
+            headerBg.destroy();
+            headerLine.destroy();
+            headerTextObj.destroy();
+            questionText.destroy();
+            feedback.destroy();
+            answerButtons.forEach(btn => btn.destroy());
+
+            // Bring UIScene back to top
+            this.scene.bringToTop('UIScene');
+
+            // Resume game
+            this.questionPopupActive = false;
+
+            // Convert ghost tower to real tower
+            if (this.ghostTower && this.pendingTowerPlacement) {
+              this.convertGhostToRealTower();
+              this.pendingTowerPlacement = null;
+            }
+          });
+        } else {
+          // Incorrect answer: Cancel purchase
+          console.log('[TowerDefenseScene] Incorrect answer. Destroying ghost tower...');
+
+          // Increase price by quiz penalty multiplier
+          this.towerPurchasePrice[towerType] = Math.round(this.towerPurchasePrice[towerType] * BALANCE_CONSTANTS.QUIZ_PRICE_INCREASE_MULTIPLIER);
+
+          // Show feedback
+          const feedback = this.add.text(centerX, centerY + panelHeight/2 - 70, `Incorrect! Price increased to ${this.towerPurchasePrice[towerType]}g`, {
+            fontSize: '24px',
+            color: '#ef4444',
+            fontFamily: 'Quicksand, sans-serif',
+            fontStyle: 'bold',
+            align: 'center',
+            wordWrap: { width: panelWidth - 60 },
+            resolution: 2
+          }).setOrigin(0.5).setAlpha(0);
+
+          this.tweens.add({
+            targets: feedback,
+            alpha: 1,
+            duration: 150,
+            ease: 'Power2'
+          });
+
+          // Close popup after delay
+          this.time.delayedCall(1500, () => {
+            overlay.destroy();
+            shadow.destroy();
+            panel.destroy();
+            headerBg.destroy();
+            headerLine.destroy();
+            headerTextObj.destroy();
+            questionText.destroy();
+            feedback.destroy();
+            answerButtons.forEach(btn => btn.destroy());
+
+            // Bring UIScene back to top
+            this.scene.bringToTop('UIScene');
+
+            // Resume game
+            this.questionPopupActive = false;
+
+            // Destroy ghost tower (no gold spent)
+            if (this.ghostTower) {
+              this.ghostTower.graphics.destroy();
+              this.ghostTower = null;
+            }
+            this.pendingTowerPlacement = null;
+
+            // Update UI to show new price
+            this.updateUIDisplays();
+          });
+        }
+      });
+    });
+
+    // Keep overlay separate from container so it covers full screen
+    overlay.setDepth(10000);
+
+    // Store reference to popup container for cleanup
+    this.towerPurchaseQuestionPopup = this.add.container(0, 0, [shadow, panel, headerBg, headerLine, headerTextObj, questionText, ...answerButtons]);
+    this.towerPurchaseQuestionPopup.setDepth(10001);
+
+    /* OLD IMPLEMENTATION - Using createCompactQuiz (next to tower button)
     // Get button position (fallback to center if not set)
     const buttonPos = this.lastTowerButtonClicked || { x: this.scale.width / 2, y: this.scale.height - 100 };
 
@@ -3136,9 +3588,10 @@ export default class TowerDefenseScene extends Phaser.Scene {
           // Update wizard button state (may unlock at 5 correct answers)
           this.updateWizardButtonState();
 
-          // Destroy quiz
+          // Destroy quiz and resume game
           this.towerPurchaseQuestionPopup?.destroy();
           this.towerPurchaseQuestionPopup = undefined;
+          this.questionPopupActive = false; // Resume game
 
           // Convert ghost tower to real tower
           if (this.ghostTower && this.pendingTowerPlacement) {
@@ -3152,9 +3605,10 @@ export default class TowerDefenseScene extends Phaser.Scene {
           // Increase price by quiz penalty multiplier
           this.towerPurchasePrice[towerType] = Math.round(this.towerPurchasePrice[towerType] * BALANCE_CONSTANTS.QUIZ_PRICE_INCREASE_MULTIPLIER);
 
-          // Destroy quiz
+          // Destroy quiz and resume game
           this.towerPurchaseQuestionPopup?.destroy();
           this.towerPurchaseQuestionPopup = undefined;
+          this.questionPopupActive = false; // Resume game
 
           // Destroy ghost tower (no gold spent)
           if (this.ghostTower) {
@@ -3168,6 +3622,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
         }
       }
     );
+    */
   }
 
   /* OLD DOM UI - Now handled by updateUIDisplays() which updates Phaser Editor UIScene
@@ -3193,10 +3648,16 @@ export default class TowerDefenseScene extends Phaser.Scene {
   }
   */
 
-  // Show upgrade unlock quiz popup (COMPACT VERSION)
+  // Show upgrade unlock quiz popup (CENTERED VERSION)
   // Requires answering a question correctly to unlock upgrade type
   // Wrong answer refunds gold, increases price by 25%, and cancels purchase
   showUpgradeQuestion(upgradeType: 'explosive' | 'dotArrows' | 'fasterFireRate' | 'moreDamage') {
+    // Pause game while question popup is active
+    this.questionPopupActive = true;
+
+    // Bring this scene to top so overlay appears above UIScene
+    this.scene.bringToTop();
+
     // Pick a random question from quiz pool
     const question = this.quizData.questions[Math.floor(Math.random() * this.quizData.questions.length)];
 
@@ -3208,68 +3669,211 @@ export default class TowerDefenseScene extends Phaser.Scene {
       explosive: 'Explosive',
       moreDamage: 'More Damage'
     };
-    const headerText = `${upgradeNames[upgradeType]} (${currentPrice}g)`;
+    const headerText = `Unlock ${upgradeNames[upgradeType]} (${currentPrice}g)`;
 
-    // Get button position (fallback to center if not set)
-    const buttonPos = this.lastUpgradeButtonClicked || { x: this.scale.width / 2, y: this.scale.height / 2 };
+    // Responsive dimensions - center in game area (excluding sidebar)
+    const width = this.scale.width;
+    const height = this.scale.height;
+    const sidebarWidth = Math.min(220, width * 0.15);
+    const gameWidth = width - sidebarWidth;
+    const centerX = gameWidth / 2;
+    const centerY = height / 2;
+    const panelWidth = Math.min(700, gameWidth * 0.85);
+    const panelHeight = Math.min(540, height * 0.75);
 
-    // Create compact quiz with answer callback
-    this.upgradeQuestionPopup = this.createCompactQuiz(
-      buttonPos,
-      question,
-      headerText,
-      (isCorrect) => {
+    // Popup background overlay - covers FULL SCREEN including sidebar
+    const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0);
+    this.tweens.add({
+      targets: overlay,
+      alpha: 0.85,
+      duration: 200,
+      ease: 'Power1'
+    });
+
+    // Popup panel with shadow
+    const shadow = this.add.rectangle(centerX + 4, centerY + 4, panelWidth, panelHeight, 0x000000, 0.3);
+    const panel = this.add.rectangle(centerX, centerY, panelWidth, panelHeight, 0xfffaf2);
+    panel.setStrokeStyle(4, 0xc4a46f);
+
+    panel.setScale(0.9);
+    shadow.setScale(0.9);
+    this.tweens.add({
+      targets: [panel, shadow],
+      scaleX: 1,
+      scaleY: 1,
+      duration: 200,
+      ease: 'Power2'
+    });
+
+    // Header background
+    const headerY = centerY - panelHeight/2 + 60;
+    const headerBg = this.add.rectangle(centerX, headerY, panelWidth, 90, 0x96b902);
+    const headerLine = this.add.rectangle(centerX, headerY + 45, panelWidth - 40, 4, 0xc4a46f);
+
+    const headerTextObj = this.add.text(centerX, headerY - 10, headerText, {
+      fontSize: '18px',
+      color: '#ffffff',
+      fontFamily: 'Quicksand, sans-serif',
+      fontStyle: 'bold',
+      resolution: 2
+    }).setOrigin(0.5);
+
+    const questionText = this.add.text(centerX, headerY + 20, question.question, {
+      fontSize: '18px',
+      color: '#ffffff',
+      fontFamily: 'Quicksand, sans-serif',
+      fontStyle: 'bold',
+      align: 'center',
+      wordWrap: { width: panelWidth - 60 },
+      resolution: 2
+    }).setOrigin(0.5);
+
+    const buttonWidth = panelWidth - 50;
+    const buttonHeight = 60;
+    const startY = centerY - panelHeight/2 + 170;
+    const answerButtons: Phaser.GameObjects.Container[] = [];
+
+    question.options.forEach((option, index) => {
+      const yPos = startY + (index * 68);
+      const isCorrect = option === question.answer;
+
+      const btnShadow = this.add.rectangle(centerX + 4, yPos + 4, buttonWidth, buttonHeight, 0x000000, 0.15);
+      const btnBg = this.add.rectangle(centerX, yPos, buttonWidth, buttonHeight, 0xfff6e8);
+      btnBg.setInteractive({ useHandCursor: true });
+      btnBg.setStrokeStyle(3, 0xc4a46f);
+
+      const btnText = this.add.text(centerX, yPos, option, {
+        fontSize: '17px',
+        color: '#473025',
+        fontFamily: 'Quicksand, sans-serif',
+        fontStyle: 'bold',
+        align: 'center',
+        wordWrap: { width: buttonWidth - 40 },
+        resolution: 2
+      }).setOrigin(0.5);
+
+      const button = this.add.container(0, 0, [btnShadow, btnBg, btnText]);
+      answerButtons.push(button);
+
+      btnBg.on('pointerover', () => {
+        btnBg.setFillStyle(0x96b902);
+        btnBg.setStrokeStyle(4, 0x7a9700);
+        btnText.setColor('#ffffff');
+        btnBg.setScale(1.02);
+        btnText.setScale(1.02);
+      });
+
+      btnBg.on('pointerout', () => {
+        btnBg.setFillStyle(0xfff6e8);
+        btnBg.setStrokeStyle(3, 0xc4a46f);
+        btnText.setColor('#473025');
+        btnBg.setScale(1);
+        btnText.setScale(1);
+      });
+
+      btnBg.on('pointerdown', () => {
+        answerButtons.forEach(btn => {
+          const bg = btn.list[1] as Phaser.GameObjects.Rectangle;
+          bg.removeInteractive();
+        });
+
         if (isCorrect) {
-          // Correct answer: Unlock upgrade globally and complete purchase
           console.log('[TowerDefenseScene] Correct answer! Unlocking upgrade...');
-
-          // Track correct answer
           this.totalCorrectAnswers++;
-
-          // Update wizard button state (may unlock at 5 correct answers)
           this.updateWizardButtonState();
-
-          // Unlock upgrade globally
           this.upgradeUnlocked[upgradeType] = true;
 
-          // Destroy quiz
-          this.upgradeQuestionPopup?.destroy();
-          this.upgradeQuestionPopup = undefined;
+          const feedback = this.add.text(centerX, centerY + panelHeight/2 - 70, 'Correct! Upgrade Unlocked!', {
+            fontSize: '28px',
+            color: '#96b902',
+            fontFamily: 'Quicksand, sans-serif',
+            fontStyle: 'bold',
+            resolution: 2
+          }).setOrigin(0.5).setAlpha(0);
 
-          // Complete the upgrade purchase
-          if (this.pendingUpgrade) {
-            this.completeUpgradePurchase(this.pendingUpgrade.type);
-            this.pendingUpgrade = null;
-          }
+          this.tweens.add({
+            targets: feedback,
+            alpha: 1,
+            duration: 150,
+            ease: 'Power2'
+          });
+
+          this.time.delayedCall(1500, () => {
+            overlay.destroy();
+            shadow.destroy();
+            panel.destroy();
+            headerBg.destroy();
+            headerLine.destroy();
+            headerTextObj.destroy();
+            questionText.destroy();
+            feedback.destroy();
+            answerButtons.forEach(btn => btn.destroy());
+
+            // Bring UIScene back to top
+            this.scene.bringToTop('UIScene');
+
+            this.questionPopupActive = false;
+
+            if (this.pendingUpgrade) {
+              this.completeUpgradePurchase(this.pendingUpgrade.type);
+              this.pendingUpgrade = null;
+            }
+          });
         } else {
-          // Incorrect answer or cancelled: Refund gold, increase price, cancel purchase
-          console.log('[TowerDefenseScene] Incorrect answer or cancelled. Refunding gold...');
+          console.log('[TowerDefenseScene] Incorrect answer. Refunding gold...');
 
-          // Refund the gold that was deducted
           const refundAmount = this.upgradePrices[upgradeType];
           this.gold += refundAmount;
           this.updateUIDisplays();
-
-          // Increase price by quiz penalty multiplier
           this.upgradePrices[upgradeType] = Math.round(this.upgradePrices[upgradeType] * BALANCE_CONSTANTS.QUIZ_PRICE_INCREASE_MULTIPLIER);
 
-          // Destroy quiz
-          this.upgradeQuestionPopup?.destroy();
-          this.upgradeQuestionPopup = undefined;
+          const feedback = this.add.text(centerX, centerY + panelHeight/2 - 70, `Incorrect! Price increased to ${this.upgradePrices[upgradeType]}g`, {
+            fontSize: '24px',
+            color: '#ef4444',
+            fontFamily: 'Quicksand, sans-serif',
+            fontStyle: 'bold',
+            align: 'center',
+            wordWrap: { width: panelWidth - 60 },
+            resolution: 2
+          }).setOrigin(0.5).setAlpha(0);
 
-          // Cancel pending upgrade
-          this.pendingUpgrade = null;
+          this.tweens.add({
+            targets: feedback,
+            alpha: 1,
+            duration: 150,
+            ease: 'Power2'
+          });
 
-          // Refresh upgrade UI to show updated prices
-          if (this.selectedTower) {
-            this.showUpgradeUI();
-          }
+          this.time.delayedCall(1500, () => {
+            overlay.destroy();
+            shadow.destroy();
+            panel.destroy();
+            headerBg.destroy();
+            headerLine.destroy();
+            headerTextObj.destroy();
+            questionText.destroy();
+            feedback.destroy();
+            answerButtons.forEach(btn => btn.destroy());
 
-          // Show feedback message
-          this.showErrorMessage(`Purchase cancelled. Price is now ${this.upgradePrices[upgradeType]}g`);
+            // Bring UIScene back to top
+            this.scene.bringToTop('UIScene');
+
+            this.questionPopupActive = false;
+            this.pendingUpgrade = null;
+
+            if (this.selectedTower) {
+              this.showUpgradeUI();
+            }
+          });
         }
-      }
-    );
+      });
+    });
+
+    // Keep overlay separate from container so it covers full screen
+    overlay.setDepth(10000);
+
+    this.upgradeQuestionPopup = this.add.container(0, 0, [shadow, panel, headerBg, headerLine, headerTextObj, questionText, ...answerButtons]);
+    this.upgradeQuestionPopup.setDepth(10001);
   }
 
   // Complete upgrade purchase after quiz success
@@ -3310,6 +3914,12 @@ export default class TowerDefenseScene extends Phaser.Scene {
   // freeze: 60g, 60s cooldown, freezes all enemies
   // question: free, 90s cooldown, boost selected Training Camp
   showAbilityQuestion(abilityType: 'lightning' | 'freeze' | 'question') {
+    // Pause game while question popup is active
+    this.questionPopupActive = true;
+
+    // Bring this scene to top so overlay appears above UIScene
+    this.scene.bringToTop();
+
     // Pick a random question from quiz pool
     const question = this.quizData.questions[Math.floor(Math.random() * this.quizData.questions.length)];
 
@@ -3322,52 +3932,199 @@ export default class TowerDefenseScene extends Phaser.Scene {
 
     const info = abilityInfo[abilityType];
     const costText = info.cost > 0 ? ` (${info.cost}g)` : ' (Free)';
-    const headerText = `${info.name}${costText}`;
+    const headerText = `Use ${info.name}${costText}`;
 
-    // Get button position (fallback to center if not set)
-    const buttonPos = this.lastAbilityButtonClicked || { x: this.scale.width / 2, y: this.scale.height / 2 };
+    // Responsive dimensions - center in game area (excluding sidebar)
+    const width = this.scale.width;
+    const height = this.scale.height;
+    const sidebarWidth = Math.min(220, width * 0.15);
+    const gameWidth = width - sidebarWidth;
+    const centerX = gameWidth / 2;
+    const centerY = height / 2;
+    const panelWidth = Math.min(700, gameWidth * 0.85);
+    const panelHeight = Math.min(540, height * 0.75);
 
-    // Create compact quiz with answer callback
-    this.abilityQuestionPopup = this.createCompactQuiz(
-      buttonPos,
-      question,
-      headerText,
-      (isCorrect) => {
+    // Popup background overlay - covers FULL SCREEN including sidebar
+    const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0);
+    this.tweens.add({
+      targets: overlay,
+      alpha: 0.85,
+      duration: 200,
+      ease: 'Power1'
+    });
+
+    // Popup panel with shadow
+    const shadow = this.add.rectangle(centerX + 4, centerY + 4, panelWidth, panelHeight, 0x000000, 0.3);
+    const panel = this.add.rectangle(centerX, centerY, panelWidth, panelHeight, 0xfffaf2);
+    panel.setStrokeStyle(4, 0xc4a46f);
+
+    panel.setScale(0.9);
+    shadow.setScale(0.9);
+    this.tweens.add({
+      targets: [panel, shadow],
+      scaleX: 1,
+      scaleY: 1,
+      duration: 200,
+      ease: 'Power2'
+    });
+
+    // Header background
+    const headerY = centerY - panelHeight/2 + 60;
+    const headerBg = this.add.rectangle(centerX, headerY, panelWidth, 90, 0x96b902);
+    const headerLine = this.add.rectangle(centerX, headerY + 45, panelWidth - 40, 4, 0xc4a46f);
+
+    const headerTextObj = this.add.text(centerX, headerY - 10, headerText, {
+      fontSize: '18px',
+      color: '#ffffff',
+      fontFamily: 'Quicksand, sans-serif',
+      fontStyle: 'bold',
+      resolution: 2
+    }).setOrigin(0.5);
+
+    const questionText = this.add.text(centerX, headerY + 20, question.question, {
+      fontSize: '18px',
+      color: '#ffffff',
+      fontFamily: 'Quicksand, sans-serif',
+      fontStyle: 'bold',
+      align: 'center',
+      wordWrap: { width: panelWidth - 60 },
+      resolution: 2
+    }).setOrigin(0.5);
+
+    const buttonWidth = panelWidth - 50;
+    const buttonHeight = 60;
+    const startY = centerY - panelHeight/2 + 170;
+    const answerButtons: Phaser.GameObjects.Container[] = [];
+
+    question.options.forEach((option, index) => {
+      const yPos = startY + (index * 68);
+      const isCorrect = option === question.answer;
+
+      const btnShadow = this.add.rectangle(centerX + 4, yPos + 4, buttonWidth, buttonHeight, 0x000000, 0.15);
+      const btnBg = this.add.rectangle(centerX, yPos, buttonWidth, buttonHeight, 0xfff6e8);
+      btnBg.setInteractive({ useHandCursor: true });
+      btnBg.setStrokeStyle(3, 0xc4a46f);
+
+      const btnText = this.add.text(centerX, yPos, option, {
+        fontSize: '17px',
+        color: '#473025',
+        fontFamily: 'Quicksand, sans-serif',
+        fontStyle: 'bold',
+        align: 'center',
+        wordWrap: { width: buttonWidth - 40 },
+        resolution: 2
+      }).setOrigin(0.5);
+
+      const button = this.add.container(0, 0, [btnShadow, btnBg, btnText]);
+      answerButtons.push(button);
+
+      btnBg.on('pointerover', () => {
+        btnBg.setFillStyle(0x96b902);
+        btnBg.setStrokeStyle(4, 0x7a9700);
+        btnText.setColor('#ffffff');
+        btnBg.setScale(1.02);
+        btnText.setScale(1.02);
+      });
+
+      btnBg.on('pointerout', () => {
+        btnBg.setFillStyle(0xfff6e8);
+        btnBg.setStrokeStyle(3, 0xc4a46f);
+        btnText.setColor('#473025');
+        btnBg.setScale(1);
+        btnText.setScale(1);
+      });
+
+      btnBg.on('pointerdown', () => {
+        answerButtons.forEach(btn => {
+          const bg = btn.list[1] as Phaser.GameObjects.Rectangle;
+          bg.removeInteractive();
+        });
+
         if (isCorrect) {
-          // Correct answer: Activate ability
           console.log('[TowerDefenseScene] Correct answer! Activating ability...');
-
-          // Track correct answer
           this.totalCorrectAnswers++;
-
-          // Update wizard button state (may unlock at 5 correct answers)
           this.updateWizardButtonState();
 
-          // Destroy quiz
-          this.abilityQuestionPopup?.destroy();
-          this.abilityQuestionPopup = undefined;
+          const feedback = this.add.text(centerX, centerY + panelHeight/2 - 70, 'Correct!', {
+            fontSize: '28px',
+            color: '#96b902',
+            fontFamily: 'Quicksand, sans-serif',
+            fontStyle: 'bold',
+            resolution: 2
+          }).setOrigin(0.5).setAlpha(0);
 
-          // Activate the ability
-          this.activateAbility(abilityType);
+          this.tweens.add({
+            targets: feedback,
+            alpha: 1,
+            duration: 150,
+            ease: 'Power2'
+          });
+
+          this.time.delayedCall(1500, () => {
+            overlay.destroy();
+            shadow.destroy();
+            panel.destroy();
+            headerBg.destroy();
+            headerLine.destroy();
+            headerTextObj.destroy();
+            questionText.destroy();
+            feedback.destroy();
+            answerButtons.forEach(btn => btn.destroy());
+
+            // Bring UIScene back to top
+            this.scene.bringToTop('UIScene');
+
+            this.questionPopupActive = false;
+            this.activateAbility(abilityType);
+          });
         } else {
-          // Incorrect answer or cancelled: Don't activate ability, track for spaced repetition
-          console.log('[TowerDefenseScene] Incorrect answer or cancelled. Ability not activated.');
+          console.log('[TowerDefenseScene] Incorrect answer. Ability cancelled.');
 
-          // Track incorrect question for spaced repetition
           const questionIndex = this.quizData.questions.findIndex(q => q.question === question.question);
           if (questionIndex >= 0) {
             this.incorrectQuestionIndices.add(questionIndex);
           }
 
-          // Destroy quiz
-          this.abilityQuestionPopup?.destroy();
-          this.abilityQuestionPopup = undefined;
+          const feedback = this.add.text(centerX, centerY + panelHeight/2 - 70, 'Incorrect! Ability Cancelled', {
+            fontSize: '24px',
+            color: '#ef4444',
+            fontFamily: 'Quicksand, sans-serif',
+            fontStyle: 'bold',
+            resolution: 2
+          }).setOrigin(0.5).setAlpha(0);
 
-          // Show feedback message
-          this.showErrorMessage('Ability cancelled.');
+          this.tweens.add({
+            targets: feedback,
+            alpha: 1,
+            duration: 150,
+            ease: 'Power2'
+          });
+
+          this.time.delayedCall(1500, () => {
+            overlay.destroy();
+            shadow.destroy();
+            panel.destroy();
+            headerBg.destroy();
+            headerLine.destroy();
+            headerTextObj.destroy();
+            questionText.destroy();
+            feedback.destroy();
+            answerButtons.forEach(btn => btn.destroy());
+
+            // Bring UIScene back to top
+            this.scene.bringToTop('UIScene');
+
+            this.questionPopupActive = false;
+          });
         }
-      }
-    );
+      });
+    });
+
+    // Keep overlay separate from container so it covers full screen
+    overlay.setDepth(10000);
+
+    this.abilityQuestionPopup = this.add.container(0, 0, [shadow, panel, headerBg, headerLine, headerTextObj, questionText, ...answerButtons]);
+    this.abilityQuestionPopup.setDepth(10001);
   }
 
   // Activate ability after successful quiz
@@ -3672,6 +4429,12 @@ export default class TowerDefenseScene extends Phaser.Scene {
       return;
     }
 
+    // Pause game while question popup is active
+    this.questionPopupActive = true;
+
+    // Bring this scene to top so overlay appears above UIScene
+    this.scene.bringToTop();
+
     const question = this.challengeQuestions[this.challengeQuestionIndex];
 
     // Responsive dimensions - center in game area
@@ -3685,8 +4448,8 @@ export default class TowerDefenseScene extends Phaser.Scene {
     const panelWidth = Math.min(600, gameWidth * 0.8);
     const panelHeight = Math.min(500, height * 0.8);
 
-    // Overlay
-    const overlay = this.add.rectangle(centerX, centerY, gameWidth, height, 0x000000, 0.85);
+    // Overlay - covers FULL SCREEN including sidebar
+    const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.85);
     overlay.setOrigin(0.5);
     overlay.setDepth(9000);
 
@@ -3785,8 +4548,11 @@ export default class TowerDefenseScene extends Phaser.Scene {
       answerButtons.push(btn);
     });
 
-    this.challengeQuestionPopup = this.add.container(0, 0, [overlay, shadow, panel, headerBg, headerLine, challengeInfoText, questionText, ...answerButtons]);
-    this.challengeQuestionPopup.setDepth(1000); // Ensure questions always appear on top
+    // Keep overlay separate from container so it covers full screen
+    overlay.setDepth(10000);
+
+    this.challengeQuestionPopup = this.add.container(0, 0, [shadow, panel, headerBg, headerLine, challengeInfoText, questionText, ...answerButtons]);
+    this.challengeQuestionPopup.setDepth(10001); // Ensure questions always appear on top
   }
 
   // Handle challenge question answer
@@ -3968,8 +4734,8 @@ export default class TowerDefenseScene extends Phaser.Scene {
     const panelWidth = Math.min(500, gameWidth * 0.7);
     const panelHeight = Math.min(300, height * 0.5);
 
-    // Overlay
-    const overlay = this.add.rectangle(centerX, centerY, gameWidth, height, 0x000000, 0.85);
+    // Overlay - covers FULL SCREEN including sidebar
+    const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.85);
     overlay.setOrigin(0.5);
     overlay.setDepth(9000);
 
@@ -4027,6 +4793,9 @@ export default class TowerDefenseScene extends Phaser.Scene {
       messageText.destroy();
       btnBg.destroy();
       btnText.destroy();
+      // Bring UIScene back to top
+      this.scene.bringToTop('UIScene');
+      this.questionPopupActive = false; // Resume game after challenge round ends
     });
 
     btnBg.on('pointerover', () => {
@@ -4054,8 +4823,8 @@ export default class TowerDefenseScene extends Phaser.Scene {
     const panelWidth = Math.min(700, gameWidth * 0.9);
     const panelHeight = Math.min(500, height * 0.8);
 
-    // Overlay
-    const overlay = this.add.rectangle(centerX, centerY, gameWidth, height, 0x000000, 0.85);
+    // Overlay - covers FULL SCREEN including sidebar
+    const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.85);
     overlay.setOrigin(0.5);
     overlay.setDepth(9000);
 

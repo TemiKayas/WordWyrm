@@ -140,6 +140,126 @@
         "type": "image",
         "key": "background_front",
         "url": "assets/front.PNG"
+      },
+      {
+        "type": "image",
+        "key": "ui_button_tower",
+        "url": "assets/game/ui/button-tower.svg"
+      },
+      {
+        "type": "image",
+        "key": "ui_button_start_wave",
+        "url": "assets/game/ui/button-start-wave.svg"
+      },
+      {
+        "type": "image",
+        "key": "ui_button_small",
+        "url": "assets/game/ui/button-small.svg"
+      },
+      {
+        "type": "image",
+        "key": "ui_button_start_game",
+        "url": "assets/game/ui/button-start-game.svg"
+      },
+      {
+        "type": "image",
+        "key": "ui_icon_ballista",
+        "url": "assets/game/ui/Ballista Icon.svg"
+      },
+      {
+        "type": "image",
+        "key": "ui_icon_trebuchet",
+        "url": "assets/game/ui/Trebuchet Icon.svg"
+      },
+      {
+        "type": "image",
+        "key": "ui_icon_knight",
+        "url": "assets/game/ui/Knight Icon.svg"
+      },
+      {
+        "type": "image",
+        "key": "ui_icon_cannon",
+        "url": "assets/game/ui/Cannon Icon.svg"
+      },
+      {
+        "type": "image",
+        "key": "ui_icon_archmage",
+        "url": "assets/game/ui/Archmage Icon.svg"
+      },
+      {
+        "type": "image",
+        "key": "ui_icon_lightning",
+        "url": "assets/game/ui/Lightning.svg"
+      },
+      {
+        "type": "image",
+        "key": "ui_icon_freeze",
+        "url": "assets/game/ui/Freeze Icon.svg"
+      },
+      {
+        "type": "image",
+        "key": "ui_icon_quiz_buff",
+        "url": "assets/game/ui/Quiz Buff Icon.svg"
+      },
+      {
+        "type": "image",
+        "key": "ui_hearts",
+        "url": "assets/game/ui/Hearts.svg"
+      },
+      {
+        "type": "image",
+        "key": "ui_flag",
+        "url": "assets/game/ui/Flag.svg"
+      },
+      {
+        "type": "image",
+        "key": "ui_exit",
+        "url": "assets/game/ui/Exit Game.svg"
+      },
+      {
+        "type": "image",
+        "key": "ui_start_next_round",
+        "url": "assets/game/ui/Start Next Round Flag Button.svg"
+      },
+      {
+        "type": "image",
+        "key": "ui_speed_x1",
+        "url": "assets/game/ui/Speed x1 Button.svg"
+      },
+      {
+        "type": "image",
+        "key": "ui_popup_game_over",
+        "url": "assets/game/ui/Game Over Pop-up.svg"
+      },
+      {
+        "type": "image",
+        "key": "ui_popup_wave_cleared",
+        "url": "assets/game/ui/Wave Cleared Pop-up.svg"
+      },
+      {
+        "type": "image",
+        "key": "ui_popup_wave_cleared_continue",
+        "url": "assets/game/ui/Wave Cleared Continue Pop-up.svg"
+      },
+      {
+        "type": "image",
+        "key": "screen_start_game",
+        "url": "assets/game/TD Start Game.svg"
+      },
+      {
+        "type": "image",
+        "key": "screen_active",
+        "url": "assets/game/TD Active Screen.svg"
+      },
+      {
+        "type": "image",
+        "key": "screen_wave_cleared",
+        "url": "assets/game/TD Wave cleared.svg"
+      },
+      {
+        "type": "image",
+        "key": "screen_game_over",
+        "url": "assets/game/TD Game Over.svg"
       }
     ]
   },

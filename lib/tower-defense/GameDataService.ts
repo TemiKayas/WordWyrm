@@ -151,6 +151,12 @@ export class GameDataService {
     lives: number;
     towersPlaced: number;
     correctAnswers: number;
+    questionResponses?: Record<string, {
+      questionText: string;
+      selectedAnswer: string;
+      correctAnswer: string;
+      correct: boolean;
+    }>;
   }): Promise<void> {
     if (this.isPhaserEditor()) {
       console.log('[GameDataService] Saving to localStorage:', data);
@@ -188,7 +194,8 @@ export class GameDataService {
           score: data.score,
           correctAnswers: data.correctAnswers,
           totalQuestions,
-          metadata
+          metadata,
+          questionResponses: data.questionResponses
         });
 
         // If failed and asks for player name, prompt for guest name
