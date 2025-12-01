@@ -99,10 +99,15 @@ export default function GamesView({ onCreateGame, classId, hideTitle = false }: 
     }
   };
 
-  // Navigate to game preview page with share code/QR
-  const handleInfo = (game: Game) => {
+  const handleViewShareCode = (game: Game) => {
     if (game.gameId) {
       router.push(`/teacher/game-preview?gameId=${game.gameId}`);
+    }
+  };
+
+  const handleViewLeaderboard = (game: Game) => {
+    if (game.gameId) {
+      router.push(`/teacher/leaderboard/${game.gameId}`);
     }
   };
 
@@ -199,7 +204,8 @@ export default function GamesView({ onCreateGame, classId, hideTitle = false }: 
                 onEdit={() => handleEdit(game)}
                 onDelete={() => handleDelete(game)}
                 onViewAnalytics={() => handleViewAnalytics(game)}
-                onInfo={() => handleInfo(game)}
+                onViewShareCode={() => handleViewShareCode(game)}
+                onViewLeaderboard={() => handleViewLeaderboard(game)}
               />
             ))}
           </div>

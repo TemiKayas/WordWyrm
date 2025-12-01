@@ -142,8 +142,16 @@ export default class SnakeScene extends Phaser.Scene {
     const width = this.scale.width;
     const height = this.scale.height;
 
+    // Detect mobile for responsive panel sizing
+    this.isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
     // Calculate playable area (left side, excluding question panel)
-    const panelWidth = 400;
+    // Use narrower panel on mobile devices for more game space
+    // Panel takes 30% of width on mobile (min 240px, max 320px), or 400px on desktop
+    let panelWidth = 400; // Desktop default
+    if (this.isMobile && width < 1024) {
+      panelWidth = Math.max(240, Math.min(320, width * 0.30));
+    }
     const availableWidth = width - panelWidth;
 
     // Make game area square
@@ -199,6 +207,9 @@ export default class SnakeScene extends Phaser.Scene {
 
     // Setup mobile support
     this.setupMobileSupport();
+
+    // Listen for window resize to reposition elements
+    this.scale.on('resize', this.handleResize, this);
 
     // Exit button (top left) - always on top
     this.exitButton = this.add.rectangle(70, 30, 120, 40, 0xff4444).setDepth(3000);
@@ -280,9 +291,13 @@ export default class SnakeScene extends Phaser.Scene {
       0xfffaf2
     );
 
+    // Responsive font sizes based on panel width
+    const titleFontSize = panelWidth < 320 ? '20px' : '28px';
+    const instructionFontSize = panelWidth < 320 ? '13px' : '16px';
+
     // Title
     this.add.text(panelStartX + panelWidth / 2, 40, 'SNAKE QUIZ', {
-      fontSize: '28px',
+      fontSize: titleFontSize,
       color: '#473025',
       fontFamily: 'Quicksand, sans-serif',
       fontStyle: 'bold'
@@ -294,7 +309,7 @@ export default class SnakeScene extends Phaser.Scene {
       100,
       'Eat the apple matching\nthe correct answer!',
       {
-        fontSize: '16px',
+        fontSize: instructionFontSize,
         color: '#473025',
         fontFamily: 'Quicksand, sans-serif',
         align: 'center',
@@ -333,19 +348,30 @@ export default class SnakeScene extends Phaser.Scene {
 
     const width = this.scale.width;
     const height = this.scale.height;
-    const panelWidth = 400;
+    // Use same responsive panel width logic as create()
+    let panelWidth = 400; // Desktop default
+    if (this.isMobile && width < 1024) {
+      panelWidth = Math.max(220, Math.min(280, width * 0.25));
+    }
     const leftAreaWidth = width - panelWidth;
     const panelStartX = leftAreaWidth;
 
     const elements: Phaser.GameObjects.GameObject[] = [];
 
+    // Responsive font sizes and spacing
+    const isMobileLayout = panelWidth < 350;
+    const questionNumFontSize = isMobileLayout ? '12px' : '14px';
+    const questionTextFontSize = isMobileLayout ? '14px' : '18px';
+    const topMargin = isMobileLayout ? 20 : 160;
+    const questionTextMargin = isMobileLayout ? 50 : 200;
+
     // Question number
     const questionNum = this.add.text(
       panelStartX + panelWidth / 2,
-      160,
+      topMargin,
       `Question ${this.currentQuestionIndex + 1}/${this.quizData.questions.length}`,
       {
-        fontSize: '14px',
+        fontSize: questionNumFontSize,
         color: '#95b607',
         fontFamily: 'Quicksand, sans-serif',
         fontStyle: 'bold'
@@ -356,42 +382,50 @@ export default class SnakeScene extends Phaser.Scene {
     // Question text
     const questionText = this.add.text(
       panelStartX + panelWidth / 2,
-      200,
+      questionTextMargin,
       this.currentQuestion.question,
       {
-        fontSize: '18px',
+        fontSize: questionTextFontSize,
         color: '#473025',
         fontFamily: 'Quicksand, sans-serif',
         fontStyle: 'bold',
         align: 'left',
-        wordWrap: { width: panelWidth - 40 },
-        lineSpacing: 3
+        wordWrap: { width: panelWidth - 30 },
+        lineSpacing: 2
       }
     ).setOrigin(0.5, 0);
     elements.push(questionText);
 
     // Answer options with colored squares (using shuffled options)
     // Start after question text with dynamic spacing
-    const startY = 200 + questionText.height + 30;
+    const startY = questionTextMargin + questionText.height + (isMobileLayout ? 15 : 30);
     let currentY = startY;
+
+    // Responsive answer font sizes
+    const answerLetterFontSize = isMobileLayout ? '12px' : '15px';
+    const answerTextFontSize = isMobileLayout ? '11px' : '13px';
+    const colorBoxSize = isMobileLayout ? 20 : 30;
+    const colorBoxMargin = isMobileLayout ? 22 : 30;
+    const answerStartX = isMobileLayout ? 50 : 70;
+    const answerTextStartX = isMobileLayout ? 75 : 100;
 
     this.shuffledOptions.forEach((shuffledOption, displayIndex) => {
       // Color indicator square (use shuffled color)
       const colorBox = this.add.rectangle(
-        panelStartX + 30,
-        currentY + 15,
-        30,
-        30,
+        panelStartX + colorBoxMargin,
+        currentY + 12,
+        colorBoxSize,
+        colorBoxSize,
         shuffledOption.color
       );
 
       // Answer letter
       const letter = this.add.text(
-        panelStartX + 70,
+        panelStartX + answerStartX,
         currentY,
         String.fromCharCode(65 + displayIndex) + ')',
         {
-          fontSize: '15px',
+          fontSize: answerLetterFontSize,
           color: '#473025',
           fontFamily: 'Quicksand, sans-serif',
           fontStyle: 'bold'
@@ -400,15 +434,15 @@ export default class SnakeScene extends Phaser.Scene {
 
       // Answer text
       const answerText = this.add.text(
-        panelStartX + 100,
+        panelStartX + answerTextStartX,
         currentY,
         shuffledOption.option,
         {
-          fontSize: '13px',
+          fontSize: answerTextFontSize,
           color: '#473025',
           fontFamily: 'Quicksand, sans-serif',
-          wordWrap: { width: panelWidth - 120 },
-          lineSpacing: 2
+          wordWrap: { width: panelWidth - (isMobileLayout ? 85 : 120) },
+          lineSpacing: 1
         }
       ).setOrigin(0, 0);
 
@@ -416,7 +450,7 @@ export default class SnakeScene extends Phaser.Scene {
 
       // Calculate dynamic spacing based on text height
       const textHeight = answerText.height;
-      const spacing = Math.max(textHeight + 20, 50); // At least 50px, or text height + 20px padding
+      const spacing = isMobileLayout ? Math.max(textHeight + 8, 32) : Math.max(textHeight + 20, 50);
       currentY += spacing;
     });
 
@@ -457,13 +491,14 @@ export default class SnakeScene extends Phaser.Scene {
     const available = screenWidth - panel;
     const size = Math.min(available, screenHeight);
 
+    // Overlay covers the entire game area (not just the square), excluding the panel
     const pauseOverlay = this.add.rectangle(
-      this.gameOffsetX + (size / 2),
-      this.gameOffsetY + (size / 2),
-      size,
-      size,
+      available / 2,
+      screenHeight / 2,
+      available,
+      screenHeight,
       0x000000,
-      0.6
+      0.7
     ).setDepth(1000).setAlpha(0); // High depth to always be on top
 
     // Fade in overlay
@@ -480,13 +515,14 @@ export default class SnakeScene extends Phaser.Scene {
     if (wasCorrect !== undefined) {
       // Show correct/incorrect feedback with Continue and Explanation buttons
       if (wasCorrect) {
-        // "Correct!" text in green
+        // "Correct!" text in green - responsive size for mobile
+        const correctFontSize = this.isMobile ? '40px' : '64px';
         const correctText = this.add.text(
           this.gameOffsetX + (size / 2),
           this.gameOffsetY + (size / 2) - 120,
           'CORRECT!',
           {
-            fontSize: '64px',
+            fontSize: correctFontSize,
             color: '#00b894',
             fontFamily: 'Quicksand, sans-serif',
             fontStyle: 'bold',
@@ -664,12 +700,14 @@ export default class SnakeScene extends Phaser.Scene {
 
     } else {
       // First question - show pause with Continue button (no countdown)
+      // Responsive font size for mobile
+      const overlayFontSize = this.isMobile ? '32px' : '48px';
       const pauseText = this.add.text(
         this.gameOffsetX + (size / 2),
         this.gameOffsetY + (size / 2) - 40,
         'Read the question!',
         {
-          fontSize: '48px',
+          fontSize: overlayFontSize,
           color: '#ffffff',
           fontFamily: 'Quicksand, sans-serif',
           fontStyle: 'bold',
@@ -2390,14 +2428,11 @@ export default class SnakeScene extends Phaser.Scene {
     // Setup swipe controls
     this.setupSwipeControls();
 
-    // Setup orientation detection
-    this.setupOrientationDetection();
+    // Orientation is handled at React level - NO Phaser overlays
+    // this.setupOrientationDetection(); // DISABLED
 
     // Setup visibility change detection (tab/app switch)
     this.setupVisibilityDetection();
-
-    // Check initial orientation
-    this.checkOrientation();
   }
 
   private preventBrowserGestures() {
@@ -2495,20 +2530,25 @@ export default class SnakeScene extends Phaser.Scene {
 
     this.isPausedForOrientation = true;
 
+    // Hide question panel so it doesn't show through
+    if (this.questionPanel) {
+      this.questionPanel.setVisible(false);
+    }
+
     const width = this.scale.width;
     const height = this.scale.height;
 
     const elements: Phaser.GameObjects.GameObject[] = [];
 
-    // Dark overlay
+    // Dark overlay - fully opaque to block everything underneath
     const overlay = this.add.rectangle(
       width / 2,
       height / 2,
       width,
       height,
       0x000000,
-      0.9
-    ).setDepth(5000);
+      1.0
+    ).setDepth(10000);
     elements.push(overlay);
 
     // Rotate icon (using text as placeholder)
@@ -2519,7 +2559,7 @@ export default class SnakeScene extends Phaser.Scene {
       {
         fontSize: '64px'
       }
-    ).setOrigin(0.5).setDepth(5001);
+    ).setOrigin(0.5).setDepth(10001);
     elements.push(rotateIcon);
 
     // Message
@@ -2534,7 +2574,7 @@ export default class SnakeScene extends Phaser.Scene {
         fontStyle: 'bold',
         align: 'center'
       }
-    ).setOrigin(0.5).setDepth(5001);
+    ).setOrigin(0.5).setDepth(10001);
     elements.push(message);
 
     this.orientationOverlay = this.add.container(0, 0, elements);
@@ -2545,7 +2585,27 @@ export default class SnakeScene extends Phaser.Scene {
       this.orientationOverlay.destroy();
       this.orientationOverlay = undefined;
     }
+
+    // Show question panel again when orientation is correct
+    if (this.questionPanel) {
+      this.questionPanel.setVisible(true);
+    }
+
     this.isPausedForOrientation = false;
+  }
+
+  private handleResize(gameSize: Phaser.Structs.Size) {
+    const width = gameSize.width;
+    const height = gameSize.height;
+
+    // Recalculate panel width for new screen size
+    let panelWidth = 400;
+    if (this.isMobile && width < 1024) {
+      panelWidth = Math.max(220, Math.min(280, width * 0.25));
+    }
+
+    // Note: We DON'T call showQuestion() here because that would create duplicate overlays
+    // The question panel will be recreated naturally when the next question is shown
   }
 
   private showCountdownOverlay() {

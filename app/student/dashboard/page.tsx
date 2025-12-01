@@ -24,7 +24,7 @@ type ClassData = {
 export default function StudentDashboard() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [classes, setClasses] = useState<ClassData[]>([]);
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
@@ -136,6 +136,13 @@ export default function StudentDashboard() {
               </p>
             </div>
             <div className="flex gap-3">
+              <Button
+                onClick={() => router.push('/student/history')}
+                variant="primary"
+                size="sm"
+              >
+                Game History
+              </Button>
               <Button
                 onClick={() => router.push('/join')}
                 variant="success"

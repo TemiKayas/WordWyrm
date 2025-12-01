@@ -104,6 +104,17 @@ export default function QuizCard({ quiz, onUpdate }: QuizCardProps) {
           >
             Edit Title
           </button>
+          {quiz.hasGame && quiz.gameId && (
+            <button
+              onClick={() => {
+                router.push(`/teacher/game-preview?gameId=${quiz.gameId}`);
+                setShowActions(false);
+              }}
+              className="w-full text-left px-4 py-2 hover:bg-cream transition-colors font-quicksand text-brown text-sm border-t border-brown/20"
+            >
+              View Share Code
+            </button>
+          )}
           <button
             onClick={handleDelete}
             className="w-full text-left px-4 py-2 hover:bg-cream transition-colors font-quicksand text-error text-sm border-t border-brown/20"

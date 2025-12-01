@@ -10,7 +10,7 @@ interface TeacherPageLayoutProps {
 }
 
 export default function TeacherPageLayout({ children, showSignOut = true }: TeacherPageLayoutProps) {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [userName, setUserName] = useState('');
   const [userRole, setUserRole] = useState('TEACHER');
 
@@ -31,7 +31,7 @@ export default function TeacherPageLayout({ children, showSignOut = true }: Teac
     <div className="min-h-screen bg-[#fffaf2]">
       <Navbar
         showSignOut={showSignOut}
-        onMenuClick={() => setIsSidebarOpen(true)}
+        onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)}
         userName={userName}
         userRole={userRole}
       />
@@ -42,7 +42,7 @@ export default function TeacherPageLayout({ children, showSignOut = true }: Teac
       />
 
       <main
-        className={`transition-all duration-200 ease-in-out ${
+        className={`transition-all duration-300 ease-in-out ${
           isSidebarOpen ? 'md:ml-[240px] lg:ml-[278px]' : 'ml-0'
         }`}
       >

@@ -20,7 +20,12 @@
       "mcp__figma-dev-mode-mcp-server__get_screenshot",
       "Bash(awk:*)",
       "Bash(cat:*)",
-      "Bash(npm install)"
+      "Bash(npm install)",
+      "Bash(git fetch:*)",
+      "Bash(git merge:*)",
+      "Bash(/tmp/original_page.tsx)",
+      "Bash(npm run dev:*)",
+      "Bash(pkill:*)"
     ],
     "deny": [],
     "ask": []

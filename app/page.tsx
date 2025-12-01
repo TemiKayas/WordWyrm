@@ -1,31 +1,35 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import Button from '@/components/ui/Button';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
-gsap.registerPlugin(ScrollTrigger);
+// Register GSAP plugin once
+if (typeof window !== 'undefined') {
+  gsap.registerPlugin(ScrollTrigger);
+}
 
 export default function Home() {
   const [visibleSections, setVisibleSections] = useState<Set<number>>(new Set([0]));
   const sectionRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const mainGifRef = useRef<HTMLImageElement>(null);
-  const [gifKey, setGifKey] = useState(0);
 
   // GSAP refs
   const logoRef = useRef<HTMLDivElement>(null);
-  const gifContainerRef = useRef<HTMLDivElement>(null);
+  const dragonItemsRef = useRef<HTMLDivElement>(null);
+  const dragonHeadRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const scrollIndicatorRef = useRef<HTMLDivElement>(null);
   const button1Ref = useRef<HTMLAnchorElement>(null);
   const button2Ref = useRef<HTMLAnchorElement>(null);
   const headlineRef = useRef<HTMLHeadingElement>(null);
-  const dragon1Ref = useRef<HTMLDivElement>(null);
-  const dragon2Ref = useRef<HTMLDivElement>(null);
-  const dragon3Ref = useRef<HTMLDivElement>(null);
+
+  // Mockup refs for cursor-following
+  const mockup1Ref = useRef<HTMLDivElement>(null);
+  const mockup2Ref = useRef<HTMLDivElement>(null);
+  const mockup3Ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const observers = sectionRefs.current.map((ref, index) => {
@@ -61,12 +65,10 @@ export default function Home() {
       const scrollTop = window.scrollY;
       const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
 
-      // Prevent negative scroll
       if (scrollTop < 0) {
         window.scrollTo(0, 0);
       }
 
-      // Prevent scroll beyond footer
       if (scrollTop > maxScroll) {
         window.scrollTo(0, maxScroll);
       }
@@ -76,19 +78,10 @@ export default function Home() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Force GIF to loop by reloading it periodically
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setGifKey(prev => prev + 1);
-    }, 2500); // Reload GIF every 10 seconds to ensure it loops
-
-    return () => clearInterval(interval);
-  }, []);
-
   // GSAP Animations
   useEffect(() => {
     const ctx = gsap.context(() => {
-      // Hero section animations - more dramatic
+      // Hero section animations
       gsap.from(logoRef.current, {
         y: -100,
         opacity: 0,
@@ -98,21 +91,46 @@ export default function Home() {
         ease: 'elastic.out(1, 0.5)',
       });
 
-      gsap.from(gifContainerRef.current, {
-        x: -200,
-        opacity: 0,
-        rotation: -20,
-        duration: 1.2,
-        ease: 'back.out(1.5)',
-        delay: 0.3,
-      });
+      // Dragon with items spins in and STOPS
+      gsap.fromTo(dragonItemsRef.current,
+        {
+          scale: 0.3,
+          rotation: -180,
+          opacity: 0
+        },
+        {
+          scale: 1,
+          rotation: 0,
+          opacity: 1,
+          duration: 1.2,
+          ease: 'back.out(1.7)',
+          delay: 0.3,
+        }
+      );
+
+      // Dragon head flies in from left and STOPS
+      gsap.fromTo(dragonHeadRef.current,
+        {
+          x: -200,
+          opacity: 0,
+          scale: 0.8
+        },
+        {
+          x: 0,
+          opacity: 1,
+          scale: 1,
+          duration: 0.8,
+          ease: 'power2.out',
+          delay: 0.9,
+        }
+      );
 
       gsap.from(headlineRef.current, {
         scale: 0.8,
         opacity: 0,
         duration: 1,
         ease: 'back.out(2)',
-        delay: 0.6,
+        delay: 1.2,
       });
 
       // Button animations with bounce
@@ -123,7 +141,7 @@ export default function Home() {
         rotation: -5,
         duration: 1,
         ease: 'back.out(2)',
-        delay: 0.9,
+        delay: 1.4,
       });
 
       gsap.from(button2Ref.current, {
@@ -133,10 +151,10 @@ export default function Home() {
         rotation: 5,
         duration: 1,
         ease: 'back.out(2)',
-        delay: 1.1,
+        delay: 1.6,
       });
 
-      // Scroll indicator bounce - more pronounced
+      // Scroll indicator bounce
       gsap.to(scrollIndicatorRef.current, {
         y: 15,
         duration: 0.7,
@@ -145,49 +163,13 @@ export default function Home() {
         ease: 'power1.inOut',
       });
 
-      // Floating animation for GIF - gentler
-      gsap.to(gifContainerRef.current, {
-        y: -12,
-        duration: 3,
-        repeat: -1,
-        yoyo: true,
-        ease: 'sine.inOut',
-      });
-
-      // Add wiggle to dragons on hover (continuous subtle movement)
-      gsap.to(dragon1Ref.current, {
-        rotation: 5,
-        y: -5,
-        duration: 2,
-        repeat: -1,
-        yoyo: true,
-        ease: 'sine.inOut',
-      });
-
-      gsap.to(dragon2Ref.current, {
-        rotation: -5,
-        y: 5,
-        duration: 2.5,
-        repeat: -1,
-        yoyo: true,
-        ease: 'sine.inOut',
-      });
-
-      gsap.to(dragon3Ref.current, {
-        rotation: 3,
-        y: -3,
-        duration: 2.2,
-        repeat: -1,
-        yoyo: true,
-        ease: 'sine.inOut',
-      });
-
-      // ScrollTrigger animations for feature sections - more dramatic
+      // ScrollTrigger animations for feature sections
       sectionRefs.current.forEach((section, index) => {
         if (index === 0 || !section) return;
 
         const images = section.querySelectorAll('img');
         const texts = section.querySelectorAll('h3, p');
+        const mockups = section.querySelectorAll('.mockup-browser');
 
         gsap.from(texts, {
           scrollTrigger: {
@@ -216,11 +198,61 @@ export default function Home() {
           duration: 1.2,
           ease: 'elastic.out(1, 0.6)',
         });
+
+        // Animate mockups on scroll
+        gsap.from(mockups, {
+          scrollTrigger: {
+            trigger: section,
+            start: 'top 80%',
+            end: 'top 20%',
+            toggleActions: 'play none none reverse',
+          },
+          y: 60,
+          opacity: 0,
+          duration: 1,
+          ease: 'power2.out',
+        });
       });
     });
 
     return () => ctx.revert();
   }, []);
+
+  // Mouse move handler for mockup 3D tilt (cursor following)
+  const handleMockupMouseMove = (e: React.MouseEvent<HTMLDivElement>, ref: React.RefObject<HTMLDivElement | null>) => {
+    if (!ref.current) return;
+
+    const rect = ref.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+
+    // Calculate tilt based on mouse position
+    const rotateY = ((x - centerX) / centerX) * 20;
+    const rotateX = ((centerY - y) / centerY) * 15;
+
+    gsap.to(ref.current, {
+      rotateX: rotateX,
+      rotateY: rotateY,
+      scale: 1.08,
+      duration: 0.15,
+      ease: 'power1.out',
+      transformPerspective: 800,
+    });
+  };
+
+  const handleMockupMouseLeave = (ref: React.RefObject<HTMLDivElement | null>) => {
+    if (!ref.current) return;
+    gsap.to(ref.current, {
+      rotateX: 0,
+      rotateY: 0,
+      scale: 1,
+      duration: 0.4,
+      ease: 'power2.out',
+      transformPerspective: 800,
+    });
+  };
 
   return (
     <div className="min-h-screen bg-[#fffaf2] overflow-x-hidden">
@@ -242,21 +274,43 @@ export default function Home() {
 
         {/* main content */}
         <div className="flex flex-col lg:flex-row items-center gap-6 sm:gap-8 lg:gap-20 max-w-6xl mx-auto">
-          {/* left side - gif */}
-          <div ref={gifContainerRef} className="flex-shrink-0 w-[280px] h-[263px] sm:w-[340px] sm:h-[319px] lg:w-[380px] lg:h-[357px] relative">
-            <img
-              key={`main-gif-${gifKey}`}
-              ref={mainGifRef}
-              src={`/assets/main.gif?v=${gifKey}`}
-              className="absolute inset-0 w-full h-full object-cover"
-              loading="eager"
-            />
+          {/* left side - layered dragon images - BIGGER */}
+          <div className="flex-shrink-0 w-[350px] h-[329px] sm:w-[450px] sm:h-[423px] lg:w-[550px] lg:h-[517px] relative">
+            {/* Dragon with items (spins in first) */}
+            <div
+              ref={dragonItemsRef}
+              className="absolute inset-0"
+              style={{ transformStyle: 'preserve-3d' }}
+            >
+              <Image
+                src="/assets/landing/hero-dragon-with-items.png"
+                alt="Floopa with educational items"
+                fill
+                className="object-contain drop-shadow-2xl"
+                priority
+              />
+            </div>
+
+            {/* Dragon head (comes in second, layered on top) */}
+            <div
+              ref={dragonHeadRef}
+              className="absolute inset-0"
+              style={{ transformStyle: 'preserve-3d' }}
+            >
+              <Image
+                src="/assets/landing/hero-dragon-head.png"
+                alt="Floopa's head"
+                fill
+                className="object-contain drop-shadow-2xl"
+                priority
+              />
+            </div>
           </div>
 
           {/* right side - content */}
           <div ref={contentRef} className="flex flex-col items-start gap-6 sm:gap-8 max-w-xl w-full">
             <h2 ref={headlineRef} className="font-quicksand font-bold text-[#473025] text-[28px] sm:text-[36px] lg:text-[52px] leading-tight text-center lg:text-left w-full">
-              Scales, tales, and everything in between.
+                Take Your Lessons from “Have to” to “Want to!”
             </h2>
 
             <p className="font-quicksand font-bold text-[#6b4e3d] text-[16px] sm:text-[18px] lg:text-[20px] leading-relaxed text-center lg:text-left w-full">
@@ -313,55 +367,58 @@ export default function Home() {
         ref={(el) => { sectionRefs.current[1] = el; }}
         className="min-h-screen flex items-center justify-center px-4 sm:px-6 py-12 sm:py-16 lg:py-20 bg-[#fffaf2]"
       >
-        <div className="max-w-6xl mx-auto w-full">
-          <div className="flex flex-col lg:flex-row items-center justify-between gap-8 sm:gap-10 lg:gap-12">
-            {/* left side - text */}
-            <div
-              className={`flex flex-col gap-4 sm:gap-6 max-w-xl transition-all duration-[1.2s] ease-out ${
-                visibleSections.has(1)
-                  ? 'opacity-100 translate-y-0'
-                  : 'opacity-0 translate-y-16'
-              }`}
-            >
-              <h3 className="font-quicksand font-bold text-[#473025] text-[32px] sm:text-[36px] lg:text-[42px] leading-tight text-center lg:text-left">
-                From PDFs
-                <br />
-                to Quizzes
-              </h3>
-              <p className="font-quicksand font-bold text-[#473025] text-[18px] sm:text-[20px] lg:text-[24px] leading-relaxed text-center lg:text-left">
-                Upload your materials and let WordWyrm fly! Our AI instantly transforms any PDF into engaging quizzes that make learning fun.
-              </p>
+        <div className="max-w-7xl mx-auto w-full">
+          <div className="flex flex-col lg:flex-row items-center justify-between gap-8 sm:gap-10 lg:gap-16">
+            {/* left side - text and mockup */}
+            <div className="flex flex-col gap-6 max-w-lg flex-1">
+              <div
+                className={`flex flex-col gap-4 sm:gap-6 transition-all duration-[1.2s] ease-out ${
+                  visibleSections.has(1)
+                    ? 'opacity-100 translate-y-0'
+                    : 'opacity-0 translate-y-16'
+                }`}
+              >
+                <h3 className="font-quicksand font-bold text-[#473025] text-[32px] sm:text-[36px] lg:text-[42px] leading-tight text-center lg:text-left">
+                  From PDFs
+                  <br />
+                  to Quizzes
+                </h3>
+                <p className="font-quicksand font-bold text-[#473025] text-[18px] sm:text-[20px] lg:text-[24px] leading-relaxed text-center lg:text-left">
+                  Upload your materials and let WordWyrm fly! Our AI instantly transforms any PDF into engaging quizzes that make learning fun.
+                </p>
+              </div>
+
+              {/* Browser Mockup with cursor follow */}
+              <div
+                ref={mockup1Ref}
+                className="mockup-browser bg-base-300 border border-[#473025]/30 shadow-xl cursor-pointer hidden lg:block"
+                style={{ transformStyle: 'preserve-3d' }}
+                onMouseMove={(e) => handleMockupMouseMove(e, mockup1Ref)}
+                onMouseLeave={() => handleMockupMouseLeave(mockup1Ref)}
+              >
+                <div className="mockup-browser-toolbar">
+                  <div className="input border-[#473025]/30 text-[#473025]/70 text-sm">learnwyrm.com/upload</div>
+                </div>
+                <div className="bg-[#fffaf2] flex justify-center px-4 py-4">
+                  <Image
+                    src="/assets/landing/pdf-upload-interface.png"
+                    alt="PDF upload interface"
+                    width={500}
+                    height={300}
+                    className="object-contain w-full h-auto rounded"
+                  />
+                </div>
+              </div>
             </div>
 
-            {/* right side - dragon image */}
-            <div
-              ref={dragon1Ref}
-              className="flex-shrink-0 cursor-pointer transition-all"
-              onMouseEnter={(e) => {
-                gsap.to(e.currentTarget, {
-                  scale: 1.2,
-                  y: -15,
-                  rotation: -12,
-                  duration: 0.5,
-                  ease: 'elastic.out(1, 0.3)',
-                });
-              }}
-              onMouseLeave={(e) => {
-                gsap.to(e.currentTarget, {
-                  scale: 1,
-                  y: 0,
-                  rotation: 0,
-                  duration: 0.6,
-                  ease: 'elastic.out(1, 0.4)',
-                });
-              }}
-            >
+            {/* right side - asset image (smaller) */}
+            <div className="flex-shrink-0">
               <Image
-                src="/assets/landing/dragon-flying.png"
-                alt="Flying dragon creating quizzes"
-                width={326}
-                height={326}
-                className="object-contain w-[220px] sm:w-[280px] lg:w-[326px] h-auto drop-shadow-2xl"
+                src="/assets/landing/quiz-game-mockup.png"
+                alt="Quiz game mockup"
+                width={350}
+                height={350}
+                className="object-contain w-[200px] sm:w-[250px] lg:w-[350px] h-auto drop-shadow-2xl"
               />
             </div>
           </div>
@@ -373,56 +430,68 @@ export default function Home() {
         ref={(el) => { sectionRefs.current[2] = el; }}
         className="min-h-screen flex items-center justify-center px-4 sm:px-6 py-12 sm:py-16 lg:py-20 bg-[#fff5e8]"
       >
-        <div className="max-w-6xl mx-auto w-full">
-          <div className="flex flex-col lg:flex-row-reverse items-center justify-between gap-8 sm:gap-10 lg:gap-12">
-            {/* right side - text */}
-            <div
-              className={`flex flex-col gap-4 sm:gap-6 max-w-xl transition-all duration-[1.2s] ease-out ${
-                visibleSections.has(2)
-                  ? 'opacity-100 translate-y-0'
-                  : 'opacity-0 translate-y-16'
-              }`}
-            >
-              <h3 className="font-quicksand font-bold text-[#473025] text-[32px] sm:text-[36px] lg:text-[42px] leading-tight text-center lg:text-right">
-                Learn Through
-                <br />
-                Play
-              </h3>
-              <p className="font-quicksand font-bold text-[#473025] text-[18px] sm:text-[20px] lg:text-[24px] leading-relaxed text-center lg:text-right">
-                Time to level up! Students play exciting games while answering questions. Learning becomes an adventure, not a chore.
-              </p>
+        <div className="max-w-7xl mx-auto w-full">
+          <div className="flex flex-col lg:flex-row-reverse items-center justify-between gap-8 sm:gap-10 lg:gap-8">
+            {/* right side - text and mockup */}
+            <div className="flex flex-col gap-6 max-w-lg flex-1 lg:items-end">
+              <div
+                className={`flex flex-col gap-4 sm:gap-6 transition-all duration-[1.2s] ease-out ${
+                  visibleSections.has(2)
+                    ? 'opacity-100 translate-y-0'
+                    : 'opacity-0 translate-y-16'
+                }`}
+              >
+                <h3 className="font-quicksand font-bold text-[#473025] text-[32px] sm:text-[36px] lg:text-[42px] leading-tight text-center lg:text-right">
+                  Learn Through
+                  <br />
+                  Play
+                </h3>
+                <p className="font-quicksand font-bold text-[#473025] text-[18px] sm:text-[20px] lg:text-[24px] leading-relaxed text-center lg:text-right">
+                  Time to level up! Students play exciting games while answering questions. Learning becomes an adventure, not a chore.
+                </p>
+              </div>
+
+              {/* Browser Mockup with cursor follow */}
+              <div
+                ref={mockup2Ref}
+                className="mockup-browser bg-base-300 border border-[#473025]/30 shadow-xl cursor-pointer hidden lg:block w-full"
+                style={{ transformStyle: 'preserve-3d' }}
+                onMouseMove={(e) => handleMockupMouseMove(e, mockup2Ref)}
+                onMouseLeave={() => handleMockupMouseLeave(mockup2Ref)}
+              >
+                <div className="mockup-browser-toolbar">
+                  <div className="input border-[#473025]/30 text-[#473025]/70 text-sm">learnwyrm.com/play</div>
+                </div>
+                <div className="bg-[#96b902] flex justify-center px-4 py-4">
+                  <Image
+                    src="/assets/landing/td-game-preview.png"
+                    alt="Tower defense game"
+                    width={700}
+                    height={400}
+                    className="object-contain w-full h-auto rounded-[12px]"
+                  />
+                </div>
+              </div>
             </div>
 
-            {/* left side - dragon image */}
-            <div
-              ref={dragon2Ref}
-              className="flex-shrink-0 cursor-pointer transition-all"
-              onMouseEnter={(e) => {
-                gsap.to(e.currentTarget, {
-                  scale: 1.2,
-                  x: -10,
-                  rotation: 15,
-                  duration: 0.5,
-                  ease: 'elastic.out(1, 0.3)',
-                });
-              }}
-              onMouseLeave={(e) => {
-                gsap.to(e.currentTarget, {
-                  scale: 1,
-                  x: 0,
-                  rotation: 0,
-                  duration: 0.6,
-                  ease: 'elastic.out(1, 0.4)',
-                });
-              }}
-            >
+            {/* left side - asset image (bigger) */}
+            <div className="flex-shrink-0 relative">
               <Image
-                src="/assets/landing/dragon-teaching.png"
-                alt="Dragon teaching through games"
-                width={312}
-                height={312}
-                className="object-contain w-[210px] sm:w-[270px] lg:w-[312px] h-auto drop-shadow-2xl"
+                src="/assets/landing/floopa-correct-answer.png"
+                alt="Floopa celebrating"
+                width={700}
+                height={700}
+                className="object-contain w-[280px] sm:w-[400px] lg:w-[550px] h-auto drop-shadow-2xl"
               />
+              {/* Wrong answer Floopa (bigger) */}
+              <div className="absolute -bottom-8 -left-8 w-[150px] h-[150px] sm:w-[200px] sm:h-[200px] lg:w-[250px] lg:h-[250px] opacity-80">
+                <Image
+                  src="/assets/landing/floopa-wrong-answer.png"
+                  alt="Floopa sad"
+                  fill
+                  className="object-contain drop-shadow-lg"
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -433,57 +502,58 @@ export default function Home() {
         ref={(el) => { sectionRefs.current[3] = el; }}
         className="min-h-screen flex items-center justify-center px-4 sm:px-6 py-12 sm:py-16 lg:py-20 bg-[#fffaf2]"
       >
-        <div className="max-w-6xl mx-auto w-full">
-          <div className="flex flex-col lg:flex-row items-center justify-between gap-8 sm:gap-10 lg:gap-12">
-            {/* left side - text */}
-            <div
-              className={`flex flex-col gap-4 sm:gap-6 max-w-xl transition-all duration-[1.2s] ease-out ${
-                visibleSections.has(3)
-                  ? 'opacity-100 translate-y-0'
-                  : 'opacity-0 translate-y-16'
-              }`}
-            >
-              <h3 className="font-quicksand font-bold text-[#473025] text-[32px] sm:text-[36px] lg:text-[42px] leading-tight text-center lg:text-left">
-                Watch Them
-                <br />
-                Grow
-              </h3>
-              <p className="font-quicksand font-bold text-[#473025] text-[18px] sm:text-[20px] lg:text-[24px] leading-relaxed text-center lg:text-left">
-                Study up on student progress! See who&apos;s soaring and who needs support. Real-time insights make teaching easier and smarter.
-              </p>
+        <div className="max-w-7xl mx-auto w-full">
+          <div className="flex flex-col lg:flex-row items-center justify-between gap-8 sm:gap-10 lg:gap-16">
+            {/* left side - text and mockup */}
+            <div className="flex flex-col gap-6 max-w-lg flex-1">
+              <div
+                className={`flex flex-col gap-4 sm:gap-6 transition-all duration-[1.2s] ease-out ${
+                  visibleSections.has(3)
+                    ? 'opacity-100 translate-y-0'
+                    : 'opacity-0 translate-y-16'
+                }`}
+              >
+                <h3 className="font-quicksand font-bold text-[#473025] text-[32px] sm:text-[36px] lg:text-[42px] leading-tight text-center lg:text-left">
+                  Watch Them
+                  <br />
+                  Grow
+                </h3>
+                <p className="font-quicksand font-bold text-[#473025] text-[18px] sm:text-[20px] lg:text-[24px] leading-relaxed text-center lg:text-left">
+                  Study up on student progress! See who&apos;s soaring and who needs support. Real-time insights make teaching easier and smarter.
+                </p>
+              </div>
+
+              {/* Browser Mockup with cursor follow */}
+              <div
+                ref={mockup3Ref}
+                className="mockup-browser bg-base-300 border border-[#473025]/30 shadow-xl cursor-pointer hidden lg:block"
+                style={{ transformStyle: 'preserve-3d' }}
+                onMouseMove={(e) => handleMockupMouseMove(e, mockup3Ref)}
+                onMouseLeave={() => handleMockupMouseLeave(mockup3Ref)}
+              >
+                <div className="mockup-browser-toolbar">
+                  <div className="input border-[#473025]/30 text-[#473025]/70 text-sm">learnwyrm.com/analytics</div>
+                </div>
+                <div className="bg-[#fffaf2] flex justify-center px-4 py-4">
+                  <Image
+                    src="/assets/landing/analytics-dashboard-preview.png"
+                    alt="Analytics dashboard"
+                    width={700}
+                    height={450}
+                    className="object-contain w-full h-auto rounded"
+                  />
+                </div>
+              </div>
             </div>
 
-            {/* right side - dragon image */}
-            <div
-              ref={dragon3Ref}
-              className="flex-shrink-0 cursor-pointer transition-all"
-              onMouseEnter={(e) => {
-                gsap.to(e.currentTarget, {
-                  scale: 1.2,
-                  y: -10,
-                  x: 10,
-                  rotation: -10,
-                  duration: 0.5,
-                  ease: 'elastic.out(1, 0.3)',
-                });
-              }}
-              onMouseLeave={(e) => {
-                gsap.to(e.currentTarget, {
-                  scale: 1,
-                  y: 0,
-                  x: 0,
-                  rotation: 0,
-                  duration: 0.6,
-                  ease: 'elastic.out(1, 0.4)',
-                });
-              }}
-            >
+            {/* right side - asset image (smaller) */}
+            <div className="flex-shrink-0">
               <Image
-                src="/assets/landing/dragon-reading.png"
-                alt="Dragon reading and tracking progress"
-                width={285}
-                height={285}
-                className="object-contain w-[195px] sm:w-[250px] lg:w-[285px] h-auto drop-shadow-2xl"
+                src="/assets/landing/analytics-chart-mockup.png"
+                alt="Analytics chart"
+                width={450}
+                height={450}
+                className="object-contain w-[250px] sm:w-[350px] lg:w-[450px] h-auto drop-shadow-2xl"
               />
             </div>
           </div>

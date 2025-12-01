@@ -39,7 +39,7 @@ export async function createGame(params: {
     // ensure user is a teacher
     const session = await auth();
     if (!session?.user || session.user.role !== 'TEACHER') {
-      return { success: false, error: 'Unauthorized' };
+      return { success: false, error: 'You must be logged in as a teacher to create games.' };
     }
 
     // verify that the teacher has a profile in db
@@ -48,7 +48,7 @@ export async function createGame(params: {
     });
 
     if (!teacher) {
-      return { success: false, error: 'Teacher profile not found' };
+      return { success: false, error: 'Your teacher profile is not set up. Please contact support.' };
     }
 
     // Get quiz to find the classId from its PDF
@@ -64,7 +64,7 @@ export async function createGame(params: {
     });
 
     if (!quiz || !quiz.processedContent?.pdf) {
-      return { success: false, error: 'Quiz or PDF not found' };
+      return { success: false, error: 'The quiz you\'re trying to use no longer exists. Please create a new quiz first.' };
     }
 
     const classId = quiz.processedContent.pdf.classId;
@@ -97,7 +97,7 @@ export async function createGame(params: {
     console.error('Failed to create game:', error);
     return {
       success: false,
-      error: 'Failed to create game. Please try again.',
+      error: 'We couldn\'t create your game. This may be temporary. Please try again in a few moments.',
     };
   }
 }
@@ -112,7 +112,7 @@ export async function createGameFromQuiz(
     // ensure user is a teacher
     const session = await auth();
     if (!session?.user || session.user.role !== 'TEACHER') {
-      return { success: false, error: 'Unauthorized' };
+      return { success: false, error: 'You must be logged in as a teacher to create games.' };
     }
 
     // verify that the teacher has a profile in db
@@ -121,7 +121,7 @@ export async function createGameFromQuiz(
     });
 
     if (!teacher) {
-      return { success: false, error: 'Teacher profile not found' };
+      return { success: false, error: 'Your teacher profile is not set up. Please contact support.' };
     }
 
     // Get quiz to find the classId from its PDF
@@ -137,7 +137,7 @@ export async function createGameFromQuiz(
     });
 
     if (!quiz || !quiz.processedContent?.pdf) {
-      return { success: false, error: 'Quiz or PDF not found' };
+      return { success: false, error: 'The quiz you\'re trying to use no longer exists. Please create a new quiz first.' };
     }
 
     const classId = quiz.processedContent.pdf.classId;
@@ -168,7 +168,7 @@ export async function createGameFromQuiz(
     console.error('Failed to create game:', error);
     return {
       success: false,
-      error: 'Failed to create game. Please try again.',
+      error: 'We couldn\'t create your game. This may be temporary. Please try again in a few moments.',
     };
   }
 }
@@ -223,7 +223,7 @@ export async function getGameWithQuiz(
 
     // if the game is not found, return an error.
     if (!game) {
-      return { success: false, error: 'Game not found' };
+      return { success: false, error: 'This game code doesn\'t exist. Please check the code and try again.' };
     }
 
     // Check if game is active
@@ -300,7 +300,7 @@ export async function updateGame(params: {
     // ensure user is a teacher
     const session = await auth();
     if (!session?.user || session.user.role !== 'TEACHER') {
-      return { success: false, error: 'Unauthorized' };
+      return { success: false, error: 'You must be logged in as a teacher to create games.' };
     }
 
     // verify game exists and belongs to teacher
@@ -316,17 +316,23 @@ export async function updateGame(params: {
     });
 
     if (!existingGame) {
-      return { success: false, error: 'Game not found' };
+      return { success: false, error: 'This game code doesn\'t exist. Please check the code and try again.' };
     }
 
     if (existingGame.teacher.userId !== session.user.id) {
-      return { success: false, error: 'Unauthorized' };
+      return { success: false, error: 'You must be logged in as a teacher to create games.' };
     }
+
+    // If setting isPublic to true, also set wasEverPublic to true
+    const dataToUpdate = {
+      ...updateData,
+      ...(updateData.isPublic === true && { wasEverPublic: true }),
+    };
 
     // update the game
     const updatedGame = await db.game.update({
       where: { id: gameId },
-      data: updateData,
+      data: dataToUpdate,
     });
 
     return { success: true, data: { game: updatedGame } };
@@ -352,7 +358,7 @@ export async function getGameQuizzes(
   try {
     const session = await auth();
     if (!session?.user || session.user.role !== 'TEACHER') {
-      return { success: false, error: 'Unauthorized' };
+      return { success: false, error: 'You must be logged in as a teacher to create games.' };
     }
 
     // verify game exists and belongs to the teacher
@@ -375,11 +381,11 @@ export async function getGameQuizzes(
     });
 
     if (!game) {
-      return { success: false, error: 'Game not found' };
+      return { success: false, error: 'This game code doesn\'t exist. Please check the code and try again.' };
     }
 
     if (game.teacher.userId !== session.user.id) {
-      return { success: false, error: 'Unauthorized' };
+      return { success: false, error: 'You must be logged in as a teacher to create games.' };
     }
 
     // The current schema supports a single quiz per game. Return that quiz as an array
@@ -408,7 +414,7 @@ export async function addQuizToGame(params: {
 
     const session = await auth();
     if (!session?.user || session.user.role !== 'TEACHER') {
-      return { success: false, error: 'Unauthorized' };
+      return { success: false, error: 'You must be logged in as a teacher to create games.' };
     }
 
     // verify ownership of the game
@@ -418,11 +424,11 @@ export async function addQuizToGame(params: {
     });
 
     if (!game) {
-      return { success: false, error: 'Game not found' };
+      return { success: false, error: 'This game code doesn\'t exist. Please check the code and try again.' };
     }
 
     if (game.teacher.userId !== session.user.id) {
-      return { success: false, error: 'Unauthorized' };
+      return { success: false, error: 'You must be logged in as a teacher to create games.' };
     }
 
     // verify the quiz exists and belongs to the teacher who owns the game
@@ -445,7 +451,7 @@ export async function addQuizToGame(params: {
 
     // processedContent.pdf.teacher.userId should match session user
     if (quiz.processedContent?.pdf?.teacher?.userId !== session.user.id) {
-      return { success: false, error: 'Unauthorized' };
+      return { success: false, error: 'You must be logged in as a teacher to create games.' };
     }
 
     await db.game.update({ where: { id: gameId }, data: { quizId } });
@@ -468,7 +474,7 @@ export async function removeQuizFromGame(params: {
 
     const session = await auth();
     if (!session?.user || session.user.role !== 'TEACHER') {
-      return { success: false, error: 'Unauthorized' };
+      return { success: false, error: 'You must be logged in as a teacher to create games.' };
     }
 
     const game = await db.game.findUnique({
@@ -477,11 +483,11 @@ export async function removeQuizFromGame(params: {
     });
 
     if (!game) {
-      return { success: false, error: 'Game not found' };
+      return { success: false, error: 'This game code doesn\'t exist. Please check the code and try again.' };
     }
 
     if (game.teacher.userId !== session.user.id) {
-      return { success: false, error: 'Unauthorized' };
+      return { success: false, error: 'You must be logged in as a teacher to create games.' };
     }
 
     if (game.quizId !== quizId) {
@@ -592,17 +598,6 @@ export async function getPublicGames(
       take: 50, // Limit to 50 games
     });
 
-    console.log('[Public Games Query]', {
-      totalFound: games.length,
-      games: games.map(g => ({
-        id: g.id,
-        title: g.title,
-        gameMode: g.gameMode,
-        active: g.active,
-        isPublic: g.isPublic,
-      }))
-    });
-
     // Transform data
     const transformedGames = games.map((game) => ({
       id: game.id,
@@ -706,7 +701,7 @@ export async function saveGameSession(params: {
     });
 
     if (!game) {
-      return { success: false, error: 'Game not found' };
+      return { success: false, error: 'This game code doesn\'t exist. Please check the code and try again.' };
     }
 
     // If user is logged in, try to get their student profile and check class membership
@@ -788,6 +783,225 @@ export async function saveGameSession(params: {
     return {
       success: false,
       error: 'Failed to save your score. Please try again.',
+    };
+  }
+}
+
+// Get student game history with their performance
+export async function getStudentGameHistory(): Promise<
+  ActionResult<{
+    sessions: Array<{
+      id: string;
+      gameId: string;
+      gameTitle: string;
+      gameMode: string;
+      score: number;
+      correctAnswers: number;
+      totalQuestions: number;
+      completedAt: Date;
+      className: string;
+      teacherName: string;
+    }>;
+  }>
+> {
+  try {
+    const session = await auth();
+    if (!session?.user) {
+      return { success: false, error: 'You must be logged in to view your game history.' };
+    }
+
+    // Get student profile
+    const student = await db.student.findUnique({
+      where: { userId: session.user.id },
+      include: {
+        gameSessions: {
+          where: {
+            completedAt: { not: null },
+          },
+          include: {
+            game: {
+              include: {
+                class: {
+                  include: {
+                    teacher: {
+                      include: {
+                        user: {
+                          select: { name: true },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          orderBy: {
+            completedAt: 'desc',
+          },
+        },
+      },
+    });
+
+    if (!student) {
+      return { success: false, error: 'Your student profile is not set up. Please contact support.' };
+    }
+
+    const sessions = student.gameSessions.map((gs) => ({
+      id: gs.id,
+      gameId: gs.gameId,
+      gameTitle: gs.game.title,
+      gameMode: gs.game.gameMode,
+      score: gs.score || 0,
+      correctAnswers: gs.correctAnswers || 0,
+      totalQuestions: gs.totalQuestions || 0,
+      completedAt: gs.completedAt!,
+      className: gs.game.class.name,
+      teacherName: gs.game.class.teacher.user.name,
+    }));
+
+    return { success: true, data: { sessions } };
+  } catch (error) {
+    console.error('Failed to get game history:', error);
+    return {
+      success: false,
+      error: 'We couldn\'t load your game history. Please refresh the page and try again.',
+    };
+  }
+}
+
+// Get leaderboard for a specific game
+// Includes class leaderboard and public leaderboard (if game was ever public)
+export async function getGameLeaderboard(
+  gameId: string
+): Promise<
+  ActionResult<{
+    gameInfo: {
+      title: string;
+      gameMode: string;
+      isPublic: boolean;
+      className: string;
+    };
+    classLeaderboard: Array<{
+      rank: number;
+      studentName: string;
+      score: number;
+      correctAnswers: number;
+      totalQuestions: number;
+      completedAt: Date;
+      isCurrentUser: boolean;
+    }>;
+    publicLeaderboard: Array<{
+      rank: number;
+      studentName: string;
+      score: number;
+      correctAnswers: number;
+      totalQuestions: number;
+      completedAt: Date;
+      isCurrentUser: boolean;
+    }> | null;
+  }>
+> {
+  try {
+    const session = await auth();
+    if (!session?.user) {
+      return { success: false, error: 'You must be logged in to view leaderboards.' };
+    }
+
+    // Get game info
+    const game = await db.game.findUnique({
+      where: { id: gameId },
+      include: {
+        class: {
+          select: {
+            name: true,
+            memberships: {
+              select: {
+                userId: true,
+              },
+            },
+          },
+        },
+        gameSessions: {
+          where: {
+            completedAt: { not: null },
+            studentId: { not: null },
+          },
+          include: {
+            student: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+          orderBy: {
+            score: 'desc',
+          },
+        },
+      },
+    });
+
+    if (!game) {
+      return { success: false, error: 'This game doesn\'t exist or has been deleted.' };
+    }
+
+    // Get class member user IDs
+    const classMemberIds = new Set(game.class.memberships.map((m) => m.userId));
+
+    // Filter class members' sessions
+    const classSessions = game.gameSessions.filter((gs) =>
+      classMemberIds.has(gs.student!.user.id)
+    );
+
+    // Build class leaderboard (only class members)
+    const classLeaderboard = classSessions.map((gs, index) => ({
+      rank: index + 1,
+      studentName: gs.student!.user.name,
+      score: gs.score || 0,
+      correctAnswers: gs.correctAnswers || 0,
+      totalQuestions: gs.totalQuestions || 0,
+      completedAt: gs.completedAt!,
+      isCurrentUser: gs.student!.user.id === session.user.id,
+    }));
+
+    // Build public leaderboard (all sessions, if game was ever public)
+    // This persists even if the game is later made private
+    let publicLeaderboard: typeof classLeaderboard | null = null;
+
+    if (game.wasEverPublic) {
+      publicLeaderboard = game.gameSessions.map((gs, index) => ({
+        rank: index + 1,
+        studentName: gs.student!.user.name,
+        score: gs.score || 0,
+        correctAnswers: gs.correctAnswers || 0,
+        totalQuestions: gs.totalQuestions || 0,
+        completedAt: gs.completedAt!,
+        isCurrentUser: gs.student!.user.id === session.user.id,
+      }));
+    }
+
+    return {
+      success: true,
+      data: {
+        gameInfo: {
+          title: game.title,
+          gameMode: game.gameMode,
+          isPublic: game.isPublic,
+          className: game.class.name,
+        },
+        classLeaderboard,
+        publicLeaderboard,
+      },
+    };
+  } catch (error) {
+    console.error('Failed to get leaderboard:', error);
+    return {
+      success: false,
+      error: 'We couldn\'t load the leaderboard. Please refresh the page and try again.',
     };
   }
 }
