@@ -91,7 +91,7 @@ function LoginForm() {
       <header className="fixed top-0 left-0 right-0 z-50 bg-[#fffaf2] border-b border-[#473025]/10">
         <div className="flex items-center justify-center py-3 px-4">
           <Link href="/" className="hover:opacity-80 transition-opacity">
-            <img src="/images/learnwyrm-logo.svg" alt="LearnWyrm" className="h-[32px] sm:h-[40px] w-auto" />
+            <img src="/assets/LearnWyrm.svg" alt="LearnWyrm" className="h-[32px] sm:h-[40px] w-auto" />
           </Link>
         </div>
       </header>

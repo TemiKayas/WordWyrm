@@ -63,8 +63,8 @@ export default function Navbar({
         <Link href={logoHref} className="cursor-pointer">
           <div className="w-28 h-28 md:w-36 md:h-36 relative">
             <Image
-              src="/LearnWyrmLogo.svg"
-              alt="WordWyrm"
+              src="/assets/LearnWyrm.svg"
+              alt="LearnWyrm"
               fill
               className="object-contain"
               priority
