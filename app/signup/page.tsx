@@ -99,7 +99,7 @@ export default function SignupPage() {
   }
 
   const handleGoogleSignIn = () => {
-    console.log('Google sign in clicked');
+    // Google sign-in not yet implemented
   };
 
   return (
