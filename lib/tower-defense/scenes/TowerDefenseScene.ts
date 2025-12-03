@@ -214,6 +214,13 @@ export default class TowerDefenseScene extends Phaser.Scene {
 
     // Load background map
     this.load.image('grass_map', '/assets/game/UpdatedSizeMap.PNG'); // Main background map
+
+    // Load goblin animation frames (individual images)
+    this.load.image('goblin_frame_1', '/assets/game/Goblin_1.png');
+    this.load.image('goblin_frame_2', '/assets/game/Goblin_2.png');
+    this.load.image('goblin_frame_3', '/assets/game/Goblin_3.png');
+    this.load.image('goblin_frame_4', '/assets/game/Goblin_4.png');
+    this.load.image('goblin_frame_5', '/assets/game/Goblin_5.png');
   }
 
   create() {
@@ -307,16 +314,16 @@ export default class TowerDefenseScene extends Phaser.Scene {
 
     // Define single path (hardcoded from Stage1Config)
     const pathY1 = height * 0.65;
-    const pathY2 = height * 0.25;
+    const pathY2 = height * 0.26;
     const pathY3 = height * 0.72;
 
     this.path = [
       { x: 0, y: pathY1 },
-      { x: gameWidth * 0.285, y: pathY1 },
-      { x: gameWidth * 0.285, y: pathY2 },
-      { x: gameWidth * 0.73, y: pathY2 },
-      { x: gameWidth * 0.73, y: pathY3 },
-      { x: 1825, y: pathY3 }
+      { x: gameWidth * 0.355, y: pathY1 },
+      { x: gameWidth * 0.355, y: pathY2 },
+      { x: gameWidth * 0.79, y: pathY2 },
+      { x: gameWidth * 0.79, y: pathY3 },
+      { x: 1920, y: pathY3 }
     ];
 
     // Initialize managers after path is set
@@ -341,338 +348,22 @@ export default class TowerDefenseScene extends Phaser.Scene {
     this.pathGraphics.strokePath();
     this.pathGraphics.setDepth(-1);
 
-    /* ========================================
-     * OLD DOM UI - REPLACED BY PHASER EDITOR UIScene
-     * This section is commented out but kept for reference
-     * The UI is now handled by lib/tower-defense/editor/UIScene.ts
-     * ======================================== */
-    /*
-    // Back button with WordWyrm 3D styling
-    const backButtonStyle = {
-      'background': '#fffcf8',
-      'color': '#473025',
-      'font-family': 'Quicksand, sans-serif',
-      'font-weight': '700',
-      'font-size': '15px',
-      'padding': '10px 20px',
-      'border-radius': '13px',
-      'border': '2px solid #473025',
-      'cursor': 'pointer',
-      'display': 'flex',
-      'align-items': 'center',
-      'gap': '6px',
-      'position': 'relative',
-      'z-index': '1000',
-      'transition': 'all 0.2s ease'
-    };
-
-    this.backButton = this.add.dom(25, 25, 'button', backButtonStyle, '← Back');
-    this.backButton.setDepth(1000);
-    this.backButton.setOrigin(0, 0);
-
-    this.backButton.addListener('click');
-    this.backButton.on('click', () => {
-      window.location.href = '/teacher/dashboard';
-    });
-
-    this.backButton.addListener('mouseenter');
-    this.backButton.on('mouseenter', () => {
-      const el = this.backButton.node as HTMLElement;
-      el.style.transform = 'scale(0.98)';
-      el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.25)';
-      el.style.background = '#fff5e8';
-    });
-
-    this.backButton.addListener('mouseleave');
-    this.backButton.on('mouseleave', () => {
-      const el = this.backButton.node as HTMLElement;
-      el.style.transform = 'scale(1)';
-      el.style.boxShadow = 'none';
-      el.style.background = '#fffcf8';
-    });
-
-    // lives display (top left) - NOW HANDLED BY UISCENE HEART ICONS
-    // Hidden since we use heart icons in UIScene instead of text
-    const livesBg = this.add.rectangle(25, 75, 120, 40, 0xffffff, 0.9);
-    livesBg.setOrigin(0, 0);
-    livesBg.setStrokeStyle(2, 0xc4a46f);
-    livesBg.setVisible(false); // Hidden - using heart icons instead
-
-    this.livesText = this.add.text(85, 95, `Lives: ${this.lives}`, {
-      fontSize: '18px',
-      color: '#473025',
-      fontFamily: 'Quicksand, sans-serif',
-      fontStyle: '600',
-      resolution: 2
-    }).setOrigin(0.5);
-    this.livesText.setVisible(false); // Hidden - using heart icons instead
-
-    // gold display in sidebar - clean minimal design
-    const goldBg = this.add.rectangle(width - sidebarWidth/2, 710, sidebarWidth - 20, 40, 0xffffff, 0.95);
-    goldBg.setOrigin(0.5);
-    goldBg.setStrokeStyle(2, 0xc4a46f);
-
-    this.goldText = this.add.text(width - sidebarWidth/2, 710, `Gold: ${this.gold}`, {
-      fontSize: '18px',
-      color: '#ff9f22',
-      fontFamily: 'Quicksand, sans-serif',
-      fontStyle: '600',
-      resolution: 2
-    }).setOrigin(0.5);
-
-    // wave counter (above wave button) - clean and minimal
-    this.waveCounterText = this.add.text(width - sidebarWidth/2, 35, 'Round 0', {
-      fontSize: '18px',
-      color: '#473025',
-      fontFamily: 'Quicksand, sans-serif',
-      fontStyle: '600',
-      resolution: 2
-    }).setOrigin(0.5);
-
-    // Wave button with WordWyrm 3D styling (no gradient, solid color with border)
-    const waveButtonStyle = {
-      'background': '#95b607',
-      'color': 'white',
-      'font-family': 'Quicksand, sans-serif',
-      'font-weight': 'bold',
-      'font-size': '18px',
-      'padding': '12px 20px',
-      'border-radius': '13px',
-      'border': '2px solid #006029',
-      'cursor': 'pointer',
-      'transition': 'all 0.2s ease',
-      'width': '180px',
-      'text-align': 'center'
-    };
-
-    this.waveButton = this.add.dom(width - sidebarWidth/2, 85, 'button', waveButtonStyle, 'Start Wave 1');
-
-    this.waveButton.addListener('click');
-    this.waveButton.on('click', () => {
-      if (!this.waveActive && this.gameStarted && !this.waitingForQuestion) {
-        this.startWave();
-      } else if (this.waveActive) {
-        this.toggleGameSpeed();
-      }
-    });
-
-    this.waveButton.addListener('mouseenter');
-    this.waveButton.on('mouseenter', () => {
-      const el = this.waveButton.node as HTMLElement;
-      el.style.transform = 'scale(0.98)';
-      el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.25)';
-      el.style.background = '#7a9700';
-    });
-
-    this.waveButton.addListener('mouseleave');
-    this.waveButton.on('mouseleave', () => {
-      const el = this.waveButton.node as HTMLElement;
-      el.style.transform = 'scale(1)';
-      el.style.boxShadow = 'none';
-      // Reset to current state's color
-      if (!this.waveActive) {
-        el.style.background = '#95b607';
-      }
-    });
-
-    // tower selector title - clean and minimal
-    this.add.text(width - sidebarWidth/2, 150, 'Select Tower:', {
-      fontSize: '16px',
-      color: '#473025',
-      fontFamily: 'Quicksand, sans-serif',
-      fontStyle: '600',
-      resolution: 2
-    }).setOrigin(0.5);
-
-    // Tower buttons with WordWyrm 3D styling (no gradients, solid colors with borders)
-    const createTowerButton = (y: number, text: string, subtitle: string, bgColor: string, borderColor: string, iconPath?: string) => {
-      const container = document.createElement('div');
-      container.style.cssText = `
-        background: ${bgColor};
-        color: white;
-        font-family: Quicksand, sans-serif;
-        font-weight: 700;
-        font-size: 15px;
-        padding: 12px;
-        border-radius: 13px;
-        border: 2px solid ${borderColor};
-        cursor: pointer;
-        width: 180px;
-        text-align: center;
-        transition: all 0.2s ease;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-      `;
-
-      // Add icon if provided
-      if (iconPath) {
-        const icon = document.createElement('img');
-        icon.src = iconPath;
-        icon.style.cssText = 'width: 32px; height: 32px; flex-shrink: 0;';
-        container.appendChild(icon);
-      }
-
-      // Text container
-      const textContainer = document.createElement('div');
-      textContainer.style.cssText = 'flex: 1; text-align: left;';
-
-      const title = document.createElement('div');
-      title.textContent = text;
-      title.style.cssText = 'font-size: 16px; font-weight: 700; margin-bottom: 2px;';
-
-      const desc = document.createElement('div');
-      desc.textContent = subtitle;
-      desc.style.cssText = 'font-size: 11px; opacity: 0.9;';
-
-      textContainer.appendChild(title);
-      textContainer.appendChild(desc);
-      container.appendChild(textContainer);
-
-      return this.add.dom(width - sidebarWidth/2, y, container);
-    };
-
-    // Ballista (Purple with dark border)
-    this.basicTowerBtn = createTowerButton(220, 'Ballista', 'Fast Fire • 50g',
-      '#A8277F', '#730f11', '/assets/game/Icon_Ballista.PNG');
-
-    this.basicTowerBtn.addListener('click');
-    this.basicTowerBtn.on('click', () => {
-      this.selectedTowerType = this.selectedTowerType === 'basic' ? null : 'basic';
-      this.updateTowerSelection();
-    });
-
-    this.basicTowerBtn.addListener('mouseenter');
-    this.basicTowerBtn.on('mouseenter', () => {
-      const el = this.basicTowerBtn.node as HTMLElement;
-      el.style.transform = 'scale(0.98)';
-      el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.25)';
-      el.style.background = '#8B1F68';
-    });
-
-    this.basicTowerBtn.addListener('mouseleave');
-    this.basicTowerBtn.on('mouseleave', () => {
-      const el = this.basicTowerBtn.node as HTMLElement;
-      el.style.transform = 'scale(1)';
-      el.style.boxShadow = 'none';
-      el.style.background = '#A8277F';
-    });
-
-    // Trebuchet (Green with dark border)
-    this.sniperTowerBtn = createTowerButton(320, 'Trebuchet', 'Slow Fire • 75g',
-      '#95b607', '#006029', '/assets/game/Icon_Catapult.PNG');
-
-    this.sniperTowerBtn.addListener('click');
-    this.sniperTowerBtn.on('click', () => {
-      this.selectedTowerType = this.selectedTowerType === 'sniper' ? null : 'sniper';
-      this.updateTowerSelection();
-    });
-
-    this.sniperTowerBtn.addListener('mouseenter');
-    this.sniperTowerBtn.on('mouseenter', () => {
-      const el = this.sniperTowerBtn.node as HTMLElement;
-      el.style.transform = 'scale(0.98)';
-      el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.25)';
-      el.style.background = '#7a9700';
-    });
-
-    this.sniperTowerBtn.addListener('mouseleave');
-    this.sniperTowerBtn.on('mouseleave', () => {
-      const el = this.sniperTowerBtn.node as HTMLElement;
-      el.style.transform = 'scale(1)';
-      el.style.boxShadow = 'none';
-      el.style.background = '#95b607';
-    });
-
-    // Knight (Orange with dark border)
-    this.meleeTowerBtn = createTowerButton(420, 'Knight', 'Rapid Fire • 25g',
-      '#fd9227', '#730f11', '/assets/game/Icon_Melee.PNG');
-
-    this.meleeTowerBtn.addListener('click');
-    this.meleeTowerBtn.on('click', () => {
-      this.selectedTowerType = this.selectedTowerType === 'melee' ? null : 'melee';
-      this.updateTowerSelection();
-    });
-
-    this.meleeTowerBtn.addListener('mouseenter');
-    this.meleeTowerBtn.on('mouseenter', () => {
-      const el = this.meleeTowerBtn.node as HTMLElement;
-      el.style.transform = 'scale(0.98)';
-      el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.25)';
-      el.style.background = '#e6832b';
-    });
-
-    this.meleeTowerBtn.addListener('mouseleave');
-    this.meleeTowerBtn.on('mouseleave', () => {
-      const el = this.meleeTowerBtn.node as HTMLElement;
-      el.style.transform = 'scale(1)';
-      el.style.boxShadow = 'none';
-      el.style.background = '#fd9227';
-    });
-
-    // Training Camp (Blue with dark border) - Support tower
-    this.factTowerBtn = createTowerButton(520, 'Training Camp', 'Support • 40g',
-      '#3498db', '#2c3e50');
-
-    this.factTowerBtn.addListener('click');
-    this.factTowerBtn.on('click', () => {
-      this.selectedTowerType = this.selectedTowerType === 'fact' ? null : 'fact';
-      this.updateTowerSelection();
-    });
-
-    this.factTowerBtn.addListener('mouseenter');
-    this.factTowerBtn.on('mouseenter', () => {
-      const el = this.factTowerBtn.node as HTMLElement;
-      el.style.transform = 'scale(0.98)';
-      el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.25)';
-      el.style.background = '#2980b9';
-    });
-
-    this.factTowerBtn.addListener('mouseleave');
-    this.factTowerBtn.on('mouseleave', () => {
-      const el = this.factTowerBtn.node as HTMLElement;
-      el.style.transform = 'scale(1)';
-      el.style.boxShadow = 'none';
-      el.style.background = '#3498db';
-    });
-
-    // Archmage (Purple with dark border) - Spell rotation (requires 5+ correct answers)
-    this.wizardTowerBtn = createTowerButton(620, 'Archmage', 'Spells • 100g',
-      '#9c27b0', '#4a148c', '/assets/game/Icon_Wizard.PNG');
-
-    this.wizardTowerBtn.addListener('click');
-    this.wizardTowerBtn.on('click', () => {
-      // Check if wizard is unlocked (5+ correct answers)
-      if (this.totalCorrectAnswers < 5) {
-        this.showErrorMessage(`Archmage locked! Need 5 correct answers (${this.totalCorrectAnswers}/5)`);
-        return;
-      }
-      this.selectedTowerType = this.selectedTowerType === 'wizard' ? null : 'wizard';
-      this.updateTowerSelection();
-    });
-
-    this.wizardTowerBtn.addListener('mouseenter');
-    this.wizardTowerBtn.on('mouseenter', () => {
-      const el = this.wizardTowerBtn.node as HTMLElement;
-      el.style.transform = 'scale(0.98)';
-      el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.25)';
-      el.style.background = '#7b1fa2';
-    });
-
-    this.wizardTowerBtn.addListener('mouseleave');
-    this.wizardTowerBtn.on('mouseleave', () => {
-      const el = this.wizardTowerBtn.node as HTMLElement;
-      el.style.transform = 'scale(1)';
-      el.style.boxShadow = 'none';
-      el.style.background = '#9c27b0';
-    });
-
-    this.updateTowerSelection();
-    */
-    /* ======================================== END OLD DOM UI ======================================== */
-
-    // OLD: Create ability buttons at bottom center - Now handled by UIScene
-    // this.createAbilityButtons();
+    // Create goblin walk animation from individual frames
+    if (!this.anims.exists('goblin_walk')) {
+      this.anims.create({
+        key: 'goblin_walk',
+        frames: [
+          { key: 'goblin_frame_1' },
+          { key: 'goblin_frame_2' },
+          { key: 'goblin_frame_3' },
+          { key: 'goblin_frame_4' },
+          { key: 'goblin_frame_5' }
+        ],
+        frameRate: 8,
+        repeat: -1
+      });
+      console.log('[TowerDefenseScene] Created goblin_walk animation with 5 frames');
+    }
 
     // enable click to place towers
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
@@ -1343,14 +1034,8 @@ export default class TowerDefenseScene extends Phaser.Scene {
       return;
     }
 
-    // Map power types to ability manager methods
-    if (powerType === 'lightning') {
-      this.handleLightningStrikeClick();
-    } else if (powerType === 'freeze') {
-      this.handleFreezeClick();
-    } else if (powerType === 'question') {
-      this.handleQuestionAbilityClick();
-    }
+    // Activate the ability
+    this.activateAbility(powerType);
   }
 
   /**
@@ -1990,7 +1675,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
         { x: gameWidth * 0.285, y: pathY2 },
         { x: gameWidth * 0.73, y: pathY2 },
         { x: gameWidth * 0.73, y: pathY3 },
-        { x: 1825, y: pathY3 }
+        { x: gameWidth, y: pathY3 } // End at right edge of game area
       ];
 
       // Redraw path
@@ -2145,9 +1830,6 @@ export default class TowerDefenseScene extends Phaser.Scene {
       // Check for challenge round (every 10 waves: 10, 20, 30, etc.)
       if (this.waveNumber % 10 === 0) {
         this.startChallengeRound();
-      } else {
-        // Show wave cleared popup for normal waves (not challenge rounds)
-        this.showWaveClearedPopup();
       }
 
       // Decrement buff rounds remaining (if buff is active)
@@ -2442,126 +2124,6 @@ export default class TowerDefenseScene extends Phaser.Scene {
            (this.gold * 2) +
            (this.totalCorrectAnswers * 50) +
            (this.totalTowersPlaced * 10);
-  }
-
-  showWaveClearedPopup() {
-    // Pause game with popup flag
-    this.questionPopupActive = true;
-
-    // Bring this scene to top so overlay appears above UIScene
-    this.scene.bringToTop();
-
-    // Responsive dimensions - center in game area (excluding sidebar)
-    const width = this.scale.width;
-    const height = this.scale.height;
-    const sidebarWidth = Math.min(220, width * 0.15);
-    const gameWidth = width - sidebarWidth;
-    const centerX = gameWidth / 2;
-    const centerY = height / 2;
-    const panelWidth = Math.min(600, gameWidth * 0.75);
-    const panelHeight = Math.min(350, height * 0.55);
-
-    // Popup background overlay - covers FULL SCREEN including sidebar
-    const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.85);
-    overlay.setDepth(10000);
-
-    // Popup panel with shadow - cream background matching question popups
-    const shadow = this.add.rectangle(centerX + 4, centerY + 4, panelWidth, panelHeight, 0x000000, 0.3);
-    shadow.setDepth(10001);
-    const panel = this.add.rectangle(centerX, centerY, panelWidth, panelHeight, 0xfffaf2);
-    panel.setStrokeStyle(4, 0xc4a46f);
-    panel.setDepth(10002);
-
-    // Simple scale animation
-    panel.setScale(0.9);
-    shadow.setScale(0.9);
-    this.tweens.add({
-      targets: [panel, shadow],
-      scaleX: 1,
-      scaleY: 1,
-      duration: 200,
-      ease: 'Power2'
-    });
-
-    // Header background - lime green for success
-    const headerY = centerY - panelHeight/2 + 60;
-    const headerBg = this.add.rectangle(centerX, headerY, panelWidth, 90, 0x96b902);
-    headerBg.setDepth(10003);
-    const headerLine = this.add.rectangle(centerX, headerY + 45, panelWidth - 40, 4, 0xc4a46f);
-    headerLine.setDepth(10004);
-
-    // Wave Cleared title
-    const titleText = this.add.text(centerX, headerY, 'WAVE CLEARED!', {
-      fontSize: '28px',
-      color: '#ffffff',
-      fontFamily: 'Quicksand, sans-serif',
-      fontStyle: 'bold',
-      resolution: 2
-    }).setOrigin(0.5);
-    titleText.setDepth(10005);
-
-    // Stats section
-    const statsY = centerY - 10;
-    const statsText = this.add.text(centerX, statsY,
-      `Wave ${this.waveNumber} Complete!\n\nCurrent Score: ${this.calculateScore()}\n\nGold: ${this.gold}`,
-      {
-        fontSize: '20px',
-        color: '#5c4a2f',
-        fontFamily: 'Quicksand, sans-serif',
-        align: 'center',
-        lineSpacing: 10,
-        resolution: 2
-      }
-    ).setOrigin(0.5);
-    statsText.setDepth(10005);
-
-    // Continue button
-    const buttonY = centerY + panelHeight/2 - 60;
-    const buttonBg = this.add.rectangle(centerX, buttonY, 200, 50, 0x96b902);
-    buttonBg.setStrokeStyle(3, 0xc4a46f);
-    buttonBg.setInteractive({ useHandCursor: true });
-    buttonBg.setDepth(10005);
-
-    const buttonText = this.add.text(centerX, buttonY, 'CONTINUE', {
-      fontSize: '18px',
-      color: '#ffffff',
-      fontFamily: 'Quicksand, sans-serif',
-      fontStyle: 'bold',
-      resolution: 2
-    }).setOrigin(0.5);
-    buttonText.setDepth(10006);
-
-    // Button hover effects
-    buttonBg.on('pointerover', () => {
-      buttonBg.setFillStyle(0xaad402);
-      buttonBg.setScale(1.05);
-      buttonText.setScale(1.05);
-    });
-
-    buttonBg.on('pointerout', () => {
-      buttonBg.setFillStyle(0x96b902);
-      buttonBg.setScale(1);
-      buttonText.setScale(1);
-    });
-
-    buttonBg.on('pointerdown', () => {
-      // Destroy popup elements
-      overlay.destroy();
-      shadow.destroy();
-      panel.destroy();
-      headerBg.destroy();
-      headerLine.destroy();
-      titleText.destroy();
-      statsText.destroy();
-      buttonBg.destroy();
-      buttonText.destroy();
-
-      // Bring UIScene back to top
-      this.scene.bringToTop('UIScene');
-
-      // Resume game - player will manually start next wave
-      this.questionPopupActive = false;
-    });
   }
 
   selectTowerForUpgrade(tower: Tower) {

@@ -9,6 +9,46 @@ import { LAYOUT } from '@/lib/tower-defense/config/LayoutConfig';
 
 export default class UIScene extends Phaser.Scene {
 
+  // UI Element references
+  startGameButtonBg?: Phaser.GameObjects.Rectangle;
+  startGameButtonText?: Phaser.GameObjects.Text;
+  cleared_rectangle?: Phaser.GameObjects.Image;
+  backButtonText?: Phaser.GameObjects.Text;
+  goldText?: Phaser.GameObjects.Text;
+  waveText?: Phaser.GameObjects.Text;
+  speedText?: Phaser.GameObjects.Text;
+  speedButtonBg?: Phaser.GameObjects.Image;
+  speedButtonText?: Phaser.GameObjects.Text;
+  nextWaveButton?: Phaser.GameObjects.Image;
+  heartIcons: Phaser.GameObjects.Image[] = [];
+
+  // Game state
+  currentSpeed: number = 1;
+
+  // Tower buttons
+  ballistaBtn?: Phaser.GameObjects.Image;
+  trebuchetBtn?: Phaser.GameObjects.Image;
+  knightBtn?: Phaser.GameObjects.Image;
+  trainingCampBtn?: Phaser.GameObjects.Image;
+  archmageBtn?: Phaser.GameObjects.Image;
+  towerButtons: Phaser.GameObjects.Image[] = [];
+
+  // Tower button backgrounds (optional - for highlighting)
+  ballistaBtnBg?: Phaser.GameObjects.Rectangle;
+  trebuchetBtnBg?: Phaser.GameObjects.Rectangle;
+  knightBtnBg?: Phaser.GameObjects.Rectangle;
+  trainingCampBtnBg?: Phaser.GameObjects.Rectangle;
+  archmageBtnBg?: Phaser.GameObjects.Rectangle;
+
+  // Power buttons
+  lightningBtn?: Phaser.GameObjects.Image;
+  freezeBtn?: Phaser.GameObjects.Image;
+  quizBuffBtn?: Phaser.GameObjects.Image;
+
+  // UI containers
+  towersOpenedIcon?: Phaser.GameObjects.Image;
+  powersOpenedIcon?: Phaser.GameObjects.Image;
+
   constructor() {
     super("UIScene");
 
@@ -496,7 +536,7 @@ export default class UIScene extends Phaser.Scene {
     const speedHandler = () => {
       this.currentSpeed = (this.currentSpeed % 3) + 1; // Cycle 1 -> 2 -> 3 -> 1
       if (this.speedButtonText) {
-        this.speedButtonText.setText(`SPEED\n${this.currentSpeed}x`);
+        this.speedButtonText.setText(`SPEED ${this.currentSpeed}x`);
       }
 
       const tdScene = this.scene.get('TowerDefenseScene') as any;
@@ -639,7 +679,7 @@ export default class UIScene extends Phaser.Scene {
 
   onSpeedChanged(speed: number): void {
     this.currentSpeed = speed;
-    this.speedButtonText.setText(`SPEED\n${speed}x`);
+    this.speedButtonText.setText(`SPEED ${speed}x`);
   }
 
 
