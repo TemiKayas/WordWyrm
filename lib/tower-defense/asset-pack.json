@@ -3,6 +3,321 @@
     "files": [
       {
         "type": "image",
+        "key": "archmage_icon",
+        "url": "assets/Archmage Icon.png"
+      },
+      {
+        "type": "image",
+        "key": "back",
+        "url": "assets/back.PNG"
+      },
+      {
+        "type": "image",
+        "key": "ballista_icon",
+        "url": "assets/Ballista Icon.png"
+      },
+      {
+        "type": "image",
+        "key": "cannon_icon",
+        "url": "assets/Cannon Icon.png"
+      },
+      {
+        "type": "image",
+        "key": "coin_icon",
+        "url": "assets/Coin Icon.png"
+      },
+      {
+        "type": "image",
+        "key": "flag",
+        "url": "assets/Flag.png"
+      },
+      {
+        "type": "image",
+        "key": "freeze_icon",
+        "url": "assets/Freeze Icon.png"
+      },
+      {
+        "type": "image",
+        "key": "front",
+        "url": "assets/front.PNG"
+      },
+      {
+        "type": "image",
+        "key": "game_over_pop_up",
+        "url": "assets/Game Over Pop-up.png"
+      },
+      {
+        "type": "image",
+        "key": "goblin",
+        "url": "assets/Goblin.GIF"
+      },
+      {
+        "type": "image",
+        "key": "goblin_png",
+        "url": "assets/Goblin.png"
+      },
+      {
+        "type": "image",
+        "key": "goblin_spritesheet",
+        "url": "assets/Goblin_Spritesheet.png"
+      },
+      {
+        "type": "image",
+        "key": "goblin_spritesheet64",
+        "url": "assets/Goblin_Spritesheet64.png"
+      },
+      {
+        "type": "image",
+        "key": "goblin_spritesheet_strip",
+        "url": "assets/Goblin_Spritesheet_Strip.png"
+      },
+      {
+        "type": "image",
+        "key": "grass_map",
+        "url": "assets/GrassMap.PNG"
+      },
+      {
+        "type": "image",
+        "key": "grass_map_1080p",
+        "url": "assets/GrassMap1080p.png"
+      },
+      {
+        "type": "image",
+        "key": "group_117",
+        "url": "assets/Group 117.png"
+      },
+      {
+        "type": "image",
+        "key": "group_119",
+        "url": "assets/Group 119.png"
+      },
+      {
+        "type": "image",
+        "key": "group_121",
+        "url": "assets/Group 121.png"
+      },
+      {
+        "type": "image",
+        "key": "heart_icon",
+        "url": "assets/Heart Icon.png"
+      },
+      {
+        "type": "image",
+        "key": "hearts",
+        "url": "assets/Hearts.png"
+      },
+      {
+        "type": "image",
+        "key": "icon_ballista",
+        "url": "assets/Icon_Ballista.PNG"
+      },
+      {
+        "type": "image",
+        "key": "icon_catapult",
+        "url": "assets/Icon_Catapult.PNG"
+      },
+      {
+        "type": "image",
+        "key": "icon_freeze",
+        "url": "assets/Icon_Freeze.PNG"
+      },
+      {
+        "type": "image",
+        "key": "icon_lightning",
+        "url": "assets/Icon_Lightning.PNG"
+      },
+      {
+        "type": "image",
+        "key": "icon_melee",
+        "url": "assets/Icon_Melee.PNG"
+      },
+      {
+        "type": "image",
+        "key": "icon_power_up",
+        "url": "assets/Icon_PowerUp.PNG"
+      },
+      {
+        "type": "image",
+        "key": "icon_select",
+        "url": "assets/Icon_Select.PNG"
+      },
+      {
+        "type": "image",
+        "key": "icon_wizard",
+        "url": "assets/Icon_Wizard.PNG"
+      },
+      {
+        "type": "image",
+        "key": "knight_icon",
+        "url": "assets/Knight Icon.png"
+      },
+      {
+        "type": "image",
+        "key": "lightning",
+        "url": "assets/Lightning.png"
+      },
+      {
+        "type": "image",
+        "key": "lives_icon",
+        "url": "assets/Lives Icon.png"
+      },
+      {
+        "type": "image",
+        "key": "projectile_archer",
+        "url": "assets/Projectile_Archer.PNG"
+      },
+      {
+        "type": "image",
+        "key": "projectile_ballista",
+        "url": "assets/Projectile_Ballista.PNG"
+      },
+      {
+        "type": "image",
+        "key": "projectile_cannon",
+        "url": "assets/Projectile_Cannon.PNG"
+      },
+      {
+        "type": "image",
+        "key": "projectile_catapult",
+        "url": "assets/Projectile_Catapult.PNG"
+      },
+      {
+        "type": "image",
+        "key": "projectile_melee",
+        "url": "assets/Projectile_Melee.PNG"
+      },
+      {
+        "type": "image",
+        "key": "projectile_wizard",
+        "url": "assets/Projectile_Wizard.PNG"
+      },
+      {
+        "type": "image",
+        "key": "quiz_buff_icon",
+        "url": "assets/Quiz Buff Icon.PNG"
+      },
+      {
+        "type": "image",
+        "key": "rectangle_110",
+        "url": "assets/Rectangle 110.png"
+      },
+      {
+        "type": "image",
+        "key": "cleared_rectangle",
+        "url": "assets/Cleared Rectangle.png"
+      },
+      {
+        "type": "image",
+        "key": "start_rectangle",
+        "url": "assets/Start_Rectangle.png"
+      },
+      {
+        "type": "image",
+        "key": "speed_x1_button",
+        "url": "assets/Speed x1 Button.png"
+      },
+      {
+        "type": "image",
+        "key": "stage1_bg",
+        "url": "assets/Stage1_BG.png"
+      },
+      {
+        "type": "image",
+        "key": "stage2",
+        "url": "assets/stage2.png"
+      },
+      {
+        "type": "image",
+        "key": "stage2_bg",
+        "url": "assets/Stage2_BG.png"
+      },
+      {
+        "type": "image",
+        "key": "stage3",
+        "url": "assets/stage3.png"
+      },
+      {
+        "type": "image",
+        "key": "stage3_bg",
+        "url": "assets/Stage3_BG.png"
+      },
+      {
+        "type": "image",
+        "key": "flag_part",
+        "url": "assets/Ellipse 64.png"
+      },
+      {
+        "type": "image",
+        "key": "ellipse_63",
+        "url": "assets/Ellipse 63.png"
+      },
+      {
+        "type": "image",
+        "key": "flag_rectangle1",
+        "url": "assets/Rectangle 115.png"
+      },
+      {
+        "type": "image",
+        "key": "flag_rectangle2",
+        "url": "assets/Rectangle 116.png"
+      },
+      {
+        "type": "image",
+        "key": "flag_rectangle3",
+        "url": "assets/Rectangle 117.png"
+      },
+      {
+        "type": "image",
+        "key": "rectangle_118",
+        "url": "assets/Rectangle 118.png"
+      },
+      {
+        "type": "image",
+        "key": "rectangle_118_alt",
+        "url": "assets/Rectangle 118(1).png"
+      },
+      {
+        "type": "image",
+        "key": "start_game_pop_up",
+        "url": "assets/Start Game Pop-up.png"
+      },
+      {
+        "type": "image",
+        "key": "start_next_round_flag_button",
+        "url": "assets/Start Next Round Flag Button.png"
+      },
+      {
+        "type": "image",
+        "key": "subtract",
+        "url": "assets/Subtract.png"
+      },
+      {
+        "type": "image",
+        "key": "start_button",
+        "url": "assets/Start_Button.png"
+      },
+      {
+        "type": "image",
+        "key": "towers_closed_icon",
+        "url": "assets/Towers (Closed) Icon.png"
+      },
+      {
+        "type": "image",
+        "key": "towers_opened_icon",
+        "url": "assets/Towers (Opened) Icon.png"
+      },
+      {
+        "type": "image",
+        "key": "powers_opened_icon",
+        "url": "assets/Powers (Opened) Icon.png"
+      },
+      {
+        "type": "image",
+        "key": "powers_closed_icon",
+        "url": "assets/Powers (Closed) Icon.png"
+      },
+      {
+        "type": "image",
         "key": "tower_ballista",
         "url": "assets/Tower_Ballista.PNG"
       },
@@ -33,233 +348,68 @@
       },
       {
         "type": "image",
-        "key": "projectile_ballista",
-        "url": "assets/Projectile_Ballista.PNG"
+        "key": "trebuchet_icon",
+        "url": "assets/Trebuchet Icon.png"
       },
       {
         "type": "image",
-        "key": "projectile_catapult",
-        "url": "assets/Projectile_Catapult.PNG"
+        "key": "updated_size_map",
+        "url": "assets/UpdatedSizeMap.PNG"
       },
       {
         "type": "image",
-        "key": "projectile_archer",
-        "url": "assets/Projectile_Archer.PNG"
+        "key": "wave_cleared_continue_pop_up",
+        "url": "assets/Wave Cleared Continue Pop-up.png"
       },
       {
         "type": "image",
-        "key": "projectile_cannon",
-        "url": "assets/Projectile_Cannon.PNG"
+        "key": "wave_cleared_pop_up",
+        "url": "assets/Wave Cleared Pop-up.png"
       },
       {
-        "type": "image",
-        "key": "projectile_melee",
-        "url": "assets/Projectile_Melee.PNG"
+        "type": "svg",
+        "key": "freeze_icon_svg",
+        "url": "assets/Freeze Icon.svg",
+        "svgConfig": {
+          "width": 64,
+          "height": 64
+        }
       },
       {
-        "type": "image",
-        "key": "projectile_wizard",
-        "url": "assets/Projectile_Wizard.PNG"
+        "type": "svg",
+        "key": "td_active_screen",
+        "url": "assets/TD Active Screen.svg",
+        "svgConfig": {
+          "width": 1920,
+          "height": 1080
+        }
       },
       {
-        "type": "image",
-        "key": "icon_ballista",
-        "url": "assets/Icon_Ballista.PNG"
+        "type": "svg",
+        "key": "td_game_over",
+        "url": "assets/TD Game Over.svg",
+        "svgConfig": {
+          "width": 1920,
+          "height": 1080
+        }
       },
       {
-        "type": "image",
-        "key": "icon_catapult",
-        "url": "assets/Icon_Catapult.PNG"
+        "type": "svg",
+        "key": "td_start_game",
+        "url": "assets/TD Start Game.svg",
+        "svgConfig": {
+          "width": 1920,
+          "height": 1080
+        }
       },
       {
-        "type": "image",
-        "key": "icon_melee",
-        "url": "assets/Icon_Melee.PNG"
-      },
-      {
-        "type": "image",
-        "key": "icon_wizard",
-        "url": "assets/Icon_Wizard.PNG"
-      },
-      {
-        "type": "image",
-        "key": "icon_powerup",
-        "url": "assets/Icon_PowerUp.PNG"
-      },
-      {
-        "type": "image",
-        "key": "icon_lightning",
-        "url": "assets/Icon_Lightning.PNG"
-      },
-      {
-        "type": "image",
-        "key": "icon_freeze",
-        "url": "assets/Icon_Freeze.PNG"
-      },
-      {
-        "type": "image",
-        "key": "icon_select",
-        "url": "assets/Icon_Select.PNG"
-      },
-      {
-        "type": "image",
-        "key": "stage1_bg",
-        "url": "assets/Stage1_BG.png"
-      },
-      {
-        "type": "image",
-        "key": "stage2_bg",
-        "url": "assets/Stage2_BG.png"
-      },
-      {
-        "type": "image",
-        "key": "stage3_bg",
-        "url": "assets/Stage3_BG.png"
-      },
-      {
-        "type": "image",
-        "key": "stage2",
-        "url": "assets/stage2.png"
-      },
-      {
-        "type": "image",
-        "key": "stage3",
-        "url": "assets/stage3.png"
-      },
-      {
-        "type": "image",
-        "key": "grass_map",
-        "url": "assets/GrassMap.PNG"
-      },
-      {
-        "type": "image",
-        "key": "background_back",
-        "url": "assets/back.PNG"
-      },
-      {
-        "type": "image",
-        "key": "background_front",
-        "url": "assets/front.PNG"
-      },
-      {
-        "type": "image",
-        "key": "ui_button_tower",
-        "url": "assets/game/ui/button-tower.svg"
-      },
-      {
-        "type": "image",
-        "key": "ui_button_start_wave",
-        "url": "assets/game/ui/button-start-wave.svg"
-      },
-      {
-        "type": "image",
-        "key": "ui_button_small",
-        "url": "assets/game/ui/button-small.svg"
-      },
-      {
-        "type": "image",
-        "key": "ui_button_start_game",
-        "url": "assets/game/ui/button-start-game.svg"
-      },
-      {
-        "type": "image",
-        "key": "ui_icon_ballista",
-        "url": "assets/game/ui/Ballista Icon.svg"
-      },
-      {
-        "type": "image",
-        "key": "ui_icon_trebuchet",
-        "url": "assets/game/ui/Trebuchet Icon.svg"
-      },
-      {
-        "type": "image",
-        "key": "ui_icon_knight",
-        "url": "assets/game/ui/Knight Icon.svg"
-      },
-      {
-        "type": "image",
-        "key": "ui_icon_cannon",
-        "url": "assets/game/ui/Cannon Icon.svg"
-      },
-      {
-        "type": "image",
-        "key": "ui_icon_archmage",
-        "url": "assets/game/ui/Archmage Icon.svg"
-      },
-      {
-        "type": "image",
-        "key": "ui_icon_lightning",
-        "url": "assets/game/ui/Lightning.svg"
-      },
-      {
-        "type": "image",
-        "key": "ui_icon_freeze",
-        "url": "assets/game/ui/Freeze Icon.svg"
-      },
-      {
-        "type": "image",
-        "key": "ui_icon_quiz_buff",
-        "url": "assets/game/ui/Quiz Buff Icon.svg"
-      },
-      {
-        "type": "image",
-        "key": "ui_hearts",
-        "url": "assets/game/ui/Hearts.svg"
-      },
-      {
-        "type": "image",
-        "key": "ui_flag",
-        "url": "assets/game/ui/Flag.svg"
-      },
-      {
-        "type": "image",
-        "key": "ui_exit",
-        "url": "assets/game/ui/Exit Game.svg"
-      },
-      {
-        "type": "image",
-        "key": "ui_start_next_round",
-        "url": "assets/game/ui/Start Next Round Flag Button.svg"
-      },
-      {
-        "type": "image",
-        "key": "ui_speed_x1",
-        "url": "assets/game/ui/Speed x1 Button.svg"
-      },
-      {
-        "type": "image",
-        "key": "ui_popup_game_over",
-        "url": "assets/game/ui/Game Over Pop-up.svg"
-      },
-      {
-        "type": "image",
-        "key": "ui_popup_wave_cleared",
-        "url": "assets/game/ui/Wave Cleared Pop-up.svg"
-      },
-      {
-        "type": "image",
-        "key": "ui_popup_wave_cleared_continue",
-        "url": "assets/game/ui/Wave Cleared Continue Pop-up.svg"
-      },
-      {
-        "type": "image",
-        "key": "screen_start_game",
-        "url": "assets/game/TD Start Game.svg"
-      },
-      {
-        "type": "image",
-        "key": "screen_active",
-        "url": "assets/game/TD Active Screen.svg"
-      },
-      {
-        "type": "image",
-        "key": "screen_wave_cleared",
-        "url": "assets/game/TD Wave cleared.svg"
-      },
-      {
-        "type": "image",
-        "key": "screen_game_over",
-        "url": "assets/game/TD Game Over.svg"
+        "type": "svg",
+        "key": "td_wave_cleared",
+        "url": "assets/TD Wave cleared.svg",
+        "svgConfig": {
+          "width": 1920,
+          "height": 1080
+        }
       }
     ]
   },

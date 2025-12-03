@@ -35,7 +35,7 @@ export interface BuffCalculation {
 export class TowerManager {
   private scene: Phaser.Scene;
   private towers: Tower[] = [];
-  private allPaths: PathPoint[][]; // Array of paths
+  private path: PathPoint[]; // Single path
 
   // Tower base stats configuration
   private static readonly TOWER_STATS: Record<'basic' | 'sniper' | 'melee' | 'fact' | 'wizard', TowerStats> = {
@@ -86,9 +86,9 @@ export class TowerManager {
     }
   };
 
-  constructor(scene: Phaser.Scene, allPaths: PathPoint[][]) {
+  constructor(scene: Phaser.Scene, path: PathPoint[]) {
     this.scene = scene;
-    this.allPaths = allPaths;
+    this.path = path;
   }
 
   /**
@@ -102,17 +102,13 @@ export class TowerManager {
    * Check if position is too close to path (40px clearance)
    */
   isTooCloseToPath(x: number, y: number): boolean {
-    // Check distance to ALL paths
-    for (const pathPoints of this.allPaths) {
-      const tooClose = pathPoints.some((point, i) => {
-        if (i === 0) return false;
-        const prev = pathPoints[i - 1];
-        const distToSegment = this.pointToSegmentDistance(x, y, prev.x, prev.y, point.x, point.y);
-        return distToSegment < 40;
-      });
-      if (tooClose) return true;
-    }
-    return false;
+    // Check distance to path
+    return this.path.some((point, i) => {
+      if (i === 0) return false;
+      const prev = this.path[i - 1];
+      const distToSegment = this.pointToSegmentDistance(x, y, prev.x, prev.y, point.x, point.y);
+      return distToSegment < 40;
+    });
   }
 
   /**
@@ -238,13 +234,6 @@ export class TowerManager {
     const distX = px - nearestX;
     const distY = py - nearestY;
     return Math.sqrt(distX * distX + distY * distY);
-  }
-
-  /**
-   * Update path points (used during stage transitions)
-   */
-  updatePath(newAllPaths: PathPoint[][]): void {
-    this.allPaths = newAllPaths;
   }
 
   /**

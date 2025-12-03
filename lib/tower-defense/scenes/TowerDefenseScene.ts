@@ -7,15 +7,12 @@ import { CombatManager } from '@/lib/tower-defense/managers/CombatManager';
 import { EnemyManager } from '@/lib/tower-defense/managers/EnemyManager';
 import { TowerManager } from '@/lib/tower-defense/managers/TowerManager';
 import { AbilityManager } from '@/lib/tower-defense/managers/AbilityManager';
-import { StageManager } from '@/lib/tower-defense/managers/StageManager';
+// Removed StageManager - using single path only
 import { gameDataService } from '@/lib/tower-defense/GameDataService';
 
 import { MobileSupport } from '@/lib/phaser/MobileSupport';
 import { GameEvents, GAME_EVENTS } from '@/lib/tower-defense/events/GameEvents';
 import type UIScene from '@/lib/tower-defense/editor/UIScene';
-
-// DEBUG: Set to false to hide stage debug buttons
-const ENABLE_STAGE_DEBUG_BUTTONS = true;
 
 // Main tower defense scene with quiz integration
 // Wave formula: 5 + (1.25 * waveNumber) enemies per wave
@@ -27,10 +24,9 @@ export default class TowerDefenseScene extends Phaser.Scene {
   private enemyManager!: EnemyManager;
   private towerManager!: TowerManager;
   private abilityManager!: AbilityManager;
-  private stageManager!: StageManager;
   private mobileSupport!: MobileSupport;
-  private allPaths: PathPoint[][] = []; // array of enemy movement paths
-  private pathGraphicsArray: Phaser.GameObjects.Graphics[] = []; // current path graphics (one per path)
+  private path: PathPoint[] = []; // Single enemy movement path
+  private pathGraphics?: Phaser.GameObjects.Graphics; // Path graphics
   private backgroundImage?: Phaser.GameObjects.Image; // current background image
   private uiScene!: UIScene; // Reference to UIScene for updating displays and handling events
 
@@ -39,7 +35,6 @@ export default class TowerDefenseScene extends Phaser.Scene {
   private waveActive: boolean = false;
   private waveNumber: number = 0;
   private enemiesToSpawn: number = 0; // remaining spawns in current wave
-  private stageTransitionInProgress: boolean = false; // blocks input during stage change cutscene
 
   // Player state
   private lives: number = 10;
@@ -217,11 +212,8 @@ export default class TowerDefenseScene extends Phaser.Scene {
     this.load.image('icon_melee', '/assets/game/Icon_Melee.PNG');
     this.load.image('icon_powerup', '/assets/game/Icon_PowerUp.PNG');
 
-    // Load background maps for each stage
-    this.load.image('grass_map', '/assets/game/GrassMap.PNG'); // Legacy (can remove later)
-    this.load.image('stage1_bg', '/assets/game/Stage1_BG.png');
-    this.load.image('stage2_bg', '/assets/game/Stage2_BG.png');
-    this.load.image('stage3_bg', '/assets/game/Stage3_BG.png');
+    // Load background map
+    this.load.image('grass_map', '/assets/game/UpdatedSizeMap.PNG'); // Main background map
   }
 
   create() {
@@ -272,8 +264,9 @@ export default class TowerDefenseScene extends Phaser.Scene {
       this.uiScene = this.scene.get('UIScene') as UIScene;
 
       // Wire up UI event handlers now that UI elements exist
-      console.log('[TowerDefenseScene] Setting up UI event handlers...');
-      this.setupUIEventHandlers();
+      // NOTE: Event handlers are now set up in UIScene.ts, not here
+      // this.setupUIEventHandlers(); // OLD - commented out
+      console.log('[TowerDefenseScene] UIScene handles its own events now');
 
       // Update wizard button state (initially locked)
       this.updateWizardButtonState();
@@ -284,8 +277,6 @@ export default class TowerDefenseScene extends Phaser.Scene {
     this.projectileManager = new ProjectileManager(this);
     this.combatManager = new CombatManager(this);
     this.abilityManager = new AbilityManager();
-    this.stageManager = new StageManager(this);
-
     // Get screen dimensions
     const width = this.scale.width;
     const height = this.scale.height;
@@ -300,22 +291,37 @@ export default class TowerDefenseScene extends Phaser.Scene {
     // Setup responsive scaling - listen for resize events
     this.scale.on('resize', this.handleResize, this);
 
-    // Initialize GrassMap background (full-screen, behind everything)
-    console.log('[TowerDefenseScene] Loading GrassMap background...');
+    // Initialize UpdatedSizeMap background (full-screen, behind everything)
+    console.log('[TowerDefenseScene] Loading UpdatedSizeMap background...');
     this.backgroundImage = this.add.image(width / 2, height / 2, 'grass_map');
-    this.backgroundImage.setDisplaySize(width, height); // Full screen including sidebar area
+    this.backgroundImage.setOrigin(0.5, 0.5); // Center the image
+
+    // Scale to cover screen while maintaining aspect ratio
+    const scaleX = width / this.backgroundImage.width;
+    const scaleY = height / this.backgroundImage.height;
+    const scale = Math.max(scaleX, scaleY); // Use larger scale to cover entire screen
+    this.backgroundImage.setScale(scale);
+
     this.backgroundImage.setDepth(-2); // Behind everything
-    this.backgroundImage.setOrigin(0.55, 0.5); // Center anchor
-    console.log('[TowerDefenseScene] GrassMap background loaded successfully');
+    console.log('[TowerDefenseScene] UpdatedSizeMap background loaded successfully');
 
-    // Get path points from stage config (returns array of paths)
-    // Always use Stage 1 since we're keeping GrassMap background throughout
-    const currentStage = 1;
-    this.allPaths = this.stageManager.getPathPoints(currentStage, gameWidth, height);
+    // Define single path (hardcoded from Stage1Config)
+    const pathY1 = height * 0.65;
+    const pathY2 = height * 0.25;
+    const pathY3 = height * 0.72;
 
-    // Initialize managers after paths are set
-    this.enemyManager = new EnemyManager(this, this.allPaths);
-    this.towerManager = new TowerManager(this, this.allPaths);
+    this.path = [
+      { x: 0, y: pathY1 },
+      { x: gameWidth * 0.285, y: pathY1 },
+      { x: gameWidth * 0.285, y: pathY2 },
+      { x: gameWidth * 0.73, y: pathY2 },
+      { x: gameWidth * 0.73, y: pathY3 },
+      { x: 1825, y: pathY3 }
+    ];
+
+    // Initialize managers after path is set
+    this.enemyManager = new EnemyManager(this, this.path);
+    this.towerManager = new TowerManager(this, this.path);
 
     // Initialize mobile support (orientation enforcement, pause handling)
     this.mobileSupport = new MobileSupport(this);
@@ -324,11 +330,16 @@ export default class TowerDefenseScene extends Phaser.Scene {
     // Initialize tower prices from centralized stats
     this.initializeTowerPrices();
 
-    // Draw all paths for current stage
-    this.pathGraphicsArray = this.stageManager.drawPaths(this.allPaths, currentStage, 1);
-    for (const graphics of this.pathGraphicsArray) {
-      graphics.setDepth(-1);
+    // Draw path
+    this.pathGraphics = this.add.graphics();
+    this.pathGraphics.lineStyle(70, 0x5d4037, 1); // Dark brown path
+    this.pathGraphics.beginPath();
+    this.pathGraphics.moveTo(this.path[0].x, this.path[0].y);
+    for (let i = 1; i < this.path.length; i++) {
+      this.pathGraphics.lineTo(this.path[i].x, this.path[i].y);
     }
+    this.pathGraphics.strokePath();
+    this.pathGraphics.setDepth(-1);
 
     /* ========================================
      * OLD DOM UI - REPLACED BY PHASER EDITOR UIScene
@@ -380,10 +391,12 @@ export default class TowerDefenseScene extends Phaser.Scene {
       el.style.background = '#fffcf8';
     });
 
-    // lives display (top left) - aligned with back button
+    // lives display (top left) - NOW HANDLED BY UISCENE HEART ICONS
+    // Hidden since we use heart icons in UIScene instead of text
     const livesBg = this.add.rectangle(25, 75, 120, 40, 0xffffff, 0.9);
     livesBg.setOrigin(0, 0);
     livesBg.setStrokeStyle(2, 0xc4a46f);
+    livesBg.setVisible(false); // Hidden - using heart icons instead
 
     this.livesText = this.add.text(85, 95, `Lives: ${this.lives}`, {
       fontSize: '18px',
@@ -392,6 +405,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
       fontStyle: '600',
       resolution: 2
     }).setOrigin(0.5);
+    this.livesText.setVisible(false); // Hidden - using heart icons instead
 
     // gold display in sidebar - clean minimal design
     const goldBg = this.add.rectangle(width - sidebarWidth/2, 710, sidebarWidth - 20, 40, 0xffffff, 0.95);
@@ -660,15 +674,8 @@ export default class TowerDefenseScene extends Phaser.Scene {
     // OLD: Create ability buttons at bottom center - Now handled by UIScene
     // this.createAbilityButtons();
 
-    // Create debug stage buttons (bottom left)
-    if (ENABLE_STAGE_DEBUG_BUTTONS) {
-      this.createStageDebugButtons();
-    }
-
     // enable click to place towers
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      // Block input during stage transition
-      if (this.stageTransitionInProgress) return;
 
       // Right-click deselects the selected tower (for upgrade UI)
       if (pointer.rightButtonDown()) {
@@ -1280,92 +1287,89 @@ export default class TowerDefenseScene extends Phaser.Scene {
     }
   }
 
-  // Create debug buttons for manual stage switching (bottom left)
-  createStageDebugButtons() {
-    const width = this.scale.width;
-    const height = this.scale.height;
-    const sidebarWidth = Math.min(220, width * 0.15);
-    const gameWidth = width - sidebarWidth;
 
-    const buttonWidth = 80;
-    const buttonHeight = 30;
-    const buttonSpacing = 10;
-    const startX = 20; // 20px from left edge
-    const startY = height - 50; // 50px from bottom
+  // ===== PUBLIC METHODS CALLED FROM UISCENE =====
 
-    // Helper function to create a debug button
-    const createDebugButton = (x: number, y: number, stage: number) => {
-      const button = this.add.rectangle(x, y, buttonWidth, buttonHeight, 0x333333);
-      button.setStrokeStyle(2, 0xffffff);
-      button.setInteractive({ useHandCursor: true });
+  /**
+   * Start the game - called from UIScene start button
+   */
+  startGame(): void {
+    console.log('[TowerDefenseScene] Start button clicked via UIScene');
 
-      const text = this.add.text(x, y, `Stage ${stage}`, {
-        fontSize: '14px',
-        color: '#ffffff',
-        fontFamily: 'Quicksand, sans-serif',
-        fontStyle: 'bold'
-      });
-      text.setOrigin(0.5);
+    // Give starting gold and start game
+    this.gold = 1000;
+    this.gameStarted = true;
 
-      button.on('pointerover', () => {
-        button.setFillStyle(0x555555);
-      });
+    // Emit event to UIScene
+    this.events.emit('gameStarted');
+    this.updateUIDisplays(); // Update UI with starting gold and initial state
 
-      button.on('pointerout', () => {
-        button.setFillStyle(0x333333);
-      });
-
-      button.on('pointerdown', async () => {
-        if (this.stageTransitionInProgress) return;
-
-        const currentStage = this.stageManager.getStage();
-        if (currentStage === stage) return; // Already on this stage
-
-        // Trigger transition
-        this.stageTransitionInProgress = true;
-
-        const result = await this.stageManager.transitionToStage(
-          stage,
-          gameWidth,
-          height,
-          this.pathGraphicsArray,
-          this.backgroundImage
-        );
-
-        // Update scene references
-        this.allPaths = result.pathPoints;
-        this.pathGraphicsArray = result.pathGraphics;
-        this.backgroundImage = result.background;
-
-        // Update managers with new paths
-        this.enemyManager.updatePath(this.allPaths);
-        this.towerManager.updatePath(this.allPaths);
-
-        // Remove towers within 20px of new path
-        this.removeTowersNearPath(20);
-
-        this.stageTransitionInProgress = false;
-      });
-
-      return { button, text };
-    };
-
-    // Create three stage buttons
-    const stage1 = createDebugButton(startX + (buttonWidth / 2), startY, 1);
-    const stage2 = createDebugButton(startX + buttonWidth + buttonSpacing + (buttonWidth / 2), startY, 2);
-    const stage3 = createDebugButton(startX + (buttonWidth + buttonSpacing) * 2 + (buttonWidth / 2), startY, 3);
-
-    // Optional: Add a label above the buttons
-    this.add.text(startX, startY - 25, 'DEBUG:', {
-      fontSize: '12px',
-      color: '#ffff00',
-      fontFamily: 'Quicksand, sans-serif',
-      fontStyle: 'bold'
-    }).setOrigin(0, 0.5);
+    console.log('[TowerDefenseScene] Game started!');
   }
 
+  /**
+   * Start the next wave - called from UIScene start round button
+   */
+  startNextWave(): void {
+    this.startWave();
+  }
+
+  /**
+   * Select a tower type for placement - called from UIScene tower buttons
+   */
+  selectTowerType(towerType: 'basic' | 'sniper' | 'melee' | 'fact' | 'wizard'): void {
+    console.log('[TowerDefenseScene] Tower selected:', towerType);
+
+    if (!this.gameStarted) {
+      console.log('[TowerDefenseScene] Game not started yet');
+      return;
+    }
+
+    // Set selected tower type (will enter placement mode)
+    this.selectedTowerType = towerType;
+
+    // Create placement preview
+    this.updatePlacementPreview();
+  }
+
+  /**
+   * Activate a power/ability - called from UIScene power buttons
+   */
+  activatePower(powerType: 'lightning' | 'freeze' | 'question'): void {
+    console.log('[TowerDefenseScene] Power activated:', powerType);
+
+    if (!this.gameStarted) {
+      console.log('[TowerDefenseScene] Game not started yet');
+      return;
+    }
+
+    // Map power types to ability manager methods
+    if (powerType === 'lightning') {
+      this.handleLightningStrikeClick();
+    } else if (powerType === 'freeze') {
+      this.handleFreezeClick();
+    } else if (powerType === 'question') {
+      this.handleQuestionAbilityClick();
+    }
+  }
+
+  /**
+   * Set game speed - called from UIScene speed button
+   */
+  setGameSpeed(speed: number): void {
+    if (speed < 1 || speed > 3) return;
+
+    this.gameSpeed = speed;
+    console.log('[TowerDefenseScene] Game speed set to:', speed);
+
+    // Emit event to UIScene (in case other code changed the speed)
+    this.events.emit('speedChanged', speed);
+  }
+
+  // ===== END PUBLIC METHODS =====
+
   startWave() {
-    if (this.waveActive || this.stageTransitionInProgress) return;
+    if (this.waveActive) return;
     this.waveActive = true;
     this.waveNumber++;
     // INCREASED DIFFICULTY: More enemies per wave (8 + 3 per wave, max 40)
@@ -1416,147 +1420,25 @@ export default class TowerDefenseScene extends Phaser.Scene {
   }
   */
 
+  /* OLD UI EVENT HANDLERS - REPLACED BY UIScene.ts
   // Setup UI event handlers for Phaser Editor UI
   setupUIEventHandlers() {
-    if (!this.uiScene) return;
-
-    // Start Game button - starts the game and hides the button
-    this.uiScene.startGameButtonBg.on('pointerdown', () => {
-      console.log('[TowerDefenseScene] Start button clicked');
-      // Hide start button
-      this.uiScene.startGameButtonBg.setVisible(false);
-      this.uiScene.startGameButtonText.setVisible(false);
-
-      // Give starting gold and start game
-      this.gold = 1000;
-      this.updateUIDisplays(); // Update UI with starting gold
-      this.gameStarted = true;
-      console.log('[TowerDefenseScene] Game started!');
-    });
-
-    // Start button hover feedback
-    this.uiScene.startGameButtonBg.on('pointerover', () => {
-      this.uiScene.startGameButtonBg.setScale(1.05);
-    });
-    this.uiScene.startGameButtonBg.on('pointerout', () => {
-      this.uiScene.startGameButtonBg.setScale(1);
-    });
-
-    // Back button
-    this.uiScene.backButtonBg.on('pointerdown', () => {
-      window.location.href = '/teacher/dashboard';
-    });
-
-    // Back button hover feedback
-    this.uiScene.backButtonBg.on('pointerover', () => {
-      this.uiScene.backButtonBg.setScale(1.05);
-    });
-    this.uiScene.backButtonBg.on('pointerout', () => {
-      this.uiScene.backButtonBg.setScale(1);
-    });
-
-    // Wave button - start wave or toggle speed
-    this.uiScene.waveButtonBg.on('pointerdown', () => {
-      if (!this.waveActive && this.gameStarted) {
-        this.startWave();
-      } else if (this.waveActive) {
-        this.toggleGameSpeed();
-      }
-    });
-
-    // Wave button hover feedback
-    this.uiScene.waveButtonBg.on('pointerover', () => {
-      this.uiScene.waveButtonBg.setScale(1.05);
-    });
-    this.uiScene.waveButtonBg.on('pointerout', () => {
-      this.uiScene.waveButtonBg.setScale(1);
-    });
-
-    // Tower selection buttons - capture position for quiz placement
-    // Use helper method to reduce duplication
-    this.setupTowerButton(this.uiScene.ballistaBtnBg, 'basic');
-    this.setupTowerButton(this.uiScene.trebuchetBtnBg, 'sniper');
-    this.setupTowerButton(this.uiScene.knightBtnBg, 'melee');
-    this.setupTowerButton(this.uiScene.trainingCampBtnBg, 'fact');
-    this.setupTowerButton(this.uiScene.archmageBtnBg, 'wizard');
-
-    // Ability button handlers - Lightning Strike, Freeze, Quiz Buff
-    this.uiScene.lightningBtnBg.on('pointerdown', () => {
-      if (this.abilityManager.getLightningStrikeStatus(this.gold).available && this.gameStarted) {
-        this.lastAbilityButtonClicked = { x: this.uiScene.lightningBtnBg.x, y: this.uiScene.lightningBtnBg.y };
-        this.showAbilityQuestion('lightning');
-      }
-    });
-
-    this.uiScene.freezeBtnBg.on('pointerdown', () => {
-      if (this.abilityManager.getFreezeStatus(this.gold).available && this.gameStarted) {
-        this.lastAbilityButtonClicked = { x: this.uiScene.freezeBtnBg.x, y: this.uiScene.freezeBtnBg.y };
-        this.showAbilityQuestion('freeze');
-      }
-    });
-
-    this.uiScene.quizBuffBtnBg.on('pointerdown', () => {
-      if (this.abilityManager.getQuestionAbilityStatus().available && this.gameStarted) {
-        this.lastAbilityButtonClicked = { x: this.uiScene.quizBuffBtnBg.x, y: this.uiScene.quizBuffBtnBg.y };
-        this.showAbilityQuestion('question');
-      }
-    });
-
-    // Ability buttons hover feedback
-    this.uiScene.lightningBtnBg.on('pointerover', () => {
-      this.uiScene.lightningBtnBg.setScale(1.05);
-    });
-    this.uiScene.lightningBtnBg.on('pointerout', () => {
-      this.uiScene.lightningBtnBg.setScale(1);
-    });
-
-    this.uiScene.freezeBtnBg.on('pointerover', () => {
-      this.uiScene.freezeBtnBg.setScale(1.05);
-    });
-    this.uiScene.freezeBtnBg.on('pointerout', () => {
-      this.uiScene.freezeBtnBg.setScale(1);
-    });
-
-    this.uiScene.quizBuffBtnBg.on('pointerover', () => {
-      this.uiScene.quizBuffBtnBg.setScale(1.05);
-    });
-    this.uiScene.quizBuffBtnBg.on('pointerout', () => {
-      this.uiScene.quizBuffBtnBg.setScale(1);
-    });
+    // NOTE: This method is deprecated. UI event handlers are now set up in UIScene.ts
+    // The code has been commented out to prevent errors from old UI property references
+    // See UIScene.ts setupButtonInteractivity() for the new implementation
   }
+  */
 
   // Update UI text displays (called from game logic)
+  // Emits events to UIScene which updates its own displays
   updateUIDisplays() {
-    if (!this.uiScene) return;
+    // Emit events to UIScene to update displays
+    this.events.emit('updateGold', this.gold);
+    this.events.emit('updateLives', this.lives);
+    this.events.emit('updateWave', this.waveNumber);
 
-    // Update gold
-    this.uiScene.goldText.setText(`Gold: ${this.gold}`);
-
-    // Update lives
-    this.uiScene.livesText.setText(`Lives: ${this.lives}`);
-
-    // Update wave counter
-    this.uiScene.waveCounterText.setText(`Round ${this.waveNumber}`);
-
-    // Update wave button text
-    if (this.waveActive) {
-      if (this.gameSpeed === 1) {
-        this.uiScene.waveButtonText.setText('Speed: 1x');
-      } else if (this.gameSpeed === 2) {
-        this.uiScene.waveButtonText.setText('Speed: 2x');
-      } else {
-        this.uiScene.waveButtonText.setText('Speed: 3x');
-      }
-    } else {
-      this.uiScene.waveButtonText.setText(`Start Wave ${this.waveNumber + 1}`);
-    }
-
-    // Update tower button costs
-    this.uiScene.ballistaBtnCost.setText(`${this.towerPurchasePrice.basic}g`);
-    this.uiScene.trebuchetBtnCost.setText(`${this.towerPurchasePrice.sniper}g`);
-    this.uiScene.knightBtnCost.setText(`${this.towerPurchasePrice.melee}g`);
-    this.uiScene.trainingCampBtnCost.setText(`${this.towerPurchasePrice.fact}g`);
-    this.uiScene.archmageBtnCost.setText(`${this.towerPurchasePrice.wizard}g`);
+    // Note: Tower costs and other detailed UI updates can be added as needed
+    // For now, UIScene handles basic displays (gold, lives, wave number)
   }
 
   // Reset tower price to base cost from TowerManager stats
@@ -2053,16 +1935,20 @@ export default class TowerDefenseScene extends Phaser.Scene {
 
     const unlocked = this.totalCorrectAnswers >= 5;
 
+    // Access the archmage button from UIScene
+    const archmageBtn = (this.uiScene as any).archmageBtn as Phaser.GameObjects.Image | undefined;
+    if (!archmageBtn) return; // Button doesn't exist yet
+
     if (unlocked) {
-      // Unlocked: full opacity, normal colors
-      this.uiScene.archmageBtnBg.setAlpha(1);
-      this.uiScene.archmageBtnName.setAlpha(1);
-      this.uiScene.archmageBtnCost.setAlpha(1);
+      // Unlocked: full opacity, interactive
+      archmageBtn.setAlpha(1);
+      archmageBtn.clearTint();
+      archmageBtn.setInteractive({ useHandCursor: true });
     } else {
-      // Locked: reduced opacity to show it's not available
-      this.uiScene.archmageBtnBg.setAlpha(0.4);
-      this.uiScene.archmageBtnName.setAlpha(0.4);
-      this.uiScene.archmageBtnCost.setAlpha(0.4);
+      // Locked: reduced opacity and greyed out
+      archmageBtn.setAlpha(0.5);
+      archmageBtn.setTint(0x888888); // Grey tint
+      archmageBtn.disableInteractive(); // Make it non-clickable
     }
   }
 
@@ -2077,35 +1963,48 @@ export default class TowerDefenseScene extends Phaser.Scene {
 
     console.log('[TowerDefenseScene] Resize detected:', width, 'x', height, ', Game area:', gameWidth);
 
-    // Update background if it exists (GrassMap covers full screen)
+    // Update background if it exists (UpdatedSizeMap covers full screen)
     if (this.backgroundImage) {
-      this.backgroundImage.setDisplaySize(width, height); // Full width including sidebar
       this.backgroundImage.setPosition(width / 2, height / 2); // Center of full screen
+
+      // Scale to cover screen while maintaining aspect ratio
+      const scaleX = width / this.backgroundImage.width;
+      const scaleY = height / this.backgroundImage.height;
+      const scale = Math.max(scaleX, scaleY); // Use larger scale to cover entire screen
+      this.backgroundImage.setScale(scale);
     }
 
-    // Redraw paths if they exist
-    if (this.allPaths.length > 0 && this.pathGraphicsArray.length > 0) {
-      // Get current stage and recalculate path points for new dimensions
-      const currentStage = this.stageManager.getCurrentStage(this.waveNumber);
-
+    // Redraw path if it exists
+    if (this.pathGraphics) {
       // Clear existing path graphics
-      this.pathGraphicsArray.forEach(graphics => graphics.destroy());
-      this.pathGraphicsArray = [];
+      this.pathGraphics.destroy();
 
-      // Get new path points with updated dimensions
-      this.allPaths = this.stageManager.getPathPoints(currentStage, gameWidth, height);
+      // Recalculate path points for new dimensions (hardcoded path from Stage1Config)
+      const pathY1 = height * 0.65;
+      const pathY2 = height * 0.25;
+      const pathY3 = height * 0.72;
 
-      // Redraw paths using StageManager
-      this.pathGraphicsArray = this.stageManager.drawPaths(this.allPaths, currentStage, 1);
+      this.path = [
+        { x: 0, y: pathY1 },
+        { x: gameWidth * 0.285, y: pathY1 },
+        { x: gameWidth * 0.285, y: pathY2 },
+        { x: gameWidth * 0.73, y: pathY2 },
+        { x: gameWidth * 0.73, y: pathY3 },
+        { x: 1825, y: pathY3 }
+      ];
 
-      // Set depth for all path graphics
-      this.pathGraphicsArray.forEach(graphics => {
-        graphics.setDepth(-1);
-      });
+      // Redraw path
+      this.pathGraphics = this.add.graphics();
+      this.pathGraphics.lineStyle(70, 0x5d4037, 1); // Dark brown path
+      this.pathGraphics.beginPath();
+      this.pathGraphics.moveTo(this.path[0].x, this.path[0].y);
+      for (let i = 1; i < this.path.length; i++) {
+        this.pathGraphics.lineTo(this.path[i].x, this.path[i].y);
+      }
+      this.pathGraphics.strokePath();
+      this.pathGraphics.setDepth(-1);
 
-      // Update managers with new path dimensions
-      this.enemyManager.updatePath(this.allPaths);
-      this.towerManager.updatePath(this.allPaths);
+      // Note: Enemy and tower managers don't need path updates since they reference this.path directly
     }
 
     // Emit resize event for UIScene and other listeners
@@ -2241,11 +2140,6 @@ export default class TowerDefenseScene extends Phaser.Scene {
           // Bring UIScene back to top
           this.scene.bringToTop('UIScene');
         }
-      }
-
-      // Check for stage transition (rounds 20, 40, 60)
-      if (this.stageManager.shouldTransition(this.waveNumber)) {
-        this.handleStageTransition();
       }
 
       // Check for challenge round (every 10 waves: 10, 20, 30, etc.)
@@ -2881,17 +2775,20 @@ export default class TowerDefenseScene extends Phaser.Scene {
     const deleteButtonY = towerY + 60; // Below the tower
     const deleteButton = this.add.rectangle(towerX, deleteButtonY, 50, 50, 0xef4444, 0.95);
     deleteButton.setStrokeStyle(2, 0xdc2626);
-    deleteButton.setDepth(50);
+    deleteButton.setDepth(5000); // Very high depth to ensure it's above UIScene
     deleteButton.setInteractive({ useHandCursor: true });
+    console.log('[TowerDefenseScene] Delete button created at', towerX, deleteButtonY, 'with depth', deleteButton.depth);
 
     // Track confirmation state
     let deleteConfirmed = false;
 
     // Add hover effect
     deleteButton.on('pointerover', () => {
+      console.log('[TowerDefenseScene] Delete button hover');
       deleteButton.setScale(1.05);
     });
     deleteButton.on('pointerout', () => {
+      console.log('[TowerDefenseScene] Delete button unhover');
       deleteButton.setScale(1);
     });
 
@@ -2902,17 +2799,24 @@ export default class TowerDefenseScene extends Phaser.Scene {
       fontFamily: 'Quicksand, sans-serif',
       fontStyle: 'bold'
     }).setOrigin(0.5);
-    deleteText.setDepth(51);
+    deleteText.setDepth(5001); // Above delete button
 
-    deleteButton.on('pointerdown', () => {
+    deleteButton.on('pointerdown', (pointer: Phaser.Input.Pointer, localX: number, localY: number, event: Phaser.Types.Input.EventData) => {
+      console.log('[TowerDefenseScene] Delete button clicked! Confirmed:', deleteConfirmed);
+
+      // CRITICAL: Stop event propagation so tower doesn't get re-selected
+      event.stopPropagation();
+
       if (!deleteConfirmed) {
         // First click: Change to green checkmark
+        console.log('[TowerDefenseScene] First click - showing confirmation');
         deleteButton.setFillStyle(0x96b902, 0.95);
         deleteButton.setStrokeStyle(2, 0x7a9700);
         deleteText.setText('✓');
         deleteConfirmed = true;
       } else {
         // Second click: Actually delete the tower
+        console.log('[TowerDefenseScene] Second click - deleting tower');
         if (this.selectedTower) {
           this.towerManager.removeTower(this.selectedTower);
           this.selectedTower = null;
@@ -4961,115 +4865,6 @@ export default class TowerDefenseScene extends Phaser.Scene {
     });
   }
 
-  /**
-   * Handle stage transition cutscene (rounds 20, 40, 60)
-   * Blocks input during 3-second fade transition
-   * Removes towers within 20px of new path
-   */
-  async handleStageTransition() {
-    // Block all input during transition
-    this.stageTransitionInProgress = true;
-
-    // Get dimensions
-    const width = this.scale.width;
-    const height = this.scale.height;
-    const sidebarWidth = Math.min(220, width * 0.15);
-    const gameWidth = width - sidebarWidth;
-
-    // Calculate new stage
-    const newStage = this.stageManager.getCurrentStage(this.waveNumber + 1);
-
-    // Show transition message
-    const transitionText = this.add.text(
-      gameWidth / 2,
-      height / 2,
-      `Stage ${newStage} - The Battlefield Changes...`,
-      {
-        fontSize: '48px',
-        color: '#ffffff',
-        fontFamily: 'Quicksand, sans-serif',
-        fontStyle: 'bold',
-        stroke: '#000000',
-        strokeThickness: 6
-      }
-    );
-    transitionText.setOrigin(0.5);
-    transitionText.setDepth(1000);
-
-    // Perform transition (3 seconds total)
-    const result = await this.stageManager.transitionToStage(
-      newStage,
-      gameWidth,
-      height,
-      this.pathGraphicsArray,
-      this.backgroundImage
-    );
-
-    // Update scene references
-    this.allPaths = result.pathPoints;
-    this.pathGraphicsArray = result.pathGraphics;
-    this.backgroundImage = result.background;
-
-    // Update managers with new paths
-    this.enemyManager.updatePath(this.allPaths);
-    this.towerManager.updatePath(this.allPaths);
-
-    // Remove towers within 20px of new path
-    this.removeTowersNearPath(20);
-
-    // Fade out transition message
-    this.tweens.add({
-      targets: transitionText,
-      alpha: 0,
-      duration: 1000,
-      onComplete: () => {
-        transitionText.destroy();
-        // Re-enable input
-        this.stageTransitionInProgress = false;
-      }
-    });
-  }
-
-  /**
-   * Remove towers that are within the specified distance of the path
-   */
-  removeTowersNearPath(minDistance: number) {
-    const towersToRemove: Tower[] = [];
-
-    // Check each tower
-    this.towerManager.getTowers().forEach(tower => {
-      // Check distance to ALL paths
-      for (const pathPoints of this.allPaths) {
-        let tooClose = false;
-        // Check distance to each path segment
-        for (let i = 0; i < pathPoints.length - 1; i++) {
-          const p1 = pathPoints[i];
-          const p2 = pathPoints[i + 1];
-
-          // Calculate distance from tower to line segment
-          const distance = this.distanceToLineSegment(tower.x, tower.y, p1.x, p1.y, p2.x, p2.y);
-
-          if (distance < minDistance) {
-            towersToRemove.push(tower);
-            tooClose = true;
-            break; // No need to check other segments in this path
-          }
-        }
-        if (tooClose) break; // No need to check other paths
-      }
-    });
-
-    // Remove towers and show message if any were removed
-    if (towersToRemove.length > 0) {
-      towersToRemove.forEach(tower => {
-        this.towerManager.removeTower(tower);
-      });
-
-      this.showErrorMessage(
-        `${towersToRemove.length} tower${towersToRemove.length > 1 ? 's' : ''} removed (too close to new path)`
-      );
-    }
-  }
 
   /**
    * Calculate distance from point to line segment

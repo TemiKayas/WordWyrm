@@ -57,7 +57,9 @@ const TowerDefenseGame = ({ quiz }: TowerDefenseGameProps) => {
             antialias: true,
             antialiasGL: true,
             roundPixels: false, // Keep false for crisp text
+            pixelArt: false,
           },
+          resolution: window.devicePixelRatio || 1, // Match device pixel ratio for crisp rendering
           physics: {
             default: 'arcade',
             arcade: {

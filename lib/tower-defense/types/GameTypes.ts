@@ -31,8 +31,7 @@ export interface Enemy {
   health: number;
   maxHealth: number;
   type: EnemyType;
-  pathId: number; // which path this enemy is following (0, 1, 2, etc.)
-  pathIndex: number; // current target waypoint on their path
+  pathIndex: number; // current target waypoint on path
   graphics: Phaser.GameObjects.Graphics; // visual representation
   size: number; // scale multiplier for visual size
   healthBarBg?: Phaser.GameObjects.Graphics; // health bar background

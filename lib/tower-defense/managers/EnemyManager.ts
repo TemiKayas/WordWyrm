@@ -30,12 +30,11 @@ export interface EnemyEscape {
 export class EnemyManager {
   private scene: Phaser.Scene;
   private enemies: Enemy[] = [];
-  private allPaths: PathPoint[][]; // Array of paths
-  private nextPathIndex: number = 0; // Round-robin path selection for spawning
+  private path: PathPoint[]; // Single path
 
-  constructor(scene: Phaser.Scene, allPaths: PathPoint[][]) {
+  constructor(scene: Phaser.Scene, path: PathPoint[]) {
     this.scene = scene;
-    this.allPaths = allPaths;
+    this.path = path;
   }
 
   /**
@@ -48,11 +47,8 @@ export class EnemyManager {
     onLightningClick: (enemy: Enemy) => void,
     onBossSpawn?: (baseHealth: number) => void
   ): Enemy {
-    // Select path for this enemy (round-robin across all paths)
-    const pathId = this.nextPathIndex;
-    this.nextPathIndex = (this.nextPathIndex + 1) % this.allPaths.length;
-    const selectedPath = this.allPaths[pathId];
-    const startPoint = selectedPath[0];
+    // Get start point from path
+    const startPoint = this.path[0];
     const enemiesSpawned = Math.min(40, Math.floor(8 + (3 * waveNumber))) - enemiesToSpawn;
 
     // Determine if this should be a special spawn
@@ -312,7 +308,6 @@ export class EnemyManager {
       health: health,
       maxHealth: health,
       type: type,
-      pathId: pathId, // Which path this enemy is following
       pathIndex: 1, // Start at second waypoint (first is spawn)
       graphics: graphics,
       size: size,
@@ -344,11 +339,8 @@ export class EnemyManager {
     for (let i = this.enemies.length - 1; i >= 0; i--) {
       const enemy = this.enemies[i];
 
-      // Get the specific path this enemy is following
-      const enemyPath = this.allPaths[enemy.pathId];
-
       // Check if reached end of path
-      if (enemy.pathIndex >= enemyPath.length) {
+      if (enemy.pathIndex >= this.path.length) {
         escapes.push({ enemy });
         enemy.graphics.destroy();
         enemy.healthBarBg?.destroy();
@@ -357,8 +349,8 @@ export class EnemyManager {
         continue;
       }
 
-      // Move towards next waypoint on this enemy's path
-      const target = enemyPath[enemy.pathIndex];
+      // Move towards next waypoint
+      const target = this.path[enemy.pathIndex];
       const dx = target.x - enemy.x;
       const dy = target.y - enemy.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
@@ -515,15 +507,6 @@ export class EnemyManager {
    */
   getEnemies(): readonly Enemy[] {
     return this.enemies;
-  }
-
-  /**
-   * Update path points (used during stage transitions)
-   */
-  updatePath(newAllPaths: PathPoint[][]): void {
-    this.allPaths = newAllPaths;
-    // Reset path index counter for new stage
-    this.nextPathIndex = 0;
   }
 
   /**
