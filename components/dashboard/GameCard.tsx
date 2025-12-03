@@ -19,6 +19,8 @@ interface GameCardProps {
   onEdit?: () => void;
   onDelete?: () => void;
   onViewAnalytics?: () => void;  // ANALYTICS SYSTEM - Navigate to analytics dashboard
+  onViewShareCode?: () => void;  // Navigate to share code/QR code page
+  onViewLeaderboard?: () => void;  // Navigate to leaderboard page
 }
 
 export default function GameCard({
@@ -33,6 +35,8 @@ export default function GameCard({
   onEdit,
   onDelete,
   onViewAnalytics,
+  onViewShareCode,
+  onViewLeaderboard,
 }: GameCardProps) {
   const [showMenu, setShowMenu] = useState(false);
 
@@ -48,6 +52,16 @@ export default function GameCard({
 
   const handleViewAnalytics = () => {
     onViewAnalytics?.();
+    setShowMenu(false);
+  };
+
+  const handleViewShareCode = () => {
+    onViewShareCode?.();
+    setShowMenu(false);
+  };
+
+  const handleViewLeaderboard = () => {
+    onViewLeaderboard?.();
     setShowMenu(false);
   };
 
@@ -84,6 +98,39 @@ export default function GameCard({
                 </svg>
                 Edit Quiz
               </button>
+              {/* View Share Code - Show for published games (not drafts) */}
+              {!isDraft && onViewShareCode && (
+                <>
+                  <div className="h-[1px] bg-[#473025]/20 mx-2"/>
+                  <button
+                    onClick={handleViewShareCode}
+                    className="w-full px-4 py-3 text-left font-quicksand font-bold text-[#473025] text-[14px] hover:bg-[#fff5e8] transition-colors cursor-pointer flex items-center gap-2"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M3 3H7V7H3V3Z" stroke="#473025" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M13 3H17V7H13V3Z" stroke="#473025" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M3 13H7V17H3V13Z" stroke="#473025" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M13 13H17V17H13V13Z" stroke="#473025" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    View Share Code
+                  </button>
+                </>
+              )}
+              {/* View Leaderboard - Show for published games (not drafts) */}
+              {!isDraft && onViewLeaderboard && (
+                <>
+                  <div className="h-[1px] bg-[#473025]/20 mx-2"/>
+                  <button
+                    onClick={handleViewLeaderboard}
+                    className="w-full px-4 py-3 text-left font-quicksand font-bold text-[#473025] text-[14px] hover:bg-[#fff5e8] transition-colors cursor-pointer flex items-center gap-2"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M6 9H4.5C3.67157 9 3 9.67157 3 10.5V19.5C3 20.3284 3.67157 21 4.5 21H6M6 9V21M6 9H10M6 21H10M10 6H13.5C14.3284 6 15 6.67157 15 7.5V19.5C15 20.3284 14.3284 21 13.5 21H10M10 6V21M10 6V3.5C10 2.67157 10.6716 2 11.5 2H19.5C20.3284 2 21 2.67157 21 3.5V19.5C21 20.3284 20.3284 21 19.5 21H10" stroke="#473025" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    View Leaderboard
+                  </button>
+                </>
+              )}
               {/* ANALYTICS SYSTEM - Show analytics button only for published games (not drafts) */}
               {!isDraft && onViewAnalytics && (
                 <>

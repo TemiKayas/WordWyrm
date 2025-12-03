@@ -4,7 +4,7 @@ import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { uploadPDF } from '@/lib/blob';
 import { extractTextFromPDF, validatePDF } from '@/lib/processors/pdf-processor';
-import { generateQuiz, Quiz, Subject, QuizQuestion } from '@/lib/processors/ai-generator';
+import { generateQuiz, Quiz, Subject, QuizQuestion, validateContentForQuiz } from '@/lib/processors/ai-generator';
 
 type ActionResult<T> =
   | { success: true; data: T }
@@ -20,7 +20,7 @@ export async function uploadAndProcessPDF(
     // Check authentication
     const session = await auth();
     if (!session?.user || session.user.role !== 'TEACHER') {
-      return { success: false, error: 'Unauthorized' };
+      return { success: false, error: 'You must be logged in as a teacher to upload PDFs.' };
     }
 
     // Get teacher profile
@@ -29,13 +29,13 @@ export async function uploadAndProcessPDF(
     });
 
     if (!teacher) {
-      return { success: false, error: 'Teacher profile not found' };
+      return { success: false, error: 'Your teacher profile is not set up. Please contact support.' };
     }
 
     // Get and validate classId
     const classId = formData.get('classId') as string;
     if (!classId) {
-      return { success: false, error: 'Class ID is required' };
+      return { success: false, error: 'Please select a class before uploading a PDF.' };
     }
 
     // Verify class belongs to teacher
@@ -47,13 +47,13 @@ export async function uploadAndProcessPDF(
     });
 
     if (!classExists) {
-      return { success: false, error: 'Invalid class or unauthorized' };
+      return { success: false, error: 'This class doesn\'t exist or you don\'t have permission to upload to it.' };
     }
 
     // Get and validate file
     const file = formData.get('pdf') as File;
     if (!file) {
-      return { success: false, error: 'No file provided' };
+      return { success: false, error: 'Please select a PDF file to upload.' };
     }
 
     const validation = validatePDF(file);
@@ -71,11 +71,9 @@ export async function uploadAndProcessPDF(
       : Subject.GENERAL;
 
     // Upload to Vercel Blob
-    console.log('Uploading PDF to Vercel Blob...');
     const blobUrl = await uploadPDF(file);
 
     // Save PDF record
-    console.log('Saving PDF record to database...');
     const pdfRecord = await db.pDF.create({
       data: {
         teacherId: teacher.id,
@@ -88,26 +86,18 @@ export async function uploadAndProcessPDF(
     });
 
     // Extract text from PDF
-    console.log('Extracting text from PDF...');
-    console.log('File details:', { name: file.name, size: file.size, type: file.type });
-
     const arrayBuffer = await file.arrayBuffer();
-    console.log('ArrayBuffer size:', arrayBuffer.byteLength);
-
     const buffer = Buffer.from(arrayBuffer);
-    console.log('Buffer created, size:', buffer.length, 'isBuffer:', Buffer.isBuffer(buffer));
-
     const extractedText = await extractTextFromPDF(buffer);
 
     if (!extractedText || extractedText.length < 100) {
       return {
         success: false,
-        error: 'Could not extract enough text from PDF. Please try a different file.',
+        error: 'Unable to extract readable text from this PDF. This may be a scanned image or password-protected file. Please try a different PDF with selectable text.',
       };
     }
 
     // Save processed content
-    console.log('Saving processed content...');
     const processedContent = await db.processedContent.create({
       data: {
         pdfId: pdfRecord.id,
@@ -117,11 +107,9 @@ export async function uploadAndProcessPDF(
     });
 
     // Generate quiz using Gemini
-    console.log(`Generating quiz with Gemini AI (Subject: ${subject})...`);
     const quiz = await generateQuiz(extractedText, numQuestions, subject);
 
     // save quiz
-    console.log('Saving quiz to database...');
     const quizRecord = await db.quiz.create({
       data: {
         processedContentId: processedContent.id,
@@ -131,8 +119,6 @@ export async function uploadAndProcessPDF(
         quizJson: JSON.parse(JSON.stringify(quiz)),
       },
     });
-
-    console.log('Quiz created successfully. Ready for game settings.');
 
     return {
       success: true,
@@ -148,7 +134,7 @@ export async function uploadAndProcessPDF(
       error:
         error instanceof Error
           ? error.message
-          : 'Failed to process PDF. Please try again.',
+          : 'We encountered an issue processing your PDF. Please ensure it\'s a valid PDF file under 25MB and try again.',
     };
   }
 }
@@ -172,13 +158,13 @@ export async function uploadAndProcessMultiplePDFs(
     });
 
     if (!teacher) {
-      return { success: false, error: 'Teacher profile not found' };
+      return { success: false, error: 'Your teacher profile is not set up. Please contact support.' };
     }
 
     // Get and validate classId
     const classId = formData.get('classId') as string;
     if (!classId) {
-      return { success: false, error: 'Class ID is required' };
+      return { success: false, error: 'Please select a class before uploading a PDF.' };
     }
 
     // Verify class belongs to teacher
@@ -190,7 +176,7 @@ export async function uploadAndProcessMultiplePDFs(
     });
 
     if (!classExists) {
-      return { success: false, error: 'Invalid class or unauthorized' };
+      return { success: false, error: 'This class doesn\'t exist or you don\'t have permission to upload to it.' };
     }
 
     // Get all PDF files
@@ -204,7 +190,7 @@ export async function uploadAndProcessMultiplePDFs(
     if (totalSize > MAX_TOTAL_SIZE_BYTES) {
       return {
         success: false,
-        error: `Total file size (${(totalSize / 1024 / 1024).toFixed(2)}MB) exceeds ${MAX_TOTAL_SIZE_MB}MB limit`
+        error: `Your selected files total ${(totalSize / 1024 / 1024).toFixed(2)}MB, which exceeds our ${MAX_TOTAL_SIZE_MB}MB limit. Please select fewer or smaller files.`
       };
     }
 
@@ -227,9 +213,6 @@ export async function uploadAndProcessMultiplePDFs(
     const questionsPerPDF = Math.floor(totalQuestions / files.length);
     const remainingQuestions = totalQuestions % files.length;
 
-    console.log(`Processing ${files.length} PDFs with ${totalQuestions} total questions`);
-    console.log(`Base questions per PDF: ${questionsPerPDF}, Remaining: ${remainingQuestions}`);
-
     const pdfRecords: string[] = [];
     const allQuestions: QuizQuestion[] = [];
     let firstProcessedContentId: string | null = null;
@@ -238,8 +221,6 @@ export async function uploadAndProcessMultiplePDFs(
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       const numQuestionsForThisPDF = questionsPerPDF + (i < remainingQuestions ? 1 : 0);
-
-      console.log(`Processing ${file.name} (${i + 1}/${files.length}) - ${numQuestionsForThisPDF} questions`);
 
       // Upload to Vercel Blob
       const blobUrl = await uploadPDF(file);
@@ -266,7 +247,7 @@ export async function uploadAndProcessMultiplePDFs(
       if (!extractedText || extractedText.length < 100) {
         return {
           success: false,
-          error: `Could not extract enough text from ${file.name}. Please try a different file.`,
+          error: `Unable to extract readable text from '${file.name}'. This file may be a scanned image or empty. Please try a different PDF.`,
         };
       }
 
@@ -322,8 +303,6 @@ export async function uploadAndProcessMultiplePDFs(
         })
       )
     );
-
-    console.log(`Quiz created successfully with ${allQuestions.length} questions from ${files.length} PDFs`);
 
     return {
       success: true,
@@ -542,7 +521,7 @@ export async function addPDFsToQuiz(params: {
       if (!extractedText || extractedText.length < 100) {
         return {
           success: false,
-          error: `Could not extract enough text from ${file.name}`,
+          error: `Unable to extract text from '${file.name}'. Please ensure this is a text-based PDF, not a scanned image.`,
         };
       }
 
@@ -701,6 +680,249 @@ export async function regenerateQuizQuestions(params: {
         error instanceof Error
           ? error.message
           : 'Failed to regenerate questions',
+    };
+  }
+}
+
+/**
+ * Process content from text input, PDFs, or both to generate a quiz
+ * Supports three modes:
+ * - Text only: Just the textContent field
+ * - PDF only: Just the pdfs files
+ * - Text + PDF: Both textContent and pdfs
+ */
+export async function processContentForQuiz(
+  formData: FormData
+): Promise<ActionResult<{ quizId: string; quiz: Quiz }>> {
+  try {
+    // Check authentication
+    const session = await auth();
+    if (!session?.user || session.user.role !== 'TEACHER') {
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    // Get teacher profile
+    const teacher = await db.teacher.findUnique({
+      where: { userId: session.user.id },
+    });
+
+    if (!teacher) {
+      return { success: false, error: 'Your teacher profile is not set up. Please contact support.' };
+    }
+
+    // Get and validate classId
+    const classId = formData.get('classId') as string;
+    if (!classId) {
+      return { success: false, error: 'Please select a class before uploading a PDF.' };
+    }
+
+    // Verify class belongs to teacher
+    const classExists = await db.class.findFirst({
+      where: {
+        id: classId,
+        teacherId: teacher.id,
+      },
+    });
+
+    if (!classExists) {
+      return { success: false, error: 'This class doesn\'t exist or you don\'t have permission to upload to it.' };
+    }
+
+    // Get content inputs
+    const textContent = formData.get('textContent') as string | null;
+    const files = formData.getAll('pdfs') as File[];
+
+    // Validate that at least one content source is provided
+    const hasText = textContent && textContent.trim().length > 0;
+    const hasPDFs = files.length > 0;
+
+    if (!hasText && !hasPDFs) {
+      return { success: false, error: 'Please either paste text content or upload at least one PDF file to generate a quiz.' };
+    }
+
+    // Get parameters
+    const totalQuestions = parseInt(formData.get('numQuestions') as string) || 5;
+    const subjectValue = formData.get('subject') as string;
+    const subject = subjectValue && subjectValue in Subject
+      ? (subjectValue as Subject)
+      : Subject.GENERAL;
+
+    // Validate total file size if PDFs provided
+    if (hasPDFs) {
+      const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+      if (totalSize > MAX_TOTAL_SIZE_BYTES) {
+        return {
+          success: false,
+          error: `Total file size (${(totalSize / 1024 / 1024).toFixed(2)}MB) exceeds ${MAX_TOTAL_SIZE_MB}MB limit`
+        };
+      }
+
+      // Validate each file
+      for (const file of files) {
+        const validation = validatePDF(file);
+        if (!validation.valid) {
+          return { success: false, error: `${file.name}: ${validation.error}` };
+        }
+      }
+    }
+
+    // Collect all content
+    const contentParts: string[] = [];
+    const pdfRecords: string[] = [];
+    let firstProcessedContentId: string | null = null;
+
+    // Add text content if provided
+    if (hasText) {
+      contentParts.push(textContent!.trim());
+    }
+
+    // Process PDFs and extract text
+    if (hasPDFs) {
+      for (const file of files) {
+        // Upload to Vercel Blob
+        const blobUrl = await uploadPDF(file);
+
+        // Save PDF record
+        const pdfRecord = await db.pDF.create({
+          data: {
+            teacherId: teacher.id,
+            classId: classId,
+            filename: file.name,
+            blobUrl,
+            fileSize: file.size,
+            mimeType: file.type,
+          },
+        });
+
+        pdfRecords.push(pdfRecord.id);
+
+        // Extract text from PDF
+        const arrayBuffer = await file.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        const extractedText = await extractTextFromPDF(buffer);
+
+        if (!extractedText || extractedText.length < 100) {
+          return {
+            success: false,
+            error: `Unable to extract readable text from '${file.name}'. This PDF may be scanned or encrypted. Please upload a text-based PDF.`,
+          };
+        }
+
+        // Save processed content
+        const processedContent = await db.processedContent.create({
+          data: {
+            pdfId: pdfRecord.id,
+            extractedText,
+            textLength: extractedText.length,
+          },
+        });
+
+        // Store first processed content ID for quiz reference
+        if (!firstProcessedContentId) {
+          firstProcessedContentId = processedContent.id;
+        }
+
+        contentParts.push(extractedText);
+      }
+    }
+
+    // Combine all content
+    const combinedContent = contentParts.join('\n\n--- Content Section ---\n\n');
+
+    // Validate content quality using AI
+    const validationResult = await validateContentForQuiz(combinedContent, subject);
+
+    if (!validationResult.valid) {
+      return {
+        success: false,
+        error: validationResult.reason || 'This content doesn\'t appear to contain enough educational material to generate a meaningful quiz. Please provide more detailed content or a different PDF.',
+      };
+    }
+
+    // Generate quiz from combined content
+    const quiz = await generateQuiz(combinedContent, totalQuestions, subject);
+
+    // Create quiz record
+    // For text-only content, we need to create a placeholder ProcessedContent
+    if (!firstProcessedContentId && hasText) {
+      // Create a placeholder PDF record for text-only content
+      const placeholderPdf = await db.pDF.create({
+        data: {
+          teacherId: teacher.id,
+          classId: classId,
+          filename: 'text-input.txt',
+          blobUrl: '', // No blob for text-only
+          fileSize: textContent!.length,
+          mimeType: 'text/plain',
+        },
+      });
+
+      pdfRecords.push(placeholderPdf.id);
+
+      const processedContent = await db.processedContent.create({
+        data: {
+          pdfId: placeholderPdf.id,
+          extractedText: textContent!,
+          textLength: textContent!.length,
+        },
+      });
+
+      firstProcessedContentId = processedContent.id;
+    }
+
+    // Determine quiz title
+    let quizTitle: string;
+    if (hasPDFs && hasText) {
+      quizTitle = files.length === 1
+        ? `${files[0].name.replace('.pdf', '')} + Text`
+        : `Combined Quiz (${files.length} PDFs + Text)`;
+    } else if (hasPDFs) {
+      quizTitle = files.length === 1
+        ? files[0].name.replace('.pdf', '')
+        : `Combined Quiz (${files.length} PDFs)`;
+    } else {
+      quizTitle = 'Text-Based Quiz';
+    }
+
+    const quizRecord = await db.quiz.create({
+      data: {
+        processedContentId: firstProcessedContentId!,
+        title: quizTitle,
+        subject: subject,
+        numQuestions: quiz.questions.length,
+        quizJson: JSON.parse(JSON.stringify(quiz)),
+      },
+    });
+
+    // Create QuizSource records to track which PDFs were used
+    if (pdfRecords.length > 0) {
+      await Promise.all(
+        pdfRecords.map((pdfId) =>
+          db.quizSource.create({
+            data: {
+              quizId: quizRecord.id,
+              pdfId,
+            },
+          })
+        )
+      );
+    }
+
+    return {
+      success: true,
+      data: {
+        quizId: quizRecord.id,
+        quiz: quiz,
+      },
+    };
+  } catch (error) {
+    console.error('Content processing error:', error);
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : 'Failed to process content. Please try again.',
     };
   }
 }

@@ -31,8 +31,8 @@ export default function Toast({ message, type, onClose, duration = 3000 }: Toast
 
   return (
     <div className="toast toast-center toast-top z-[9999]">
-      <div className={`${toastStyles} shadow-lg min-w-[300px] rounded-[15px] px-6 py-4`}>
-        <span className="font-quicksand font-bold text-sm">{message}</span>
+      <div className={`${toastStyles} shadow-lg min-w-[300px] max-w-[90vw] md:max-w-[500px] rounded-[15px] px-6 py-4`}>
+        <span className="font-quicksand font-bold text-sm break-words">{message}</span>
       </div>
     </div>
   );

@@ -79,12 +79,9 @@ function GamePreviewContent() {
   };
 
   const handleLaunchGame = () => {
-    // open tower defense game with quiz data in new tab
-    if (gameData?.id) {
-      window.open(`/play/td?gameId=${gameData.id}`, '_blank');
-    } else {
-      // fallback to demo if no gameId
-      window.open('/play/td', '_blank');
+    // open game using share code to go through router (handles all game modes)
+    if (gameData?.shareCode) {
+      window.open(`/play/phaser/${gameData.shareCode}`, '_blank');
     }
   };
 
@@ -122,10 +119,23 @@ function GamePreviewContent() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* title */}
-        <h1 className="font-quicksand font-bold text-brown text-[36px] sm:text-[48px] text-center mb-12">
-          Your Game is Ready!
-        </h1>
+        {/* header with back button and title */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
+          <div className="flex-1">
+            <h1 className="font-quicksand font-bold text-brown text-[28px] sm:text-[36px] md:text-[42px]">
+              Your Game is Ready!
+            </h1>
+          </div>
+          <button
+            onClick={handleBackToDashboard}
+            className="w-full md:w-auto bg-[#fd9227] border-[1.5px] border-[#730f11] rounded-[8px] h-[38px] px-4 flex items-center justify-center gap-2 hover:bg-[#e6832b] transition-all"
+          >
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12.5 15L7.5 10L12.5 5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            <span className="font-quicksand font-bold text-white text-[14px]">Back to Dashboard</span>
+          </button>
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* left side - game card */}
@@ -187,11 +197,11 @@ function GamePreviewContent() {
                 </div>
               </div>
 
-              {/* action buttons */}
-              <div className="flex gap-3 justify-center">
+              {/* action button */}
+              <div className="flex justify-center">
                 <button
                   onClick={handleLaunchGame}
-                  className="bg-[#96b902] hover:bg-[#7a9700] text-white font-quicksand font-medium text-[14px] rounded-[8px] h-[32px] px-4 flex items-center gap-2 transition-all"
+                  className="bg-[#96b902] hover:bg-[#7a9700] text-white font-quicksand font-medium text-[14px] rounded-[8px] h-[36px] px-5 flex items-center gap-2 transition-all"
                 >
                   <img
                     src="/assets/game-preview/play-icon.svg"
@@ -199,12 +209,6 @@ function GamePreviewContent() {
                     className="w-4 h-4"
                   />
                   Launch Game
-                </button>
-                <button
-                  onClick={handleBackToDashboard}
-                  className="bg-[#e5e5e5] hover:bg-[#d5d5d5] text-[#030213] font-quicksand font-medium text-[14px] rounded-[8px] h-[32px] px-4 flex items-center gap-2 transition-all"
-                >
-                  Back to Dashboard
                 </button>
               </div>
             </div>

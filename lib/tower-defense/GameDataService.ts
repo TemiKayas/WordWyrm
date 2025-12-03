@@ -27,6 +27,96 @@ export class GameDataService {
   }
 
   /**
+   * Show a styled DOM-based notification popup
+   */
+  private showNotification(message: string, type: 'success' | 'error' | 'info' = 'info') {
+    // Remove existing notification if any
+    const existing = document.getElementById('game-notification-popup');
+    if (existing) {
+      existing.remove();
+    }
+
+    // Create overlay
+    const overlay = document.createElement('div');
+    overlay.id = 'game-notification-popup';
+    overlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+    `;
+
+    // Create card
+    const card = document.createElement('div');
+    card.style.cssText = `
+      background: #fffcf8;
+      border: 4px solid #473025;
+      border-radius: 12px;
+      padding: 24px;
+      max-width: 400px;
+      width: 90%;
+      text-align: center;
+      font-family: 'Quicksand', sans-serif;
+    `;
+
+    // Icon color based on type
+    let iconColor = '#ff9f22';
+    if (type === 'success') iconColor = '#96b902';
+    else if (type === 'error') iconColor = '#ff4880';
+
+    // Icon
+    const icon = document.createElement('div');
+    icon.style.cssText = `
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: ${iconColor};
+      margin: 0 auto 16px;
+    `;
+
+    // Message
+    const text = document.createElement('p');
+    text.textContent = message;
+    text.style.cssText = `
+      color: #473025;
+      font-size: 16px;
+      margin: 0 0 20px;
+      line-height: 1.4;
+    `;
+
+    // Button
+    const button = document.createElement('button');
+    button.textContent = 'OK';
+    button.style.cssText = `
+      background: #96b902;
+      border: 2px solid #7a9700;
+      border-radius: 8px;
+      color: white;
+      font-family: 'Quicksand', sans-serif;
+      font-size: 14px;
+      font-weight: bold;
+      padding: 8px 24px;
+      cursor: pointer;
+      transition: background 0.2s;
+    `;
+    button.onmouseover = () => button.style.background = '#7a9700';
+    button.onmouseout = () => button.style.background = '#96b902';
+    button.onclick = () => overlay.remove();
+
+    card.appendChild(icon);
+    card.appendChild(text);
+    card.appendChild(button);
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+  }
+
+  /**
    * Detect if running in Phaser Editor vs WordWyrm production
    */
   isPhaserEditor(): boolean {
@@ -188,8 +278,8 @@ export class GameDataService {
         // Dynamically import the server action to avoid bundling issues
         const { saveGameSession } = await import('@/app/actions/game');
 
-        // First try to save without a guest name (for logged-in users)
-        let result = await saveGameSession({
+        // Save game session - analytics will only be tracked for class members
+        const result = await saveGameSession({
           gameId,
           score: data.score,
           correctAnswers: data.correctAnswers,
@@ -198,29 +288,15 @@ export class GameDataService {
           questionResponses: data.questionResponses
         });
 
-        // If failed and asks for player name, prompt for guest name
-        if (!result.success && result.error.includes('player name')) {
-          const guestName = prompt('Please enter your name to save your score:');
-
-          if (guestName && guestName.trim()) {
-            result = await saveGameSession({
-              gameId,
-              score: data.score,
-              correctAnswers: data.correctAnswers,
-              totalQuestions,
-              metadata,
-              guestName: guestName.trim()
-            });
-          } else {
-            console.log('No name provided, score not saved');
-            return;
-          }
-        }
-
         if (!result.success) {
           console.error('Failed to save game session:', result.error);
+          this.showNotification('Failed to save your score. Please try again.', 'error');
+        } else if (result.data.sessionId === 'not-tracked') {
+          console.log('Game completed (analytics not tracked - not a class member)');
+          this.showNotification('Game completed! Your score was not saved because you are not a member of this class.', 'info');
         } else {
           console.log('Game session saved successfully!');
+          this.showNotification('Game completed! Your score has been saved.', 'success');
         }
       } catch (error) {
         console.error('[GameDataService] Error saving session:', error);

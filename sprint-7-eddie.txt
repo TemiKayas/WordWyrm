@@ -1,0 +1,702 @@
+================================================================================
+SPRINT 7 - EDDIE
+================================================================================
+
+This document outlines the implementation of two major features:
+1. Question Analytics with AI-Powered Insights
+2. Text Input for Quiz Generation with AI Content Validation
+
+================================================================================
+FEATURE 1: QUESTION ANALYTICS WITH AI-POWERED INSIGHTS
+================================================================================
+
+OVERVIEW
+--------
+A comprehensive analytics system that tracks individual question responses during
+gameplay and provides AI-generated insights for both individual students and
+class-wide performance.
+
+--------------------------------------------------------------------------------
+DATABASE CHANGES
+--------------------------------------------------------------------------------
+
+File: prisma/schema.prisma
+
+Added to GameSession model:
+- questionResponses Json?  // Stores per-question data
+
+Data structure:
+{
+  "q0": {
+    "questionText": "What is the capital of France?",
+    "selectedAnswer": "Paris",
+    "correctAnswer": "Paris",
+    "correct": true
+  },
+  "q1": {
+    "questionText": "What is 2 + 2?",
+    "selectedAnswer": "5",
+    "correctAnswer": "4",
+    "correct": false
+  }
+}
+
+Run: npx prisma db push
+
+--------------------------------------------------------------------------------
+SNAKE GAME TRACKING IMPLEMENTATION
+--------------------------------------------------------------------------------
+
+File: lib/phaser/SnakeScene.ts
+
+1. Added tracking variable (lines 88-94):
+   private questionResponses: Record<string, {
+     questionText: string;
+     selectedAnswer: string;
+     correctAnswer: string;
+     correct: boolean;
+   }> = {};
+
+2. Recording correct answers (lines 1208-1215):
+   const selectedAnswer = this.currentQuestion!.options[eatenApple.answerIndex];
+   this.questionResponses[`q${this.currentQuestionIndex}`] = {
+     questionText: this.currentQuestion!.question,
+     selectedAnswer: selectedAnswer,
+     correctAnswer: this.currentQuestion!.answer,
+     correct: true
+   };
+
+3. Recording wrong answers (lines 1281-1287):
+   this.questionResponses[`q${this.currentQuestionIndex}`] = {
+     questionText: this.currentQuestion!.question,
+     selectedAnswer: studentAnswer,
+     correctAnswer: this.currentQuestion!.answer,
+     correct: false
+   };
+
+4. Passing to saveSession (lines 2048, 2063):
+   Added questionResponses as parameter to saveGameSession() calls
+
+--------------------------------------------------------------------------------
+SERVER ACTION UPDATES
+--------------------------------------------------------------------------------
+
+File: app/actions/game.ts
+
+Updated saveGameSession() function:
+- Added questionResponses parameter (line 673)
+- Added to all three database write locations (lines 721, 738, 756)
+
+--------------------------------------------------------------------------------
+ANALYTICS SERVER ACTIONS
+--------------------------------------------------------------------------------
+
+File: app/actions/analytics.ts (NEW FILE)
+
+Functions:
+
+1. analyzeStudentPerformance(sessionId: string)
+   - Fetches student's game session with question responses
+   - Sends data to Gemini AI for analysis
+   - Returns: strengths, weaknesses, patterns, recommendations
+   - Includes proper teacher profile lookup for authorization
+
+2. analyzeClassPerformance(gameId: string)
+   - Fetches all game sessions for a game
+   - Aggregates question-level statistics
+   - Sends to Gemini AI for class-wide analysis
+   - Returns: summary, difficultQuestions, studentsNeedingHelp,
+     topPerformers, recommendations
+
+Authorization Pattern (IMPORTANT):
+- Must lookup teacher profile first: db.teacher.findUnique({ where: { userId: session.user.id } })
+- Then compare game.teacherId with teacher.id (not session.user.id)
+- This is because teacherId is from Teacher table, not User table
+
+--------------------------------------------------------------------------------
+NEW PAGES CREATED
+--------------------------------------------------------------------------------
+
+1. Student Detail Page
+   File: app/teacher/analytics/[gameId]/student/[sessionId]/page.tsx
+
+   Features:
+   - Shows student name and overall score
+   - Question-by-question breakdown with checkmark/X icons
+   - Displays: question text, student's answer, correct answer
+   - Link to AI analysis page
+   - Back navigation to game analytics
+
+2. Individual AI Analysis Page
+   File: app/teacher/analytics/[gameId]/student/[sessionId]/analysis/page.tsx
+
+   Features:
+   - Displays AI-generated analysis in colored cards
+   - Green cards: Strengths
+   - Red cards: Areas for Improvement
+   - Blue cards: Learning Patterns
+   - Purple cards: Recommendations
+   - Back navigation to student detail
+
+3. Class Analysis Page
+   File: app/teacher/analytics/[gameId]/class-analysis/page.tsx
+
+   Features:
+   - Class summary statistics
+   - Difficult questions with success rates
+   - Students needing additional support
+   - Top performers
+   - Teaching recommendations
+   - Back navigation to game analytics
+
+--------------------------------------------------------------------------------
+ANALYTICS DASHBOARD UPDATES
+--------------------------------------------------------------------------------
+
+File: app/teacher/analytics/[gameId]/page.tsx
+
+Changes:
+- Made student names clickable (links to detail page)
+- Added "Analyze Class Performance" link to class-analysis page
+- Removed inline ClassAnalysisButton component
+
+--------------------------------------------------------------------------------
+BUG FIXES
+--------------------------------------------------------------------------------
+
+Issue 1: Student detail page redirects to dashboard
+- Cause: Comparing game.teacherId with session.user.id (different tables)
+- Fix: Added teacher profile lookup, compare with teacher.id
+
+Issue 2: "Unauthorized" error on class analysis
+- Same cause as Issue 1
+- Fix: Same pattern - add teacher profile lookup in analytics.ts
+
+Issue 3: Emoji in button
+- User requested no emojis
+- Fix: Changed button text to just "Analyze Class Performance"
+
+
+================================================================================
+FEATURE 2: TEXT INPUT FOR QUIZ GENERATION
+================================================================================
+
+OVERVIEW
+--------
+Allows teachers to generate quizzes from text content, PDFs, or a combination
+of both. Includes AI-powered content validation to ensure the material has
+sufficient educational value before generating questions.
+
+--------------------------------------------------------------------------------
+AI CONTENT VALIDATION
+--------------------------------------------------------------------------------
+
+File: lib/processors/ai-generator.ts
+
+Added validateContentForQuiz() function (lines 34-84):
+
+Purpose: Validates content quality BEFORE quiz generation
+
+Validation Criteria (Quality, NOT Quantity):
+1. COHERENCE - Is this actual content or gibberish/random characters?
+2. EDUCATIONAL VALUE - Does it contain testable facts/concepts?
+3. TESTABILITY - Can multiple-choice questions be formed?
+
+Key Points:
+- Short content is acceptable if it contains testable information
+  (vocabulary lists, formulas, key dates)
+- Long content is NOT acceptable if incoherent or lacks substance
+- Returns { valid: boolean, reason?: string }
+
+If validation fails (API error), allows content through to avoid blocking
+on validation errors.
+
+--------------------------------------------------------------------------------
+NEW SERVER ACTION
+--------------------------------------------------------------------------------
+
+File: app/actions/pdf.ts
+
+Added processContentForQuiz() function (lines 715-959):
+
+Supports three modes:
+1. Text only - Just textContent field
+2. PDF only - Just pdfs files
+3. Text + PDF - Both combined
+
+Flow:
+1. Authenticate and verify teacher owns class
+2. Get text content and/or PDF files
+3. Validate at least one content source provided
+4. Process PDFs (upload to blob, extract text, save records)
+5. Combine all content with section separators
+6. Validate content quality with AI
+7. Generate quiz from combined content
+8. Create quiz record with appropriate title
+9. Return quizId
+
+Quiz Title Logic:
+- Text + multiple PDFs: "Combined Quiz (X PDFs + Text)"
+- Text + one PDF: "{filename} + Text"
+- Multiple PDFs: "Combined Quiz (X PDFs)"
+- One PDF: "{filename}"
+- Text only: "Text-Based Quiz"
+
+For text-only content, creates placeholder PDF record with:
+- filename: 'text-input.txt'
+- blobUrl: '' (empty)
+- mimeType: 'text/plain'
+
+--------------------------------------------------------------------------------
+UPDATED UPLOAD FORM
+--------------------------------------------------------------------------------
+
+File: app/teacher/components/PDFUploadForm.tsx
+
+Changes:
+
+1. Import change:
+   - Changed from uploadAndProcessMultiplePDFs to processContentForQuiz
+
+2. New state variable:
+   const [textContent, setTextContent] = useState<string>('');
+
+3. Updated handleSubmit():
+   - Checks for text content OR PDF files
+   - Shows appropriate processing message based on content type
+   - Passes textContent to FormData if provided
+
+4. New UI elements:
+   - Text Content textarea with placeholder
+   - Character count display
+   - "AND/OR" divider between text and PDF sections
+   - Updated step indicator: "Add your content"
+
+5. Dynamic button text:
+   - "Generate Quiz from Text" (text only)
+   - "Generate Quiz" (PDF only)
+   - "Generate Quiz (Text + PDF)" (both)
+   - "Generate Quiz (X PDFs)" (multiple PDFs)
+   - "Generate Quiz (Text + X PDFs)" (text + multiple PDFs)
+
+6. Updated disabled condition:
+   disabled={isPending || (selectedFiles.length === 0 && textContent.trim().length === 0)}
+
+--------------------------------------------------------------------------------
+QUIZ GENERATION PROMPT UPDATES
+--------------------------------------------------------------------------------
+
+File: lib/processors/ai-generator.ts (lines 163-201)
+
+Changes to prompt:
+- Changed "text" to "content" throughout
+- Added instruction for multiple sections:
+  "If the content contains multiple sections (separated by '--- Content Section ---'),
+   draw questions from ALL sections proportionally"
+- Added instruction for shorter content:
+  "For shorter content (vocabulary lists, formulas, key terms), focus on
+   definitions, applications, and relationships between concepts"
+
+Preserved existing competitive answer requirements:
+- Similar length options (10-20 words)
+- Same level of detail
+- Plausible distractors
+- No obvious correct answer by length
+
+
+================================================================================
+TESTING CHECKLIST
+================================================================================
+
+ANALYTICS TESTING:
+[ ] Play snake game and answer questions correctly and incorrectly
+[ ] Check GameSession in database has questionResponses populated
+[ ] Go to /teacher/analytics/[gameId]
+[ ] Click on student name - should go to detail page
+[ ] Verify question breakdown shows correct/incorrect indicators
+[ ] Click "View AI Analysis" - should show strengths/weaknesses/etc
+[ ] Go back and click "Analyze Class Performance"
+[ ] Verify class analysis shows difficult questions, students needing help
+
+TEXT INPUT TESTING:
+[ ] Go to /teacher/upload?classId=xxx
+[ ] Test text-only: Enter vocabulary list, generate quiz
+[ ] Test PDF-only: Upload PDF, generate quiz (existing functionality)
+[ ] Test text + PDF: Enter text AND upload PDF, generate quiz
+[ ] Test validation: Enter gibberish text, should get error message
+[ ] Verify quiz titles reflect content source
+[ ] Check questions cover content from all sources
+
+
+================================================================================
+FILES SUMMARY
+================================================================================
+
+NEW FILES:
+- app/actions/analytics.ts
+- app/teacher/analytics/[gameId]/student/[sessionId]/page.tsx
+- app/teacher/analytics/[gameId]/student/[sessionId]/analysis/page.tsx
+- app/teacher/analytics/[gameId]/class-analysis/page.tsx
+- gameConfiguration.txt (documentation for adding analytics to new games)
+- QUESTION-ANALYTICS-IMPLEMENTATION.md (comprehensive documentation)
+
+MODIFIED FILES:
+- prisma/schema.prisma (added questionResponses field)
+- lib/phaser/SnakeScene.ts (tracking logic)
+- app/actions/game.ts (saveGameSession updates)
+- app/teacher/analytics/[gameId]/page.tsx (clickable names, analysis link)
+- lib/processors/ai-generator.ts (validation function, prompt updates)
+- app/actions/pdf.ts (processContentForQuiz function)
+- app/teacher/components/PDFUploadForm.tsx (text input UI)
+
+DELETED FILES:
+- components/analytics/ClassAnalysisButton.tsx (replaced with link to page)
+
+
+================================================================================
+FEATURE 3: PUBLIC/PRIVATE GAME ACCESS CONTROL
+================================================================================
+
+OVERVIEW
+--------
+Games can be set to public or private. Private games only allow class members
+and the teacher to play. Public games allow anyone but show a login prompt.
+Analytics are only tracked for class members.
+
+--------------------------------------------------------------------------------
+ACCESS CONTROL LOGIC
+--------------------------------------------------------------------------------
+
+File: app/actions/game.ts
+
+Updated getGameWithQuiz() to return accessState and isAuthenticated:
+
+Access States:
+- 'allowed' - User can play and will be tracked (class member or teacher)
+- 'allowed_no_track' - User can play but won't be tracked (public game, not in class)
+- 'private_denied' - Game is private and user doesn't have access
+- 'prompt_login' - Game is public but user isn't logged in
+
+Logic Flow:
+1. If user is teacher who created game -> 'allowed'
+2. If user is class member -> 'allowed'
+3. If user is logged in but not in class:
+   - Public game -> 'allowed_no_track'
+   - Private game -> 'private_denied'
+4. If user is not logged in:
+   - Public game -> 'prompt_login'
+   - Private game -> 'private_denied'
+
+--------------------------------------------------------------------------------
+GAME ROUTER PAGE UPDATES
+--------------------------------------------------------------------------------
+
+File: app/play/phaser/[shareCode]/page.tsx
+
+New Components:
+
+1. LoginPromptPopup - Shows for unauthenticated users on public games
+   - "You're not logged in" message
+   - "Sign Up or Log In" button -> redirects to /login with callbackUrl
+   - X button to dismiss and continue as guest
+
+2. AccessDeniedPage - Shows for private games without access
+   - Different messages for logged in vs not logged in:
+     - Logged in: "You are not a member of the class this game belongs to."
+     - Not logged in: "This game is private. Please log in to access it."
+   - Only shows "Log In" button when not logged in
+
+State Management:
+- showLoginPrompt - Whether to show login popup
+- showAccessDenied - Whether to show access denied page
+- isUserLoggedIn - Whether user was authenticated (for access denied message)
+- pendingRedirect - URL to redirect to after popup dismissal
+
+--------------------------------------------------------------------------------
+LOGIN CALLBACK URL FIX
+--------------------------------------------------------------------------------
+
+File: app/actions/auth.ts
+
+Fixed login redirect to allow /play routes:
+
+Before: Only allowed /teacher and /student routes as callbacks
+After: Also allows /play routes for anyone
+
+```typescript
+const isPlayRoute = callbackUrl.startsWith('/play');
+
+if (isPlayRoute ||
+    (isTeacherRoute && user.role === 'TEACHER') ||
+    (isStudentRoute && user.role === 'STUDENT')) {
+  redirectPath = callbackUrl;
+}
+```
+
+--------------------------------------------------------------------------------
+ANALYTICS TRACKING UPDATES
+--------------------------------------------------------------------------------
+
+File: app/actions/game.ts - saveGameSession()
+
+Only tracks analytics for class members:
+- Returns { sessionId: 'not-tracked' } for non-class members
+- No guest name prompting - simply don't track
+
+Files Updated:
+- lib/phaser/SnakeScene.ts - Removed guest name handling
+- lib/tower-defense/GameDataService.ts - Removed guest name handling
+
+
+================================================================================
+FEATURE 4: STYLED NOTIFICATION POPUPS
+================================================================================
+
+OVERVIEW
+--------
+Replaced browser alert() calls with styled in-game popup cards that match
+the WordWyrm design system.
+
+--------------------------------------------------------------------------------
+SNAKE GAME IMPLEMENTATION
+--------------------------------------------------------------------------------
+
+File: lib/phaser/SnakeScene.ts
+
+Added showNotification() method (Phaser-based popup):
+- Semi-transparent dark overlay
+- Cream card with brown border
+- Colored circle icon (green/red/orange based on type)
+- Message text with word wrap
+- Green "OK" button with hover effect
+
+Types: 'success', 'error', 'info'
+
+Messages:
+- Success: "Game completed! Your score has been saved."
+- Info: "Game completed! Your score was not saved because you are not a member of this class."
+- Error: "Failed to save your score. Please try again."
+
+--------------------------------------------------------------------------------
+TOWER DEFENSE IMPLEMENTATION
+--------------------------------------------------------------------------------
+
+File: lib/tower-defense/GameDataService.ts
+
+Added showNotification() method (DOM-based popup):
+- Same styling as Snake for consistency
+- Uses document.createElement for DOM elements
+- Works from service class (not Phaser scene)
+
+
+================================================================================
+FEATURE 5: TEACHER DASHBOARD IMPROVEMENTS
+================================================================================
+
+--------------------------------------------------------------------------------
+ALL GAMES BUTTON
+--------------------------------------------------------------------------------
+
+File: app/teacher/dashboard/page.tsx
+
+Added "All Games" button next to "Discover Games" in dashboard header.
+Links to /teacher/games where teachers can see all their games with
+share codes and QR codes.
+
+--------------------------------------------------------------------------------
+INFO OPTION IN GAME CARD
+--------------------------------------------------------------------------------
+
+File: components/dashboard/GameCard.tsx
+- Added onInfo prop to interface
+- Added "Info" button in dropdown menu (only for published games)
+- Uses info icon (circle with "i")
+
+File: components/dashboard/GamesView.tsx
+- Added handleInfo() that navigates to /teacher/game-preview?gameId=...
+- Passed onInfo handler to GameCard components
+
+--------------------------------------------------------------------------------
+STANDARDIZED PLAY ROUTING
+--------------------------------------------------------------------------------
+
+File: components/dashboard/GamesView.tsx
+
+Changed handlePlay() to always use the router:
+```typescript
+const handlePlay = (game: Game) => {
+  if (game.shareCode) {
+    router.push(`/play/phaser/${game.shareCode}`);
+  }
+};
+```
+
+Previously had special cases for SNAKE and TOWER_DEFENSE that bypassed router.
+
+--------------------------------------------------------------------------------
+GAME PREVIEW PAGE FIXES
+--------------------------------------------------------------------------------
+
+File: app/teacher/game-preview/page.tsx
+
+1. Fixed Launch Game button:
+   - Was hardcoded to /play/td (Tower Defense)
+   - Now uses /play/phaser/${shareCode} to go through router
+
+2. Moved Back to Dashboard button:
+   - Was inside game card
+   - Now in header area (top right) for consistency
+   - Orange styling with back arrow icon
+
+
+================================================================================
+FEATURE 6: MOBILE SUPPORT FOR SNAKE GAME
+================================================================================
+
+OVERVIEW
+--------
+Mobile-responsive features for the Snake game including landscape orientation
+enforcement, swipe controls, and tab/app visibility pause.
+
+--------------------------------------------------------------------------------
+MOBILE SUPPORT MODULE (REUSABLE)
+--------------------------------------------------------------------------------
+
+File: lib/phaser/MobileSupport.ts (NEW FILE)
+
+Reusable class for all Phaser games:
+- Mobile detection
+- Landscape orientation overlay with "Please rotate your phone" message
+- Swipe controls (optional - pass handler or skip)
+- Tab/app visibility pause with 3-2-1 countdown
+- Browser gesture prevention
+
+Usage:
+```typescript
+const mobileSupport = new MobileSupport(this);
+mobileSupport.setup(swipeHandler, () => this.gameStarted);
+```
+
+--------------------------------------------------------------------------------
+SNAKE GAME INTEGRATION
+--------------------------------------------------------------------------------
+
+File: lib/phaser/SnakeScene.ts
+
+Implemented inline (before module was created):
+- Orientation overlay
+- Swipe controls for direction changes
+- Visibility pause with countdown
+
+Bug Fix - Snake not moving on start:
+- Issue: If user switched tabs before starting, isPausedForVisibility stayed true
+- Fix: Only set isPausedForVisibility when gameStarted is true
+
+```typescript
+if (document.hidden) {
+  if (this.gameStarted && !this.gameOver) {
+    this.isPausedForVisibility = true;
+  }
+}
+```
+
+--------------------------------------------------------------------------------
+TOWER DEFENSE STATUS
+--------------------------------------------------------------------------------
+
+Tower Defense has NOT been updated to use MobileSupport module yet.
+Left for teammate to implement. See gameConfiguration.txt for integration docs.
+
+
+================================================================================
+UPDATED TESTING CHECKLIST
+================================================================================
+
+PUBLIC/PRIVATE GAME ACCESS:
+[ ] Create public and private games (toggle in game edit page)
+[ ] Test private game - not logged in -> Access denied page
+[ ] Test private game - logged in, not in class -> Access denied with "not a member" message
+[ ] Test private game - class member -> Plays, tracked
+[ ] Test public game - not logged in -> Login prompt popup
+[ ] Test public game - dismiss popup -> Plays as guest, not tracked
+[ ] Test public game - click login -> Redirects back to game after login
+[ ] Test public game - logged in, not in class -> Plays, not tracked (no popup)
+[ ] Test public game - class member -> Plays, tracked
+
+NOTIFICATION POPUPS:
+[ ] Complete game as class member -> Success popup (green)
+[ ] Complete game as non-class member -> Info popup (orange)
+[ ] (Simulate error) -> Error popup (red)
+
+DASHBOARD IMPROVEMENTS:
+[ ] Click "All Games" button -> Goes to /teacher/games
+[ ] Click three-dot menu -> Info option appears
+[ ] Click Info -> Goes to game preview page
+[ ] Game preview Launch Game button -> Opens correct game type
+[ ] Game preview Back to Dashboard button -> In header area
+
+MOBILE SUPPORT (Snake):
+[ ] Open on mobile in portrait -> "Please rotate" overlay
+[ ] Rotate to landscape -> Overlay disappears, game loads
+[ ] Swipe controls work for direction changes
+[ ] Switch app/tab during game -> Pauses
+[ ] Return to app/tab -> Shows 3-2-1 countdown
+[ ] Switch tab before starting -> No pause issue
+
+
+================================================================================
+FILES SUMMARY (UPDATED)
+================================================================================
+
+NEW FILES:
+- app/actions/analytics.ts
+- app/teacher/analytics/[gameId]/student/[sessionId]/page.tsx
+- app/teacher/analytics/[gameId]/student/[sessionId]/analysis/page.tsx
+- app/teacher/analytics/[gameId]/class-analysis/page.tsx
+- gameConfiguration.txt
+- lib/phaser/MobileSupport.ts
+
+MODIFIED FILES:
+- prisma/schema.prisma (questionResponses field)
+- lib/phaser/SnakeScene.ts (tracking, mobile support, notifications, visibility fix)
+- lib/tower-defense/GameDataService.ts (notifications, removed guest name)
+- app/actions/game.ts (access control, saveGameSession updates)
+- app/actions/auth.ts (callbackUrl fix for /play routes)
+- app/actions/pdf.ts (processContentForQuiz)
+- app/play/phaser/[shareCode]/page.tsx (access control UI, login prompt, access denied)
+- app/teacher/dashboard/page.tsx (All Games button)
+- app/teacher/game-preview/page.tsx (Launch Game fix, Back button moved)
+- app/teacher/analytics/[gameId]/page.tsx (clickable names, analysis link)
+- lib/processors/ai-generator.ts (validation, prompt updates)
+- app/teacher/components/PDFUploadForm.tsx (text input)
+- components/dashboard/GameCard.tsx (Info option)
+- components/dashboard/GamesView.tsx (handleInfo, standardized play routing)
+
+
+================================================================================
+KNOWN ISSUES / NOTES
+================================================================================
+
+1. Pre-existing build errors (gsap, rive-app missing) are unrelated to these features
+
+2. Analytics tracking currently only implemented for Snake game
+   - See gameConfiguration.txt for adding to other games
+
+3. AI validation uses same Gemini model as quiz generation
+   - Could optimize by using faster/cheaper model for validation
+
+4. Text-only quizzes create placeholder PDF records
+   - This maintains database relationships but blobUrl is empty
+
+5. Mobile support only implemented for Snake game
+   - MobileSupport.ts module is ready for Tower Defense integration
+   - TD teammate should import and use it
+
+6. QR code testing requires Vercel preview deployment
+   - Local testing with phone requires same WiFi network
+   - School/campus WiFi may have device isolation
+
+
+================================================================================
+END OF DOCUMENT
+================================================================================

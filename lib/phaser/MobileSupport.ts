@@ -208,7 +208,7 @@ export class MobileSupport {
             width,
             height,
             0x000000,
-            0.9
+            1.0
         ).setDepth(5000);
         elements.push(overlay);
 

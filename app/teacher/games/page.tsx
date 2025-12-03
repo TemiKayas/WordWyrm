@@ -8,7 +8,7 @@ import { getTeacherClasses } from '@/app/actions/class';
 import BackButton from '@/components/ui/BackButton';
 import Button from '@/components/ui/Button';
 import Image from 'next/image';
-import { Copy, ExternalLink, Search, Maximize2, X } from 'lucide-react';
+import { Copy, ExternalLink, Search, Maximize2, X, ArrowUpDown, Calendar, Hash } from 'lucide-react';
 import ClassSelectionModal from '@/components/shared/ClassSelectionModal';
 
 interface Game {
@@ -34,6 +34,8 @@ export default function TeacherGamesPage() {
   const [origin, setOrigin] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedClass, setSelectedClass] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<'title' | 'questions' | 'code'>('title');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [fullscreenGame, setFullscreenGame] = useState<Game | null>(null);
   const [showClassModal, setShowClassModal] = useState(false);
 
@@ -98,14 +100,40 @@ export default function TeacherGamesPage() {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  // Filter games by search and class
+  // Filter and sort games
   const allGames = classesWithGames.flatMap(c => c.games);
-  const filteredGames = allGames.filter(game => {
-    const matchesSearch = game.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          game.shareCode.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesClass = selectedClass === 'all' || game.classId === selectedClass;
-    return matchesSearch && matchesClass;
-  });
+  const filteredGames = allGames
+    .filter(game => {
+      const matchesSearch = game.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                            game.shareCode.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesClass = selectedClass === 'all' || game.classId === selectedClass;
+      return matchesSearch && matchesClass;
+    })
+    .sort((a, b) => {
+      let comparison = 0;
+      if (sortBy === 'title') {
+        comparison = a.title.localeCompare(b.title);
+      } else if (sortBy === 'questions') {
+        comparison = a.numQuestions - b.numQuestions;
+      } else if (sortBy === 'code') {
+        comparison = a.shareCode.localeCompare(b.shareCode);
+      }
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
+
+  const toggleSort = (newSortBy: 'title' | 'questions' | 'code') => {
+    if (sortBy === newSortBy) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(newSortBy);
+      setSortOrder('asc');
+    }
+  };
+
+  const getClassName = (classId: string) => {
+    const classItem = classesWithGames.find(c => c.id === classId);
+    return classItem?.name || 'Unassigned';
+  };
 
   if (isLoading) {
     return (
@@ -200,16 +228,56 @@ export default function TeacherGamesPage() {
               ))}
             </div>
 
-            {/* Search */}
-            <div className="relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[#473025]/40" size={20} />
-              <input
-                type="text"
-                placeholder="Search by game title or code..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-white border-[3px] border-[#473025]/20 rounded-[15px] font-quicksand text-[#473025] placeholder:text-[#473025]/40 focus:outline-none focus:border-[#96b902] transition-all"
-              />
+            {/* Search and Sort Row */}
+            <div className="flex flex-col md:flex-row gap-3">
+              {/* Search */}
+              <div className="relative flex-1">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[#473025]/40" size={20} />
+                <input
+                  type="text"
+                  placeholder="Search by game title or code..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 bg-white border-[3px] border-[#473025]/20 rounded-[15px] font-quicksand text-[#473025] placeholder:text-[#473025]/40 focus:outline-none focus:border-[#96b902] transition-all"
+                />
+              </div>
+
+              {/* Sort Buttons */}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => toggleSort('title')}
+                  className={`flex items-center gap-2 px-4 py-3 rounded-[12px] font-quicksand font-bold text-[14px] transition-all border-[3px] ${
+                    sortBy === 'title'
+                      ? 'bg-[#473025] text-white border-[#473025]'
+                      : 'bg-white text-[#473025] border-[#473025]/20 hover:border-[#473025]'
+                  }`}
+                >
+                  <ArrowUpDown size={16} className={sortBy === 'title' && sortOrder === 'desc' ? 'rotate-180' : ''} />
+                  Name
+                </button>
+                <button
+                  onClick={() => toggleSort('questions')}
+                  className={`flex items-center gap-2 px-4 py-3 rounded-[12px] font-quicksand font-bold text-[14px] transition-all border-[3px] ${
+                    sortBy === 'questions'
+                      ? 'bg-[#473025] text-white border-[#473025]'
+                      : 'bg-white text-[#473025] border-[#473025]/20 hover:border-[#473025]'
+                  }`}
+                >
+                  <Hash size={16} className={sortBy === 'questions' && sortOrder === 'desc' ? 'rotate-180' : ''} />
+                  Questions
+                </button>
+                <button
+                  onClick={() => toggleSort('code')}
+                  className={`flex items-center gap-2 px-4 py-3 rounded-[12px] font-quicksand font-bold text-[14px] transition-all border-[3px] ${
+                    sortBy === 'code'
+                      ? 'bg-[#473025] text-white border-[#473025]'
+                      : 'bg-white text-[#473025] border-[#473025]/20 hover:border-[#473025]'
+                  }`}
+                >
+                  <Calendar size={16} className={sortBy === 'code' && sortOrder === 'desc' ? 'rotate-180' : ''} />
+                  Code
+                </button>
+              </div>
             </div>
           </div>
 
@@ -233,9 +301,15 @@ export default function TeacherGamesPage() {
                 {/* Left: Game Info */}
                 <div className="lg:col-span-2">
                   <div className="flex items-start justify-between mb-3">
-                    <h2 className="font-quicksand font-bold text-[#473025] text-[24px]">
-                      {game.title}
-                    </h2>
+                    <div>
+                      <h2 className="font-quicksand font-bold text-[#473025] text-[24px]">
+                        {game.title}
+                      </h2>
+                      {/* Class Badge */}
+                      <span className="inline-block mt-1 px-3 py-1 bg-[#ff9f22]/10 border-[2px] border-[#ff9f22] rounded-full font-quicksand font-bold text-[#ff9f22] text-[12px]">
+                        {getClassName(game.classId)}
+                      </span>
+                    </div>
                     <button
                       onClick={() => setFullscreenGame(game)}
                       className="p-2 rounded-[8px] border-[2px] border-[#96b902] text-[#96b902] hover:bg-[#96b902] hover:text-white transition-all"
