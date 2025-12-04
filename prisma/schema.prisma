@@ -15,13 +15,14 @@ datasource db {
 // ============================================================================
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
-  name         String
-  role         Role     @default(STUDENT)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                    String   @id @default(cuid())
+  email                 String   @unique
+  passwordHash          String
+  name                  String
+  role                  Role     @default(STUDENT)
+  hasCompletedOnboarding Boolean  @default(false)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 
   // Relations
   teacherProfile   Teacher?
@@ -128,6 +129,7 @@ model Class {
   teacherId   String
   name        String
   description String?  @db.Text
+  imageUrl    String?  // Custom class cover image (Vercel Blob URL)
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

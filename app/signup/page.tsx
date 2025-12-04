@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { gsap } from 'gsap';
 import Button from '@/components/ui/Button';
+import TypingDragon from '@/components/auth/TypingDragon';
 
 // Google icon
 const GoogleIcon = () => (
@@ -51,10 +52,12 @@ export default function SignupPage() {
   const [isPending, startTransition] = useTransition();
   const [showPassword, setShowPassword] = useState(false);
   const [showClassCode, setShowClassCode] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
   const router = useRouter();
 
   const cardRef = useRef<HTMLDivElement>(null);
   const dragonRef = useRef<HTMLDivElement>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -69,6 +72,20 @@ export default function SignupPage() {
     });
     return () => ctx.revert();
   }, []);
+
+  const handleTyping = () => {
+    setIsTyping(true);
+
+    // Clear existing timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    // Set new timeout to reset typing state after 1 second of inactivity
+    typingTimeoutRef.current = setTimeout(() => {
+      setIsTyping(false);
+    }, 1000);
+  };
 
   async function handleSubmit(formData: FormData) {
     setError(null);
@@ -104,7 +121,6 @@ export default function SignupPage() {
 
   return (
     <div className="min-h-screen bg-[#fffaf2] overflow-hidden">
-      {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-[#fffaf2] border-b border-[#473025]/10">
         <div className="flex items-center justify-center py-3 px-4">
           <Link href="/" className="hover:opacity-80 transition-opacity">
@@ -113,21 +129,10 @@ export default function SignupPage() {
         </div>
       </header>
 
-      {/* Main content - Left/Right split layout */}
       <div className="min-h-screen pt-16 flex">
-        {/* Left side - Dragon character */}
-        <div
-          ref={dragonRef}
-          className="hidden lg:flex w-1/2 items-center justify-center bg-gradient-to-br from-[#fffaf2] to-[#fff5e8]"
-        >
+        <div ref={dragonRef} className="hidden lg:flex w-1/2 items-center justify-center bg-[#fffaf2]">
           <div className="text-center px-8">
-            <img
-              src="/assets/dashboard/avatars/dragon-teaching.png"
-              alt="WordWyrm mascot"
-              width={320}
-              height={320}
-              className="object-contain mx-auto mb-6"
-            />
+            <TypingDragon isTyping={isTyping} />
             <h2 className="font-quicksand font-bold text-[#473025] text-[28px] mb-3">
               Start your journey!
             </h2>
@@ -137,11 +142,10 @@ export default function SignupPage() {
           </div>
         </div>
 
-        {/* Right side - Signup form */}
         <div className="w-full lg:w-1/2 flex items-center justify-center p-6 lg:p-12">
           <div
             ref={cardRef}
-            className="bg-[#fffaf2] border-3 border-[#473025] shadow-lg w-full max-w-[420px] rounded-[20px]"
+            className="bg-[#fffaf2] border-3 border-[#473025] shadow-lg w-full max-w-[550px] rounded-[20px]"
           >
             <div className="p-6 sm:p-8">
               <h2 className="font-quicksand font-bold text-[#473025] text-[28px] text-center mb-5">
@@ -166,6 +170,7 @@ export default function SignupPage() {
                     required
                     placeholder="Enter your first AND last name"
                     className="w-full bg-[#fffaf2] border-2 border-[#473025] rounded-[8px] h-[46px] px-4 font-quicksand font-medium text-[#473025] text-[14px] placeholder:text-[#cdac8b] focus:outline-none focus:border-[#fd9227] transition-colors"
+                    onChange={handleTyping}
                   />
                 </div>
 
@@ -180,6 +185,7 @@ export default function SignupPage() {
                     required
                     placeholder="Enter your email address"
                     className="w-full bg-[#fffaf2] border-2 border-[#473025] rounded-[8px] h-[46px] px-4 font-quicksand font-medium text-[#473025] text-[14px] placeholder:text-[#cdac8b] focus:outline-none focus:border-[#fd9227] transition-colors"
+                    onChange={handleTyping}
                   />
                 </div>
 
@@ -196,6 +202,7 @@ export default function SignupPage() {
                       minLength={6}
                       placeholder="••••••••"
                       className="w-full bg-[#fffaf2] border-2 border-[#473025] rounded-[8px] h-[46px] px-4 pr-11 font-quicksand font-medium text-[#473025] text-[14px] placeholder:text-[#cdac8b] focus:outline-none focus:border-[#fd9227] transition-colors"
+                      onChange={handleTyping}
                     />
                     <button
                       type="button"
@@ -226,6 +233,7 @@ export default function SignupPage() {
                       name="classCode"
                       placeholder="Enter class invite code"
                       className="w-full bg-[#fffaf2] border-2 border-[#473025] rounded-[8px] h-[46px] px-4 font-quicksand font-medium text-[#473025] text-[14px] placeholder:text-[#cdac8b] focus:outline-none focus:border-[#fd9227] transition-colors mt-1"
+                      onChange={handleTyping}
                     />
                   )}
                 </div>

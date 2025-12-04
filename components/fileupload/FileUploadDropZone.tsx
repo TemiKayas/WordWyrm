@@ -172,7 +172,7 @@ export default function FileUploadDropZone({
           </div>
 
           {/* helper text */}
-          <p className="text-[#ff9f22] font-bold text-xs mb-2">or drop file here</p>
+          <p className="text-[#ff9f22] font-bold text-xs mb-2">or drop files here</p>
 
           {/* hidden file input - triggered by button or drop zone click */}
           <input

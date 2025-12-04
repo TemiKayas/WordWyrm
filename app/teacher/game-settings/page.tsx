@@ -1,14 +1,15 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { createGame } from '@/app/actions/game';
-import { getQuizById, updateQuizQuestions } from '@/app/actions/quiz';
-import Button from '@/components/ui/Button';
-import TeacherPageLayout from '@/components/shared/TeacherPageLayout';
-import MultiStepIndicator from '@/components/fileupload/MultiStepIndicator';
-import { GameMode } from '@prisma/client';
-import Image from 'next/image';
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { createGame } from "@/app/actions/game";
+import { getQuizById, updateQuizQuestions } from "@/app/actions/quiz";
+import Button from "@/components/ui/Button";
+import TeacherPageLayout from "@/components/shared/TeacherPageLayout";
+import MultiStepIndicator from "@/components/fileupload/MultiStepIndicator";
+import { GameMode } from "@prisma/client";
+import Image from "next/image";
+import { FixedSizeList, ListChildComponentProps } from "react-window";
 
 interface QuizQuestion {
   question: string;
@@ -20,6 +21,39 @@ interface QuizQuestion {
 interface Quiz {
   questions: QuizQuestion[];
 }
+
+const QuestionNumberButton = ({
+  index,
+  style,
+  data,
+}: ListChildComponentProps) => {
+  const { indices, currentQuestionIndex, setCurrentQuestionIndex, type } = data;
+  const questionNumber = indices[index];
+  const isCurrent = questionNumber === currentQuestionIndex;
+
+  let className =
+    "w-full h-full rounded-[6px] font-quicksand font-bold text-[12px] transition-all flex items-center justify-center";
+  if (type === "confirmed") {
+    className += isCurrent
+      ? " bg-[#96b902] text-white border-[2px] border-[#006029]"
+      : " bg-white text-[#473025] border-[2px] border-[#96b902] hover:bg-[#96b902]/10";
+  } else {
+    className += isCurrent
+      ? " bg-[#ff9f22] text-white border-[2px] border-[#cc7425]"
+      : " bg-white text-[#473025] border-[2px] border-[#ff9f22] hover:bg-[#ff9f22]/10";
+  }
+
+  return (
+    <div style={style} className="p-1">
+      <button
+        onClick={() => setCurrentQuestionIndex(questionNumber)}
+        className={className}
+      >
+        {questionNumber + 1}
+      </button>
+    </div>
+  );
+};
 
 function GameSettingsContent() {
   const router = useRouter();
@@ -143,6 +177,10 @@ function GameSettingsContent() {
 
   const currentQuestion = questions[currentQuestionIndex];
   const confirmedCount = reviewedQuestions.size;
+  const confirmedIndices = Array.from(reviewedQuestions);
+  const underReviewIndices = questions
+    .map((_, index) => index)
+    .filter((index) => !reviewedQuestions.has(index));
 
   return (
     <div className="h-screen flex flex-col overflow-hidden">
@@ -415,24 +453,26 @@ function GameSettingsContent() {
                     <h4 className="font-quicksand font-bold text-[#473025] text-[12px] mb-2">
                       Confirmed:
                     </h4>
-                    <div className="flex flex-wrap gap-2">
-                      {Array.from(reviewedQuestions).map((index) => (
-                        <button
-                          key={index}
-                          onClick={() => setCurrentQuestionIndex(index)}
-                          className={`w-[32px] h-[32px] rounded-[6px] font-quicksand font-bold text-[12px] transition-all ${
-                            currentQuestionIndex === index
-                              ? 'bg-[#96b902] text-white border-[2px] border-[#006029]'
-                              : 'bg-white text-[#473025] border-[2px] border-[#96b902] hover:bg-[#96b902]/10'
-                          }`}
-                        >
-                          {index + 1}
-                        </button>
-                      ))}
-                      {confirmedCount === 0 && (
-                        <span className="font-quicksand text-[#a7613c] text-[11px]">No questions confirmed yet</span>
-                      )}
-                    </div>
+                    {confirmedIndices.length > 0 ? (
+                      <FixedSizeList
+                        height={80} // Adjust height as needed
+                        itemCount={confirmedIndices.length}
+                        itemSize={40} // Adjust size for each button
+                        width="100%"
+                        itemData={{
+                          indices: confirmedIndices,
+                          currentQuestionIndex,
+                          setCurrentQuestionIndex,
+                          type: "confirmed"
+                        }}
+                      >
+                        {QuestionNumberButton}
+                      </FixedSizeList>
+                    ) : (
+                      <span className="font-quicksand text-[#a7613c] text-[11px]">
+                        No questions confirmed yet
+                      </span>
+                    )}
                   </div>
 
                   {/* Under Review Questions */}
@@ -440,24 +480,26 @@ function GameSettingsContent() {
                     <h4 className="font-quicksand font-bold text-[#473025] text-[12px] mb-2">
                       Under Review:
                     </h4>
-                    <div className="flex flex-wrap gap-2">
-                      {questions.map((_, index) => {
-                        if (reviewedQuestions.has(index)) return null;
-                        return (
-                          <button
-                            key={index}
-                            onClick={() => setCurrentQuestionIndex(index)}
-                            className={`w-[32px] h-[32px] rounded-[6px] font-quicksand font-bold text-[12px] transition-all ${
-                              currentQuestionIndex === index
-                                ? 'bg-[#ff9f22] text-white border-[2px] border-[#cc7425]'
-                                : 'bg-white text-[#473025] border-[2px] border-[#ff9f22] hover:bg-[#ff9f22]/10'
-                            }`}
-                          >
-                            {index + 1}
-                          </button>
-                        );
-                      })}
-                    </div>
+                    {underReviewIndices.length > 0 ? (
+                    <FixedSizeList
+                      height={120} // Adjust height as needed
+                      itemCount={underReviewIndices.length}
+                      itemSize={40} // Adjust size for each button
+                      width="100%"
+                      itemData={{
+                        indices: underReviewIndices,
+                        currentQuestionIndex,
+                        setCurrentQuestionIndex,
+                        type: "under-review"
+                      }}
+                    >
+                      {QuestionNumberButton}
+                    </FixedSizeList>
+                    ) : (
+                      <span className="font-quicksand text-[#a7613c] text-[11px]">
+                        All questions reviewed!
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>

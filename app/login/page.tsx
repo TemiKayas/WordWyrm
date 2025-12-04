@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useTransition, useRef, useEffect } from 'react';
+import { useState, useTransition, useRef, useEffect, Suspense } from 'react';
 import { login } from '@/app/actions/auth';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { Suspense } from 'react';
 import { gsap } from 'gsap';
 import Button from '@/components/ui/Button';
+import Image from 'next/image';
 
 // Google icon
 const GoogleIcon = () => (
@@ -40,21 +40,13 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get('callbackUrl');
 
-  // Refs for GSAP
   const cardRef = useRef<HTMLDivElement>(null);
   const dragonRef = useRef<HTMLDivElement>(null);
 
-  // GSAP animations on mount
   useEffect(() => {
     const ctx = gsap.context(() => {
-      gsap.fromTo(dragonRef.current,
-        { x: -50, opacity: 0, scale: 0.9 },
-        { x: 0, opacity: 1, scale: 1, duration: 0.6, ease: 'back.out(1.5)' }
-      );
-      gsap.fromTo(cardRef.current,
-        { x: 50, opacity: 0, scale: 0.95 },
-        { x: 0, opacity: 1, scale: 1, duration: 0.5, ease: 'back.out(1.5)', delay: 0.15 }
-      );
+      gsap.fromTo(dragonRef.current, { x: -50, opacity: 0, scale: 0.9 }, { x: 0, opacity: 1, scale: 1, duration: 0.6, ease: 'back.out(1.5)' });
+      gsap.fromTo(cardRef.current, { x: 50, opacity: 0, scale: 0.95 }, { x: 0, opacity: 1, scale: 1, duration: 0.5, ease: 'back.out(1.5)', delay: 0.15 });
     });
     return () => ctx.revert();
   }, []);
@@ -67,11 +59,7 @@ function LoginForm() {
         if (!result.success) {
           setError(result.error);
           if (cardRef.current) {
-            gsap.to(cardRef.current, {
-              keyframes: [{ x: -8 }, { x: 8 }, { x: -8 }, { x: 8 }, { x: 0 }],
-              duration: 0.4,
-              ease: 'power2.inOut',
-            });
+            gsap.to(cardRef.current, { keyframes: [{ x: -8 }, { x: 8 }, { x: -8 }, { x: 8 }, { x: 0 }], duration: 0.4, ease: 'power2.inOut' });
           }
         }
       } catch (err) {
@@ -87,7 +75,6 @@ function LoginForm() {
 
   return (
     <div className="min-h-screen bg-[#fffaf2] overflow-hidden">
-      {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-[#fffaf2] border-b border-[#473025]/10">
         <div className="flex items-center justify-center py-3 px-4">
           <Link href="/" className="hover:opacity-80 transition-opacity">
@@ -96,20 +83,16 @@ function LoginForm() {
         </div>
       </header>
 
-      {/* Main content - Left/Right split layout */}
       <div className="min-h-screen pt-16 flex">
-        {/* Left side - Dragon character */}
-        <div
-          ref={dragonRef}
-          className="hidden lg:flex w-1/2 items-center justify-center bg-gradient-to-br from-[#fffaf2] to-[#fff5e8]"
-        >
+        <div ref={dragonRef} className="hidden lg:flex w-1/2 items-center justify-center bg-[#fffaf2]">
           <div className="text-center px-8">
-            <img
-              src="/assets/dashboard/avatars/dragon-teaching.png"
+            <Image
+              src="/assets/login/welcome-floopa.png"
               alt="WordWyrm mascot"
               width={320}
               height={320}
               className="object-contain mx-auto mb-6"
+              priority
             />
             <h2 className="font-quicksand font-bold text-[#473025] text-[28px] mb-3">
               Welcome back, learner!
@@ -120,24 +103,18 @@ function LoginForm() {
           </div>
         </div>
 
-        {/* Right side - Login form */}
         <div className="w-full lg:w-1/2 flex items-center justify-center p-6 lg:p-12">
-          <div
-            ref={cardRef}
-            className="bg-[#fffaf2] border-3 border-[#473025] shadow-lg w-full max-w-[420px] rounded-[20px]"
-          >
+          <div ref={cardRef} className="bg-[#fffaf2] border-3 border-[#473025] shadow-lg w-full max-w-[420px] rounded-[20px]">
             <div className="p-6 sm:p-8">
               <h2 className="font-quicksand font-bold text-[#473025] text-[28px] text-center mb-6">
                 Welcome Back!
               </h2>
-
               <form action={handleSubmit} className="space-y-4">
                 {error && (
                   <div className="bg-red-100 border-2 border-red-400 rounded-lg p-2">
                     <span className="font-quicksand text-sm text-red-600">{error}</span>
                   </div>
                 )}
-
                 <div className="space-y-1.5">
                   <label htmlFor="email" className="font-quicksand font-bold text-[#473025] text-[14px]">
                     Email Address
@@ -151,7 +128,6 @@ function LoginForm() {
                     className="w-full bg-[#fffaf2] border-2 border-[#473025] rounded-[8px] h-[48px] px-4 font-quicksand font-medium text-[#473025] text-[14px] placeholder:text-[#cdac8b] focus:outline-none focus:border-[#fd9227] transition-colors"
                   />
                 </div>
-
                 <div className="space-y-1.5">
                   <label htmlFor="password" className="font-quicksand font-bold text-[#473025] text-[14px]">
                     Password
@@ -165,31 +141,23 @@ function LoginForm() {
                       placeholder="••••••••"
                       className="w-full bg-[#fffaf2] border-2 border-[#473025] rounded-[8px] h-[48px] px-4 pr-11 font-quicksand font-medium text-[#473025] text-[14px] placeholder:text-[#cdac8b] focus:outline-none focus:border-[#fd9227] transition-colors"
                     />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#473025] hover:opacity-70 transition-opacity cursor-pointer"
-                    >
+                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#473025] hover:opacity-70 transition-opacity cursor-pointer">
                       {showPassword ? <EyeOpenIcon /> : <EyeClosedIcon />}
                     </button>
                   </div>
                 </div>
-
                 <Button type="submit" variant="primary" size="lg" fullWidth disabled={isPending}>
                   {isPending ? 'Logging in...' : 'Log In'}
                 </Button>
-
                 <div className="relative flex items-center justify-center py-2">
                   <div className="absolute w-full h-[1px] bg-[#dfc8a3]"></div>
                   <div className="relative bg-[#fffaf2] px-4">
                     <p className="font-quicksand font-bold text-[#dfc8a3] text-[12px]">OR</p>
                   </div>
                 </div>
-
                 <Button type="button" variant="secondary" size="lg" fullWidth onClick={handleGoogleSignIn} icon={<GoogleIcon />}>
                   Continue with Google
                 </Button>
-
                 <div className="text-center pt-2">
                   <p className="font-quicksand font-bold text-[#473025] text-[15px]">
                     Don&apos;t have an account?{' '}
