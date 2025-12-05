@@ -36,7 +36,7 @@ export async function getTeacherQuizzes(classId?: string): Promise<
   try {
     const session = await auth();
     if (!session?.user || session.user.role !== 'TEACHER') {
-      return { success: false, error: 'Unauthorized' };
+      return { success: false, error: 'You must be logged in as a teacher to view quizzes.' };
     }
 
     const teacher = await db.teacher.findUnique({
@@ -75,7 +75,7 @@ export async function getTeacherQuizzes(classId?: string): Promise<
     });
 
     if (!teacher) {
-      return { success: false, error: 'Teacher profile not found' };
+      return { success: false, error: 'Your teacher profile is not set up. Please contact support.' };
     }
 
     // flatten the nested structure to get all quizzes
@@ -100,7 +100,7 @@ export async function getTeacherQuizzes(classId?: string): Promise<
     return { success: true, data: { quizzes } };
   } catch (error) {
     console.error('Failed to get quizzes:', error);
-    return { success: false, error: 'Failed to retrieve quizzes' };
+    return { success: false, error: 'We couldn\'t load your quizzes. Please refresh the page and try again.' };
   }
 }
 
@@ -111,7 +111,7 @@ export async function getQuizById(
   try {
     const session = await auth();
     if (!session?.user || session.user.role !== 'TEACHER') {
-      return { success: false, error: 'Unauthorized' };
+      return { success: false, error: 'You must be logged in as a teacher to view quizzes.' };
     }
 
     const quiz = await db.quiz.findUnique({
@@ -131,18 +131,18 @@ export async function getQuizById(
     });
 
     if (!quiz) {
-      return { success: false, error: 'Quiz not found' };
+      return { success: false, error: 'This quiz doesn\'t exist or has been deleted.' };
     }
 
     // verify that this quiz belongs to the logged-in teacher
     if (quiz.processedContent.pdf.teacher.userId !== session.user.id) {
-      return { success: false, error: 'Unauthorized' };
+      return { success: false, error: 'You don\'t have permission to modify this quiz.' };
     }
 
     return { success: true, data: { quiz } };
   } catch (error) {
     console.error('Failed to get quiz:', error);
-    return { success: false, error: 'Failed to retrieve quiz' };
+    return { success: false, error: 'We couldn\'t load this quiz. Please refresh the page and try again.' };
   }
 }
 
@@ -154,7 +154,7 @@ export async function updateQuizTitle(
   try {
     const session = await auth();
     if (!session?.user || session.user.role !== 'TEACHER') {
-      return { success: false, error: 'Unauthorized' };
+      return { success: false, error: 'You must be logged in as a teacher to view quizzes.' };
     }
 
     // verify ownership
@@ -174,11 +174,11 @@ export async function updateQuizTitle(
     });
 
     if (!quiz) {
-      return { success: false, error: 'Quiz not found' };
+      return { success: false, error: 'This quiz doesn\'t exist or has been deleted.' };
     }
 
     if (quiz.processedContent.pdf.teacher.userId !== session.user.id) {
-      return { success: false, error: 'Unauthorized' };
+      return { success: false, error: 'You don\'t have permission to modify this quiz.' };
     }
 
     // update the quiz
@@ -190,7 +190,7 @@ export async function updateQuizTitle(
     return { success: true, data: { quiz: updatedQuiz } };
   } catch (error) {
     console.error('Failed to update quiz:', error);
-    return { success: false, error: 'Failed to update quiz' };
+    return { success: false, error: 'We couldn\'t save your quiz changes. Please try again.' };
   }
 }
 
@@ -202,7 +202,7 @@ export async function updateQuizQuestions(
   try {
     const session = await auth();
     if (!session?.user || session.user.role !== 'TEACHER') {
-      return { success: false, error: 'Unauthorized' };
+      return { success: false, error: 'You must be logged in as a teacher to view quizzes.' };
     }
 
     // verify ownership
@@ -222,11 +222,11 @@ export async function updateQuizQuestions(
     });
 
     if (!quiz) {
-      return { success: false, error: 'Quiz not found' };
+      return { success: false, error: 'This quiz doesn\'t exist or has been deleted.' };
     }
 
     if (quiz.processedContent.pdf.teacher.userId !== session.user.id) {
-      return { success: false, error: 'Unauthorized' };
+      return { success: false, error: 'You don\'t have permission to modify this quiz.' };
     }
 
     // update the quiz questions and numQuestions
@@ -241,7 +241,7 @@ export async function updateQuizQuestions(
     return { success: true, data: { quiz: updatedQuiz } };
   } catch (error) {
     console.error('Failed to update quiz questions:', error);
-    return { success: false, error: 'Failed to update quiz questions' };
+    return { success: false, error: 'We couldn\'t save your question changes. Please try again.' };
   }
 }
 
@@ -252,7 +252,7 @@ export async function deleteQuiz(
   try {
     const session = await auth();
     if (!session?.user || session.user.role !== 'TEACHER') {
-      return { success: false, error: 'Unauthorized' };
+      return { success: false, error: 'You must be logged in as a teacher to view quizzes.' };
     }
 
     // verify ownership
@@ -272,11 +272,11 @@ export async function deleteQuiz(
     });
 
     if (!quiz) {
-      return { success: false, error: 'Quiz not found' };
+      return { success: false, error: 'This quiz doesn\'t exist or has been deleted.' };
     }
 
     if (quiz.processedContent.pdf.teacher.userId !== session.user.id) {
-      return { success: false, error: 'Unauthorized' };
+      return { success: false, error: 'You don\'t have permission to modify this quiz.' };
     }
 
     // delete the quiz (games will cascade delete due to schema)
@@ -287,7 +287,7 @@ export async function deleteQuiz(
     return { success: true, data: { success: true } };
   } catch (error) {
     console.error('Failed to delete quiz:', error);
-    return { success: false, error: 'Failed to delete quiz' };
+    return { success: false, error: 'We couldn\'t delete this quiz. It may be in use by an active game. Please try again later.' };
   }
 }
 
@@ -305,7 +305,7 @@ export async function getTeacherStats(): Promise<
   try {
     const session = await auth();
     if (!session?.user || session.user.role !== 'TEACHER') {
-      return { success: false, error: 'Unauthorized' };
+      return { success: false, error: 'You must be logged in as a teacher to view quizzes.' };
     }
 
     const teacher = await db.teacher.findUnique({
@@ -320,7 +320,7 @@ export async function getTeacherStats(): Promise<
     });
 
     if (!teacher) {
-      return { success: false, error: 'Teacher profile not found' };
+      return { success: false, error: 'Your teacher profile is not set up. Please contact support.' };
     }
 
     // calculate stats

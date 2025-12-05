@@ -130,7 +130,6 @@ export default function PublicGameCard({ game }: PublicGameCardProps) {
 
   const handleFavorite = () => {
     // TODO: Implement favorite functionality
-    console.log('Favorite clicked for game:', game.id);
   };
 
   // 3D button hover animation

@@ -257,6 +257,7 @@ model Game {
   shareCode   String   @unique // Short code for joining (e.g., "ABC123")
   qrCodeUrl   String? // Vercel Blob URL for QR code image
   isPublic    Boolean  @default(false) // Whether game is publicly discoverable
+  wasEverPublic Boolean @default(false) // Track if game was ever made public (for persistent leaderboards)
   gameMode    GameMode @default(TRADITIONAL) // Quiz format (traditional or tower defense)
   active      Boolean  @default(true)
   maxAttempts Int      @default(1) // How many times can a student play

@@ -38,6 +38,12 @@ export default function SlidingSidebar({ isOpen, onClose, onHelpClick }: Sliding
       href: `${rolePrefix}/dashboard`,
       active: pathname === `${rolePrefix}/dashboard`,
     },
+    ...(isStudent ? [{
+      label: 'History',
+      icon: '/assets/dashboard/dashboard-icon.svg',
+      href: '/student/history',
+      active: pathname === '/student/history' || pathname.startsWith('/student/leaderboard'),
+    }] : []),
     {
       label: 'Discover',
       icon: '/assets/dashboard/discover-icon.svg',

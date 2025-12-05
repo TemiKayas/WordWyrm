@@ -56,7 +56,7 @@ export async function createClass(
   try {
     const session = await auth();
     if (!session?.user || session.user.role !== 'TEACHER') {
-      return { success: false, error: 'Unauthorized' };
+      return { success: false, error: 'You must be logged in as a teacher to create classes.' };
     }
 
     // Get teacher profile
@@ -65,7 +65,7 @@ export async function createClass(
     });
 
     if (!teacher) {
-      return { success: false, error: 'Teacher profile not found' };
+      return { success: false, error: 'Your teacher profile is not set up. Please contact support.' };
     }
 
     // Validate data
@@ -114,7 +114,7 @@ export async function createClass(
     console.error('Create class error:', error);
     return {
       success: false,
-      error: 'Failed to create class. Please try again.',
+      error: 'We couldn\'t create your class. Please try again or contact support if the issue persists.',
     };
   }
 }
@@ -149,8 +149,7 @@ export async function getTeacherClasses(): Promise<
     console.log("--- DEBUG: Session object ---", session);
 
     if (!session?.user || session.user.role !== 'TEACHER') {
-      console.log("--- DEBUG: Unauthorized access attempt ---");
-      return { success: false, error: 'Unauthorized' };
+      return { success: false, error: 'You must be logged in as a teacher to create classes.' };
     }
 
     console.log("--- DEBUG: User is authorized, fetching teacher profile for userId:", session.user.id);
@@ -160,8 +159,7 @@ export async function getTeacherClasses(): Promise<
     console.log("--- DEBUG: Teacher profile ---", teacher);
 
     if (!teacher) {
-      console.log("--- DEBUG: Teacher profile not found ---");
-      return { success: false, error: 'Teacher profile not found' };
+      return { success: false, error: 'Your teacher profile is not set up. Please contact support.' };
     }
 
     const classes = await db.class.findMany({
@@ -239,7 +237,7 @@ export async function getClassDetails(classId: string): Promise<
   try {
     const session = await auth();
     if (!session?.user || session.user.role !== 'TEACHER') {
-      return { success: false, error: 'Unauthorized' };
+      return { success: false, error: 'You must be logged in as a teacher to create classes.' };
     }
 
     const teacher = await db.teacher.findUnique({
@@ -247,7 +245,7 @@ export async function getClassDetails(classId: string): Promise<
     });
 
     if (!teacher) {
-      return { success: false, error: 'Teacher profile not found' };
+      return { success: false, error: 'Your teacher profile is not set up. Please contact support.' };
     }
 
     const classDetails = await db.class.findFirst({
@@ -297,7 +295,7 @@ export async function getClassDetails(classId: string): Promise<
     });
 
     if (!classDetails) {
-      return { success: false, error: 'Class not found' };
+      return { success: false, error: 'This class doesn\'t exist or has been deleted.' };
     }
 
     return { success: true, data: classDetails };
@@ -319,7 +317,7 @@ export async function updateClass(
   try {
     const session = await auth();
     if (!session?.user || session.user.role !== 'TEACHER') {
-      return { success: false, error: 'Unauthorized' };
+      return { success: false, error: 'You must be logged in as a teacher to create classes.' };
     }
 
     const teacher = await db.teacher.findUnique({
@@ -327,7 +325,7 @@ export async function updateClass(
     });
 
     if (!teacher) {
-      return { success: false, error: 'Teacher profile not found' };
+      return { success: false, error: 'Your teacher profile is not set up. Please contact support.' };
     }
 
     // Validate data
@@ -349,7 +347,7 @@ export async function updateClass(
     });
 
     if (!classToUpdate) {
-      return { success: false, error: 'Class not found' };
+      return { success: false, error: 'This class doesn\'t exist or has been deleted.' };
     }
 
     // Handle image upload if provided
@@ -409,7 +407,7 @@ export async function deleteClass(
   try {
     const session = await auth();
     if (!session?.user || session.user.role !== 'TEACHER') {
-      return { success: false, error: 'Unauthorized' };
+      return { success: false, error: 'You must be logged in as a teacher to create classes.' };
     }
 
     const teacher = await db.teacher.findUnique({
@@ -417,7 +415,7 @@ export async function deleteClass(
     });
 
     if (!teacher) {
-      return { success: false, error: 'Teacher profile not found' };
+      return { success: false, error: 'Your teacher profile is not set up. Please contact support.' };
     }
 
     // Verify class belongs to teacher
@@ -429,7 +427,7 @@ export async function deleteClass(
     });
 
     if (!classToDelete) {
-      return { success: false, error: 'Class not found' };
+      return { success: false, error: 'This class doesn\'t exist or has been deleted.' };
     }
 
     // Delete class (cascade will handle related data)
@@ -461,7 +459,7 @@ export async function joinClass(
   try {
     const session = await auth();
     if (!session?.user) {
-      return { success: false, error: 'Unauthorized' };
+      return { success: false, error: 'You must be logged in as a teacher to create classes.' };
     }
 
     // Find invite code
@@ -473,7 +471,7 @@ export async function joinClass(
     });
 
     if (!invite || !invite.isActive) {
-      return { success: false, error: 'Invalid or inactive invite code' };
+      return { success: false, error: 'This invite code is invalid or has been deactivated. Please ask your teacher for a new code.' };
     }
 
     // Check if user is already a member
@@ -487,7 +485,7 @@ export async function joinClass(
     });
 
     if (existingMembership) {
-      return { success: false, error: 'You are already a member of this class' };
+      return { success: false, error: 'You\'re already enrolled in this class. Check your dashboard to see your classes.' };
     }
 
     // Create membership
@@ -545,7 +543,7 @@ export async function getStudentClasses(): Promise<
   try {
     const session = await auth();
     if (!session?.user) {
-      return { success: false, error: 'Unauthorized' };
+      return { success: false, error: 'You must be logged in as a teacher to create classes.' };
     }
 
     // Get all class memberships for the student
@@ -695,7 +693,7 @@ export async function getStudentClassDetails(classId: string): Promise<
   try {
     const session = await auth();
     if (!session?.user) {
-      return { success: false, error: 'Unauthorized' };
+      return { success: false, error: 'You must be logged in as a teacher to create classes.' };
     }
 
     // Check if student is a member of this class
@@ -741,7 +739,7 @@ export async function getStudentClassDetails(classId: string): Promise<
     });
 
     if (!classDetails) {
-      return { success: false, error: 'Class not found' };
+      return { success: false, error: 'This class doesn\'t exist or has been deleted.' };
     }
 
     return {
