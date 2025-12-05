@@ -68,6 +68,11 @@ export default async function StudentDetailPage({
           teacherId: true,
         },
       },
+      questionAttempts: {
+        orderBy: {
+          createdAt: 'asc',
+        },
+      },
     },
   });
 
@@ -96,50 +101,71 @@ export default async function StudentDetailPage({
     ? ((gameSession.correctAnswers || 0) / gameSession.totalQuestions) * 100
     : 0;
 
-  // Get question responses from JSON field
-  const questionResponses = gameSession.questionResponses as Record<string, {
-    questionText: string;
+  // Group question attempts by question text to show attempt history
+  const questionMap = new Map<string, Array<{
+    attemptNumber: number;
     selectedAnswer: string;
     correctAnswer: string;
-    correct: boolean;
-  }> | null;
+    wasCorrect: boolean;
+    createdAt: Date;
+  }>>();
+
+  gameSession.questionAttempts.forEach(attempt => {
+    if (!questionMap.has(attempt.questionText)) {
+      questionMap.set(attempt.questionText, []);
+    }
+    questionMap.get(attempt.questionText)!.push({
+      attemptNumber: attempt.attemptNumber,
+      selectedAnswer: attempt.selectedAnswer,
+      correctAnswer: attempt.correctAnswer,
+      wasCorrect: attempt.wasCorrect,
+      createdAt: attempt.createdAt,
+    });
+  });
+
+  // Convert to array for rendering
+  const questions = Array.from(questionMap.entries()).map(([questionText, attempts]) => ({
+    questionText,
+    attempts: attempts.sort((a, b) => a.attemptNumber - b.attemptNumber),
+    finalResult: attempts[attempts.length - 1]?.wasCorrect || false,
+  }));
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
+    <div className="min-h-screen bg-[#fffaf2] p-8">
       <div className="max-w-4xl mx-auto">
         {/* Back button */}
         <Link
-          href={`/teacher/analytics/${gameId}`}
+          href={`/teacher/leaderboard/${gameId}`}
           className="text-[#95b607] hover:underline mb-6 inline-block font-quicksand font-semibold"
         >
-          ← Back to Analytics
+          ← Back to Game Results
         </Link>
 
         {/* Header */}
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2 font-quicksand">
+        <div className="bg-white rounded-[20px] border-2 border-[#473025]/10 p-6 mb-6">
+          <h1 className="text-3xl font-bold text-[#473025] mb-2 font-quicksand">
             {studentName}&apos;s Performance
           </h1>
-          <p className="text-gray-600 font-quicksand mb-4">
+          <p className="text-[#473025]/70 font-quicksand mb-4">
             {gameSession.game.title}
             {studentEmail && ` • ${studentEmail}`}
           </p>
 
           {/* Summary Stats */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-gray-50 rounded-lg p-4">
-              <p className="text-sm text-gray-500 font-quicksand font-semibold">Score</p>
-              <p className="text-2xl font-bold text-gray-900 font-quicksand">{gameSession.score || 0}</p>
+            <div className="bg-[#fffaf2] rounded-[15px] border-2 border-[#473025]/10 p-4">
+              <p className="text-sm text-[#473025]/70 font-quicksand font-semibold">Score</p>
+              <p className="text-2xl font-bold text-[#473025] font-quicksand">{gameSession.score || 0}</p>
             </div>
-            <div className="bg-gray-50 rounded-lg p-4">
-              <p className="text-sm text-gray-500 font-quicksand font-semibold">Correct Answers</p>
-              <p className="text-2xl font-bold text-gray-900 font-quicksand">
+            <div className="bg-[#fffaf2] rounded-[15px] border-2 border-[#473025]/10 p-4">
+              <p className="text-sm text-[#473025]/70 font-quicksand font-semibold">Correct Answers</p>
+              <p className="text-2xl font-bold text-[#473025] font-quicksand">
                 {gameSession.correctAnswers || 0} / {gameSession.totalQuestions || 0}
               </p>
             </div>
-            <div className="bg-gray-50 rounded-lg p-4">
-              <p className="text-sm text-gray-500 font-quicksand font-semibold">Accuracy</p>
-              <p className="text-2xl font-bold text-gray-900 font-quicksand">{Math.round(accuracy)}%</p>
+            <div className="bg-[#fffaf2] rounded-[15px] border-2 border-[#473025]/10 p-4">
+              <p className="text-sm text-[#473025]/70 font-quicksand font-semibold">Accuracy</p>
+              <p className="text-2xl font-bold text-[#473025] font-quicksand">{Math.round(accuracy)}%</p>
             </div>
           </div>
 
@@ -147,7 +173,7 @@ export default async function StudentDetailPage({
           <div className="mt-6">
             <Link
               href={`/teacher/analytics/${gameId}/student/${sessionId}/analysis`}
-              className="inline-block bg-[#95b607] hover:bg-[#7a9700] text-white font-quicksand font-bold px-6 py-3 rounded-lg transition-colors"
+              className="inline-block bg-[#95b607] hover:bg-[#7a9700] text-white font-quicksand font-bold px-6 py-3 rounded-[15px] transition-colors"
             >
               Get AI Analysis →
             </Link>
@@ -155,72 +181,94 @@ export default async function StudentDetailPage({
         </div>
 
         {/* Question Breakdown */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4 font-quicksand">
+        <div className="bg-white rounded-[20px] border-2 border-[#473025]/10 p-6">
+          <h2 className="text-xl font-semibold text-[#473025] mb-4 font-quicksand">
             Question-by-Question Breakdown
           </h2>
 
-          {!questionResponses || Object.keys(questionResponses).length === 0 ? (
-            <p className="text-gray-500 font-quicksand">
+          {questions.length === 0 ? (
+            <p className="text-[#473025]/70 font-quicksand">
               No detailed question data available for this session.
             </p>
           ) : (
             <div className="space-y-4">
-              {Object.entries(questionResponses)
-                .sort((a, b) => {
-                  // Sort by question number (q0, q1, q2, etc.)
-                  const numA = parseInt(a[0].replace('q', ''));
-                  const numB = parseInt(b[0].replace('q', ''));
-                  return numA - numB;
-                })
-                .map(([questionId, response], index) => (
-                  <div
-                    key={questionId}
-                    className={`p-4 rounded-lg border-2 ${
-                      response.correct
-                        ? 'border-green-200 bg-green-50'
-                        : 'border-red-200 bg-red-50'
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      {/* Checkmark or X */}
-                      <div className="flex-shrink-0 mt-1">
-                        {response.correct ? (
-                          <span className="text-2xl text-green-600">✓</span>
-                        ) : (
-                          <span className="text-2xl text-red-600">✗</span>
-                        )}
-                      </div>
+              {questions.map((question, index) => (
+                <div
+                  key={index}
+                  className={`p-4 rounded-[15px] border-2 ${
+                    question.finalResult
+                      ? 'border-[#00b894]/30 bg-[#00b894]/5'
+                      : 'border-[#ff6b6b]/30 bg-[#ff6b6b]/5'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    {/* Checkmark or X based on final result */}
+                    <div className="flex-shrink-0 mt-1">
+                      {question.finalResult ? (
+                        <span className="text-2xl text-[#00b894]">✓</span>
+                      ) : (
+                        <span className="text-2xl text-[#ff6b6b]">✗</span>
+                      )}
+                    </div>
 
-                      {/* Question Content */}
-                      <div className="flex-1">
-                        <p className="font-semibold text-gray-900 mb-2 font-quicksand">
-                          Question {index + 1}: {response.questionText}
-                        </p>
+                    {/* Question Content */}
+                    <div className="flex-1">
+                      <p className="font-semibold text-[#473025] mb-3 font-quicksand">
+                        Question {index + 1}: {question.questionText}
+                      </p>
 
-                        <div className="space-y-1">
-                          <p className="text-sm font-quicksand">
-                            <span className="text-gray-600">Student&apos;s Answer: </span>
-                            <span className={`font-semibold ${
-                              response.correct ? 'text-green-700' : 'text-red-700'
-                            }`}>
-                              {response.selectedAnswer}
-                            </span>
-                          </p>
-
-                          {!response.correct && (
+                      {/* Attempt History */}
+                      <div className="space-y-2">
+                        {question.attempts.map((attempt, attemptIdx) => (
+                          <div
+                            key={attemptIdx}
+                            className={`p-3 rounded-[10px] border-2 ${
+                              attempt.wasCorrect
+                                ? 'border-[#00b894] bg-[#00b894]/10'
+                                : 'border-[#ff6b6b] bg-[#ff6b6b]/10'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-xs font-semibold text-[#473025]/70 font-quicksand">
+                                Attempt {attempt.attemptNumber}
+                              </span>
+                              {attempt.wasCorrect ? (
+                                <span className="text-xs text-[#00b894] font-bold">✓ Correct</span>
+                              ) : (
+                                <span className="text-xs text-[#ff6b6b] font-bold">✗ Incorrect</span>
+                              )}
+                            </div>
                             <p className="text-sm font-quicksand">
-                              <span className="text-gray-600">Correct Answer: </span>
-                              <span className="font-semibold text-green-700">
-                                {response.correctAnswer}
+                              <span className="text-[#473025]/70">Answer: </span>
+                              <span className={`font-semibold ${
+                                attempt.wasCorrect ? 'text-[#00b894]' : 'text-[#ff6b6b]'
+                              }`}>
+                                {attempt.selectedAnswer}
                               </span>
                             </p>
-                          )}
-                        </div>
+                            {!attempt.wasCorrect && (
+                              <p className="text-sm font-quicksand">
+                                <span className="text-[#473025]/70">Correct Answer: </span>
+                                <span className="font-semibold text-[#00b894]">
+                                  {attempt.correctAnswer}
+                                </span>
+                              </p>
+                            )}
+                          </div>
+                        ))}
                       </div>
+
+                      {/* Summary if multiple attempts */}
+                      {question.attempts.length > 1 && (
+                        <p className="text-xs text-[#473025]/60 mt-2 font-quicksand italic">
+                          {question.attempts.length} total attempts •
+                          Final result: {question.finalResult ? 'Correct' : 'Incorrect'}
+                        </p>
+                      )}
                     </div>
                   </div>
-                ))}
+                </div>
+              ))}
             </div>
           )}
         </div>

@@ -679,15 +679,27 @@ export async function getPublicGames(
  */
 export async function saveGameSession(params: {
   gameId: string;
-  score: number;
+  score: number | null; // NULL if student didn't complete mastery phase (no leaderboard entry)
+  endlessHighScore?: number | null; // Highest score in endless mode (non-competitive)
   correctAnswers: number;
   totalQuestions: number;
   timeSpent?: number;
   metadata?: Record<string, unknown>;  // Game-specific statistics (flexible JSON)
-  questionResponses?: Record<string, unknown>;  // QUESTION ANALYTICS - Individual question data
+  questionAttempts?: Array<{  // NEW: Detailed attempt tracking for analytics
+    questionText: string;
+    selectedAnswer: string;
+    correctAnswer: string;
+    wasCorrect: boolean;
+    attemptNumber: number;
+  }>;
 }): Promise<ActionResult<{ sessionId: string }>> {
   try {
-    const { gameId, score, correctAnswers, totalQuestions, timeSpent, metadata, questionResponses } = params;
+    // DEBUGGING: Log the received parameters
+    console.log('--- DEBUG: saveGameSession action received ---');
+    console.log(JSON.stringify(params, null, 2));
+    console.log('------------------------------------------');
+
+    const { gameId, score, endlessHighScore, correctAnswers, totalQuestions, timeSpent, metadata, questionAttempts } = params;
 
     // Get current user session
     const session = await auth();
@@ -749,15 +761,34 @@ export async function saveGameSession(params: {
       const gameSession = await db.gameSession.update({
         where: { id: existingSession.id },
         data: {
-          score,
+          score, // Mastery score (null if didn't complete mastery)
+          endlessHighScore, // Endless mode high score
           correctAnswers,
           totalQuestions,
           timeSpent,
           metadata: metadata as Prisma.InputJsonValue | undefined,
-          questionResponses: questionResponses as Prisma.InputJsonValue | undefined,  // QUESTION ANALYTICS
           completedAt: new Date(),
         },
       });
+
+      // Delete old question attempts for this session
+      await db.questionAttempt.deleteMany({
+        where: { gameSessionId: gameSession.id },
+      });
+
+      // Create new question attempt records
+      if (questionAttempts && questionAttempts.length > 0) {
+        await db.questionAttempt.createMany({
+          data: questionAttempts.map(attempt => ({
+            gameSessionId: gameSession.id,
+            questionText: attempt.questionText,
+            selectedAnswer: attempt.selectedAnswer,
+            correctAnswer: attempt.correctAnswer,
+            wasCorrect: attempt.wasCorrect,
+            attemptNumber: attempt.attemptNumber,
+          })),
+        });
+      }
 
       return { success: true, data: { sessionId: gameSession.id } };
     } else {
@@ -766,15 +797,29 @@ export async function saveGameSession(params: {
         data: {
           gameId,
           studentId,
-          score,
+          score, // Mastery score (null if didn't complete mastery)
+          endlessHighScore, // Endless mode high score
           correctAnswers,
           totalQuestions,
           timeSpent,
           metadata: metadata as Prisma.InputJsonValue | undefined,
-          questionResponses: questionResponses as Prisma.InputJsonValue | undefined,  // QUESTION ANALYTICS
           completedAt: new Date(),
         },
       });
+
+      // Create question attempt records
+      if (questionAttempts && questionAttempts.length > 0) {
+        await db.questionAttempt.createMany({
+          data: questionAttempts.map(attempt => ({
+            gameSessionId: gameSession.id,
+            questionText: attempt.questionText,
+            selectedAnswer: attempt.selectedAnswer,
+            correctAnswer: attempt.correctAnswer,
+            wasCorrect: attempt.wasCorrect,
+            attemptNumber: attempt.attemptNumber,
+          })),
+        });
+      }
 
       return { success: true, data: { sessionId: gameSession.id } };
     }
@@ -801,6 +846,7 @@ export async function getStudentGameHistory(): Promise<
       completedAt: Date;
       className: string;
       teacherName: string;
+      metadata: any | null;
     }>;
   }>
 > {
@@ -857,6 +903,7 @@ export async function getStudentGameHistory(): Promise<
       completedAt: gs.completedAt!,
       className: gs.game.class.name,
       teacherName: gs.game.class.teacher.user.name,
+      metadata: gs.metadata,
     }));
 
     return { success: true, data: { sessions } };
@@ -883,21 +930,25 @@ export async function getGameLeaderboard(
     };
     classLeaderboard: Array<{
       rank: number;
+      sessionId: string;
       studentName: string;
       score: number;
       correctAnswers: number;
       totalQuestions: number;
       completedAt: Date;
       isCurrentUser: boolean;
+      metadata: any | null;
     }>;
     publicLeaderboard: Array<{
       rank: number;
+      sessionId: string;
       studentName: string;
       score: number;
       correctAnswers: number;
       totalQuestions: number;
       completedAt: Date;
       isCurrentUser: boolean;
+      metadata: any | null;
     }> | null;
   }>
 > {
@@ -925,6 +976,7 @@ export async function getGameLeaderboard(
           where: {
             completedAt: { not: null },
             studentId: { not: null },
+            score: { not: null }, // Only show students who completed mastery phase
           },
           include: {
             student: {
@@ -960,12 +1012,14 @@ export async function getGameLeaderboard(
     // Build class leaderboard (only class members)
     const classLeaderboard = classSessions.map((gs, index) => ({
       rank: index + 1,
+      sessionId: gs.id,
       studentName: gs.student!.user.name,
       score: gs.score || 0,
       correctAnswers: gs.correctAnswers || 0,
       totalQuestions: gs.totalQuestions || 0,
       completedAt: gs.completedAt!,
       isCurrentUser: gs.student!.user.id === session.user.id,
+      metadata: gs.metadata,
     }));
 
     // Build public leaderboard (all sessions, if game was ever public)
@@ -975,12 +1029,14 @@ export async function getGameLeaderboard(
     if (game.wasEverPublic) {
       publicLeaderboard = game.gameSessions.map((gs, index) => ({
         rank: index + 1,
+        sessionId: gs.id,
         studentName: gs.student!.user.name,
         score: gs.score || 0,
         correctAnswers: gs.correctAnswers || 0,
         totalQuestions: gs.totalQuestions || 0,
         completedAt: gs.completedAt!,
         isCurrentUser: gs.student!.user.id === session.user.id,
+        metadata: gs.metadata,
       }));
     }
 

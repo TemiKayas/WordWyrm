@@ -1,20 +1,24 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Navbar from '@/components/shared/Navbar';
 import SlidingSidebar from '@/components/shared/SlidingSidebar';
-import Button from '@/components/ui/Button';
 import { getGameLeaderboard } from '@/app/actions/game';
+import { getGameQuestionAnalytics, analyzeClassPerformance } from '@/app/actions/analytics';
+import { BarChart3, Trophy, AlertTriangle, Sparkles } from 'lucide-react';
+import Button from '@/components/ui/Button';
 
 type LeaderboardEntry = {
   rank: number;
+  sessionId: string;
   studentName: string;
   score: number;
   correctAnswers: number;
   totalQuestions: number;
   completedAt: Date;
   isCurrentUser: boolean;
+  metadata: any | null;
 };
 
 type GameInfo = {
@@ -24,28 +28,43 @@ type GameInfo = {
   className: string;
 };
 
-export default function TeacherLeaderboardPage() {
-  const router = useRouter();
+type QuestionAnalytic = {
+  questionText: string;
+  totalAttempts: number;
+  incorrectCount: number;
+  uniqueStrugglingStudents: number;
+  totalStudents: number;
+  difficultyScore: number;
+};
+
+export default function TeacherGameResultsPage() {
   const params = useParams();
+  const router = useRouter();
   const gameId = params?.gameId as string;
 
-  const [isLoading, setIsLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [teacherData, setTeacherData] = useState({
+    name: '',
+    role: 'INSTRUCTOR' as const,
+  });
+  const [activeTab, setActiveTab] = useState<'leaderboard' | 'analytics'>('leaderboard');
+  const [isLoading, setIsLoading] = useState(true);
   const [gameInfo, setGameInfo] = useState<GameInfo | null>(null);
   const [classLeaderboard, setClassLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [publicLeaderboard, setPublicLeaderboard] = useState<LeaderboardEntry[] | null>(null);
-  const [activeTab, setActiveTab] = useState<'class' | 'public'>('class');
+  const [leaderboardTab, setLeaderboardTab] = useState<'class' | 'public'>('class');
+  const [questionAnalytics, setQuestionAnalytics] = useState<QuestionAnalytic[]>([]);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [error, setError] = useState('');
-
-  const [teacherData, setTeacherData] = useState({
-    name: '',
-    role: 'INSTRUCTOR',
-  });
+  const [summaryStats, setSummaryStats] = useState<{
+    totalStudents: number;
+    averageScore: number;
+    averageAccuracy: number;
+  } | null>(null);
 
   useEffect(() => {
-    async function fetchData() {
+    async function fetchUserData() {
       try {
-        // Fetch user session
         const response = await fetch('/api/auth/session');
         const sessionData = await response.json();
 
@@ -55,8 +74,17 @@ export default function TeacherLeaderboardPage() {
             role: 'INSTRUCTOR',
           });
         }
+      } catch (error) {
+        console.error('Failed to fetch user session:', error);
+      }
+    }
 
-        // Fetch leaderboard
+    fetchUserData();
+  }, []);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
         const leaderboardResult = await getGameLeaderboard(gameId);
         if (leaderboardResult.success) {
           setGameInfo(leaderboardResult.data.gameInfo);
@@ -65,22 +93,57 @@ export default function TeacherLeaderboardPage() {
 
           // Default to public tab if available
           if (leaderboardResult.data.publicLeaderboard) {
-            setActiveTab('public');
+            setLeaderboardTab('public');
           }
         } else {
           setError(leaderboardResult.error);
         }
 
+        // Fetch summary stats for class performance
+        const statsResult = await analyzeClassPerformance(gameId);
+        if (statsResult.success) {
+          setSummaryStats({
+            totalStudents: statsResult.data.totalStudents,
+            averageScore: statsResult.data.averageScore,
+            averageAccuracy: statsResult.data.averageAccuracy,
+          });
+        }
+
         setIsLoading(false);
       } catch (error) {
         console.error('Failed to fetch leaderboard:', error);
-        setError('Failed to load leaderboard');
+        setError('Failed to load game results');
         setIsLoading(false);
       }
     }
 
     fetchData();
   }, [gameId]);
+
+  // Fetch analytics when analytics tab is selected
+  useEffect(() => {
+    async function fetchAnalytics() {
+      if (activeTab !== 'analytics' || questionAnalytics.length > 0) {
+        return; // Only fetch once when tab is first opened
+      }
+
+      setAnalyticsLoading(true);
+      try {
+        const analyticsResult = await getGameQuestionAnalytics(gameId);
+        if (analyticsResult.success) {
+          setQuestionAnalytics(analyticsResult.data.questionAnalytics);
+        } else {
+          console.error('Failed to fetch analytics:', analyticsResult.error);
+        }
+      } catch (error) {
+        console.error('Error fetching analytics:', error);
+      } finally {
+        setAnalyticsLoading(false);
+      }
+    }
+
+    fetchAnalytics();
+  }, [activeTab, gameId, questionAnalytics.length]);
 
   const getGameModeDisplay = (mode: string) => {
     switch (mode) {
@@ -109,44 +172,7 @@ export default function TeacherLeaderboardPage() {
     return 'text-[#473025]';
   };
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-[#fffaf2] flex items-center justify-center">
-        <div className="text-[#473025] font-quicksand font-bold text-xl">
-          Loading leaderboard...
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-[#fffaf2] flex items-center justify-center p-4">
-        <div className="bg-white rounded-[20px] shadow-sm border-[2px] border-[#473025]/10 p-8 max-w-md text-center">
-          <div className="text-[48px] mb-4">⚠️</div>
-          <h2 className="font-quicksand font-bold text-[#473025] text-[24px] mb-2">
-            Error Loading Leaderboard
-          </h2>
-          <p className="font-quicksand text-[#473025]/70 text-[16px] mb-6">
-            {error}
-          </p>
-          <Button
-            onClick={() => router.push('/teacher/dashboard')}
-            variant="primary"
-            size="md"
-          >
-            Back to Dashboard
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  if (!gameInfo) {
-    return null;
-  }
-
-  const currentLeaderboard = activeTab === 'class' ? classLeaderboard : publicLeaderboard || [];
+  const currentLeaderboard = leaderboardTab === 'class' ? classLeaderboard : publicLeaderboard || [];
 
   return (
     <div className="min-h-screen bg-[#fffaf2]">
@@ -168,8 +194,8 @@ export default function TeacherLeaderboardPage() {
           isSidebarOpen ? 'md:ml-[240px] lg:ml-[278px]' : 'ml-0'
         }`}
       >
-        <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          {/* Header */}
+        <div className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8">
+          {/* Back Button */}
           <div className="mb-6">
             <Button
               onClick={() => router.push('/teacher/dashboard')}
@@ -180,154 +206,331 @@ export default function TeacherLeaderboardPage() {
             </Button>
           </div>
 
-          {/* Game Info Card */}
-          <div className="bg-gradient-to-br from-[#96b902]/20 to-[#7a9700]/20 border-[3px] border-[#96b902] rounded-[20px] p-6 mb-6">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <div>
-                <h1 className="font-quicksand font-bold text-[#473025] text-[28px] md:text-[36px] mb-2">
-                  {gameInfo.title}
-                </h1>
-                <div className="flex flex-wrap gap-x-4 gap-y-2 text-[14px] font-quicksand text-[#473025]/70">
-                  <span>Class: <span className="font-bold text-[#473025]">{gameInfo.className}</span></span>
-                  <span>Mode: <span className="font-bold text-[#473025]">{getGameModeDisplay(gameInfo.gameMode)}</span></span>
-                  {gameInfo.isPublic && (
-                    <span className="inline-flex items-center px-2 py-1 rounded-full bg-[#96b902] text-white font-bold text-[12px]">
-                      Public Game
-                    </span>
-                  )}
-                </div>
-              </div>
-              <div className="text-[64px]">🏆</div>
-            </div>
-          </div>
-
-          {/* Tabs (if public leaderboard exists) */}
-          {publicLeaderboard && (
-            <div className="flex gap-2 mb-6">
-              <button
-                onClick={() => setActiveTab('class')}
-                className={`flex-1 py-3 px-6 rounded-[15px] font-quicksand font-bold text-[16px] transition-all ${
-                  activeTab === 'class'
-                    ? 'bg-[#96b902] text-white shadow-md'
-                    : 'bg-white text-[#473025] border-[2px] border-[#473025]/10 hover:border-[#96b902]'
-                }`}
-              >
-                Class Leaderboard ({classLeaderboard.length})
-              </button>
-              <button
-                onClick={() => setActiveTab('public')}
-                className={`flex-1 py-3 px-6 rounded-[15px] font-quicksand font-bold text-[16px] transition-all ${
-                  activeTab === 'public'
-                    ? 'bg-[#ff9f22] text-white shadow-md'
-                    : 'bg-white text-[#473025] border-[2px] border-[#473025]/10 hover:border-[#ff9f22]'
-                }`}
-              >
-                Public Leaderboard ({publicLeaderboard.length})
-              </button>
-            </div>
-          )}
-
-          {/* Leaderboard Table */}
-          <div className="bg-white rounded-[20px] shadow-sm border-[2px] border-[#473025]/10 overflow-hidden">
-            {currentLeaderboard.length === 0 ? (
-              <div className="p-12 text-center">
-                <div className="text-[64px] mb-4">🎯</div>
-                <h3 className="font-quicksand font-bold text-[#473025] text-[24px] mb-2">
-                  No Scores Yet
-                </h3>
-                <p className="font-quicksand text-[#473025]/60 text-[16px]">
-                  Students haven&apos;t played this game yet. Share the code to get started!
-                </p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-[#473025]/5">
-                    <tr>
-                      <th className="px-6 py-4 text-left font-quicksand font-bold text-[#473025] text-[14px]">
-                        Rank
-                      </th>
-                      <th className="px-6 py-4 text-left font-quicksand font-bold text-[#473025] text-[14px]">
-                        Player
-                      </th>
-                      <th className="px-6 py-4 text-center font-quicksand font-bold text-[#473025] text-[14px]">
-                        Score
-                      </th>
-                      <th className="px-6 py-4 text-center font-quicksand font-bold text-[#473025] text-[14px]">
-                        Accuracy
-                      </th>
-                      <th className="px-6 py-4 text-center font-quicksand font-bold text-[#473025] text-[14px]">
-                        Completed
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {currentLeaderboard.map((entry, index) => {
-                      const percentage = entry.totalQuestions > 0
-                        ? Math.round((entry.correctAnswers / entry.totalQuestions) * 100)
-                        : 0;
-
-                      return (
-                        <tr
-                          key={index}
-                          className={`border-t border-[#473025]/10 ${
-                            index % 2 === 0
-                              ? 'bg-white'
-                              : 'bg-[#473025]/[0.02]'
-                          }`}
-                        >
-                          <td className="px-6 py-4">
-                            <span className={`font-quicksand font-bold text-[20px] ${getRankColor(entry.rank)}`}>
-                              {getMedalEmoji(entry.rank)}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4">
-                            <span className="font-quicksand text-[#473025] text-[16px]">
-                              {entry.studentName}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-center">
-                            <span className="font-quicksand font-bold text-[#473025] text-[18px]">
-                              {entry.score}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-center">
-                            <div className="flex flex-col items-center">
-                              <span className="font-quicksand font-bold text-[#473025] text-[16px]">
-                                {percentage}%
-                              </span>
-                              <span className="font-quicksand text-[#473025]/60 text-[12px]">
-                                {entry.correctAnswers}/{entry.totalQuestions}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 text-center">
-                            <span className="font-quicksand text-[#473025]/70 text-[14px]">
-                              {new Date(entry.completedAt).toLocaleDateString('en-US', {
-                                month: 'short',
-                                day: 'numeric',
-                              })}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+          {/* Page Header */}
+          <div className="mb-8">
+            <h1 className="font-quicksand font-bold text-[#473025] text-3xl md:text-4xl mb-2">
+              Game Results
+            </h1>
+            {gameInfo && (
+              <div className="flex flex-wrap gap-3 text-sm text-[#a7613c]">
+                <span className="font-semibold">{gameInfo.title}</span>
+                <span>•</span>
+                <span>{gameInfo.className}</span>
+                <span>•</span>
+                <span>{getGameModeDisplay(gameInfo.gameMode)}</span>
+                {gameInfo.isPublic && (
+                  <>
+                    <span>•</span>
+                    <span className="text-[#95b607] font-semibold">Public</span>
+                  </>
+                )}
               </div>
             )}
           </div>
 
-          {/* Info Footer */}
-          {publicLeaderboard && (
-            <div className="mt-6 bg-[#ff9f22]/10 border-[2px] border-[#ff9f22]/30 rounded-[15px] p-4">
-              <p className="font-quicksand text-[#473025]/70 text-[14px]">
-                <span className="font-bold text-[#473025]">Note:</span> The public leaderboard shows all players who have completed this game,
-                while the class leaderboard only shows students from your class. Public leaderboards persist even if the game is made private.
-              </p>
+          {error && (
+            <div className="bg-red-50 border-2 border-red-300 rounded-lg p-4 mb-6">
+              <p className="text-red-800 font-quicksand">{error}</p>
             </div>
           )}
-        </main>
+
+          {/* Summary Stats Cards */}
+          {summaryStats && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+              {/* Total Students */}
+              <div className="bg-gradient-to-br from-[#FFD700]/20 to-[#FFA500]/20 border-3 border-[#FFD700] rounded-xl p-6">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-quicksand font-bold text-[#473025] text-sm uppercase tracking-wide">
+                    Total Players
+                  </h3>
+                  <span className="text-3xl">👥</span>
+                </div>
+                <p className="font-quicksand font-bold text-[#473025] text-4xl">
+                  {summaryStats.totalStudents}
+                </p>
+              </div>
+
+              {/* Average Score */}
+              <div className="bg-gradient-to-br from-[#96b902]/20 to-[#7a9700]/20 border-3 border-[#96b902] rounded-xl p-6">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-quicksand font-bold text-[#473025] text-sm uppercase tracking-wide">
+                    Average Score
+                  </h3>
+                  <span className="text-3xl">🎯</span>
+                </div>
+                <p className="font-quicksand font-bold text-[#473025] text-4xl">
+                  {summaryStats.averageScore}
+                </p>
+              </div>
+
+              {/* Average Accuracy */}
+              <div className="bg-gradient-to-br from-[#ff9f22]/20 to-[#ff8800]/20 border-3 border-[#ff9f22] rounded-xl p-6">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-quicksand font-bold text-[#473025] text-sm uppercase tracking-wide">
+                    Average Accuracy
+                  </h3>
+                  <span className="text-3xl">📊</span>
+                </div>
+                <p className="font-quicksand font-bold text-[#473025] text-4xl">
+                  {summaryStats.averageAccuracy}%
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* AI Class Insights Button */}
+          {summaryStats && summaryStats.totalStudents > 0 && (
+            <div className="mb-6">
+              <button
+                onClick={() => router.push(`/teacher/analytics/${gameId}/class-analysis`)}
+                className="w-full bg-gradient-to-r from-[#95b607] to-[#7a9700] hover:from-[#7a9700] hover:to-[#6a8600] text-white font-quicksand font-bold py-4 px-6 rounded-[15px] transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-3"
+              >
+                <Sparkles size={24} />
+                <span className="text-lg">Get AI Class Insights</span>
+                <span className="text-sm opacity-90">✨ Powered by AI</span>
+              </button>
+            </div>
+          )}
+
+          {/* Main Tabs */}
+          <div className="mb-6 border-b-2 border-[#473025]/20">
+            <div className="flex gap-2">
+              <button
+                onClick={() => setActiveTab('leaderboard')}
+                className={`flex items-center gap-2 px-6 py-3 font-quicksand font-bold text-sm transition-all ${
+                  activeTab === 'leaderboard'
+                    ? 'text-[#473025] border-b-4 border-[#95b607]'
+                    : 'text-[#a7613c] hover:text-[#473025]'
+                }`}
+              >
+                <Trophy size={18} />
+                Leaderboard
+              </button>
+              <button
+                onClick={() => setActiveTab('analytics')}
+                className={`flex items-center gap-2 px-6 py-3 font-quicksand font-bold text-sm transition-all ${
+                  activeTab === 'analytics'
+                    ? 'text-[#473025] border-b-4 border-[#95b607]'
+                    : 'text-[#a7613c] hover:text-[#473025]'
+                }`}
+              >
+                <BarChart3 size={18} />
+                Question Analysis
+              </button>
+            </div>
+          </div>
+
+          {/* Tab Content */}
+          {activeTab === 'leaderboard' && (
+            <div>
+              {/* Leaderboard Sub-tabs */}
+              {publicLeaderboard && (
+                <div className="mb-6 flex gap-3">
+                  <button
+                    onClick={() => setLeaderboardTab('class')}
+                    className={`px-4 py-2 rounded-lg font-quicksand font-semibold text-sm transition-all ${
+                      leaderboardTab === 'class'
+                        ? 'bg-[#95b607] text-white'
+                        : 'bg-white border-2 border-[#473025]/20 text-[#473025] hover:border-[#95b607]'
+                    }`}
+                  >
+                    Class Only
+                  </button>
+                  <button
+                    onClick={() => setLeaderboardTab('public')}
+                    className={`px-4 py-2 rounded-lg font-quicksand font-semibold text-sm transition-all ${
+                      leaderboardTab === 'public'
+                        ? 'bg-[#95b607] text-white'
+                        : 'bg-white border-2 border-[#473025]/20 text-[#473025] hover:border-[#95b607]'
+                    }`}
+                  >
+                    Public Leaderboard
+                  </button>
+                </div>
+              )}
+
+              {/* Leaderboard Table */}
+              {isLoading ? (
+                <div className="text-center py-12">
+                  <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-[#95b607]"></div>
+                  <p className="mt-4 text-[#a7613c] font-quicksand">Loading results...</p>
+                </div>
+              ) : currentLeaderboard.length === 0 ? (
+                <div className="bg-white border-2 border-[#473025]/20 rounded-lg p-8 text-center">
+                  <p className="text-[#a7613c] font-quicksand">
+                    {leaderboardTab === 'class'
+                      ? 'No students from your class have completed this game yet.'
+                      : 'No public plays recorded yet.'}
+                  </p>
+                </div>
+              ) : (
+                <div className="bg-white border-3 border-[#473025] rounded-xl overflow-hidden">
+                  <table className="w-full">
+                    <thead className="bg-[#fff6e8]">
+                      <tr>
+                        <th className="px-4 py-3 text-left font-quicksand font-bold text-[#473025] text-sm">Rank</th>
+                        <th className="px-4 py-3 text-left font-quicksand font-bold text-[#473025] text-sm">Student</th>
+                        <th className="px-4 py-3 text-right font-quicksand font-bold text-[#473025] text-sm">Score</th>
+                        <th className="px-4 py-3 text-right font-quicksand font-bold text-[#473025] text-sm">Accuracy</th>
+                        <th className="px-4 py-3 text-right font-quicksand font-bold text-[#473025] text-sm">Date</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {currentLeaderboard.map((entry) => {
+                        // Use masteryAccuracy from metadata if available, otherwise calculate
+                        const accuracy = entry.metadata?.masteryAccuracy !== undefined
+                          ? Math.round(entry.metadata.masteryAccuracy)
+                          : entry.totalQuestions > 0
+                          ? Math.round((entry.correctAnswers / entry.totalQuestions) * 100)
+                          : 0;
+
+                        return (
+                          <tr
+                            key={`${entry.studentName}-${entry.rank}`}
+                            onClick={() => router.push(`/teacher/analytics/${gameId}/student/${entry.sessionId}`)}
+                            className="border-t-2 border-[#473025]/10 hover:bg-[#96b902]/10 transition-colors cursor-pointer group"
+                          >
+                            <td className="px-4 py-3">
+                              <span className={`font-quicksand font-bold text-lg ${getRankColor(entry.rank)}`}>
+                                {getMedalEmoji(entry.rank)}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 font-quicksand text-[#473025] group-hover:text-[#96b902] transition-colors">
+                              {entry.studentName}
+                              <span className="ml-2 text-xs text-[#96b902] opacity-0 group-hover:opacity-100 transition-opacity">
+                                View Details →
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-right font-quicksand font-bold text-[#473025]">{entry.score}</td>
+                            <td className="px-4 py-3 text-right font-quicksand text-[#473025]">
+                              {accuracy}% ({entry.correctAnswers}/{entry.totalQuestions})
+                            </td>
+                            <td className="px-4 py-3 text-right font-quicksand text-[#a7613c] text-sm">
+                              {new Date(entry.completedAt).toLocaleDateString()}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Info Footer */}
+              <div className="mt-6 p-4 bg-[#fff6e8] border-2 border-[#473025]/20 rounded-lg">
+                <p className="text-sm text-[#a7613c] font-quicksand">
+                  <strong>Note:</strong> Only students who completed the mastery phase appear on the leaderboard.
+                  {publicLeaderboard && leaderboardTab === 'class' && ' Switch to "Public Leaderboard" to see all players.'}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'analytics' && (
+            <div>
+              {analyticsLoading ? (
+                <div className="text-center py-12">
+                  <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-[#95b607]"></div>
+                  <p className="mt-4 text-[#a7613c] font-quicksand">Loading analytics...</p>
+                </div>
+              ) : questionAnalytics.length === 0 ? (
+                <div className="bg-white border-2 border-[#473025]/20 rounded-lg p-8 text-center">
+                  <BarChart3 size={48} className="mx-auto text-[#a7613c] mb-4" />
+                  <p className="text-[#a7613c] font-quicksand text-lg">
+                    No analytics available yet. Students need to play this game first!
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <div className="mb-6 p-4 bg-[#fff6e8] border-2 border-[#473025]/20 rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <AlertTriangle size={20} className="text-[#ff9800]" />
+                      <h3 className="font-quicksand font-bold text-[#473025]">Problem Areas</h3>
+                    </div>
+                    <p className="text-sm text-[#a7613c] font-quicksand">
+                      Questions are ranked by difficulty. Focus on the top items to help students where they need it most.
+                    </p>
+                  </div>
+
+                  <div className="space-y-4">
+                    {questionAnalytics.map((question, index) => {
+                      const getDifficultyColor = (score: number) => {
+                        if (score >= 70) return 'bg-red-500';
+                        if (score >= 50) return 'bg-orange-500';
+                        if (score >= 30) return 'bg-yellow-500';
+                        return 'bg-green-500';
+                      };
+
+                      const getDifficultyLabel = (score: number) => {
+                        if (score >= 70) return 'Very Hard';
+                        if (score >= 50) return 'Hard';
+                        if (score >= 30) return 'Moderate';
+                        return 'Easy';
+                      };
+
+                      return (
+                        <div
+                          key={index}
+                          className="bg-white border-3 border-[#473025] rounded-xl p-5 hover:shadow-lg transition-shadow"
+                        >
+                          {/* Question Text */}
+                          <div className="mb-4">
+                            <div className="flex items-start justify-between gap-4">
+                              <h4 className="font-quicksand font-bold text-[#473025] text-lg flex-1">
+                                {question.questionText}
+                              </h4>
+                              <span className={`px-3 py-1 rounded-full text-xs font-bold text-white ${
+                                question.difficultyScore >= 70 ? 'bg-red-500' :
+                                question.difficultyScore >= 50 ? 'bg-orange-500' :
+                                question.difficultyScore >= 30 ? 'bg-yellow-500' :
+                                'bg-green-500'
+                              }`}>
+                                {getDifficultyLabel(question.difficultyScore)}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Difficulty Bar */}
+                          <div className="mb-3">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-sm font-quicksand text-[#a7613c]">Difficulty</span>
+                              <span className="text-sm font-quicksand font-bold text-[#473025]">
+                                {question.difficultyScore.toFixed(1)}%
+                              </span>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                              <div
+                                className={`h-full transition-all ${getDifficultyColor(question.difficultyScore)}`}
+                                style={{ width: `${question.difficultyScore}%` }}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Stats */}
+                          <div className="flex flex-wrap gap-4 text-sm font-quicksand text-[#a7613c]">
+                            <div>
+                              <span className="font-bold text-[#473025]">{question.uniqueStrugglingStudents}</span>
+                              {' '}of{' '}
+                              <span className="font-bold text-[#473025]">{question.totalStudents}</span>
+                              {' '}students struggled
+                            </div>
+                            <div>•</div>
+                            <div>
+                              <span className="font-bold text-[#473025]">{question.incorrectCount}</span>
+                              {' '}incorrect attempts out of{' '}
+                              <span className="font-bold text-[#473025]">{question.totalAttempts}</span>
+                              {' '}total
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

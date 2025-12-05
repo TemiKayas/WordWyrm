@@ -31,6 +31,12 @@ const ANSWER_COLORS = [
   0x0000ff  // Blue (D)
 ];
 
+// Game phases
+enum GamePhase {
+  MASTERY = 'MASTERY',   // Learning phase: recycle wrong answers until all correct
+  ENDLESS = 'ENDLESS'    // Practice phase: infinite random questions
+}
+
 export default class SnakeScene extends Phaser.Scene {
   // Grid settings
   private GRID_SIZE!: number; // Size of each cell in pixels (dynamic)
@@ -50,7 +56,6 @@ export default class SnakeScene extends Phaser.Scene {
 
   // Game state
   private gameStarted = false;
-  private gamePaused = false;
   private gameOver = false;
   private isPausedForQuestion = false;
 
@@ -80,20 +85,34 @@ export default class SnakeScene extends Phaser.Scene {
   private longestStreak = 0; // Highest streak achieved during this session
 
   private correctAnswers = 0; // Total correct answers
+  private firstTryCorrectCount = 0; // Unique questions answered correctly on FIRST attempt only
 
   // ANALYTICS SYSTEM - Session tracking variables
   private gameId?: string; // Game ID for saving session (undefined in demo mode)
   private startTime = 0; // Timestamp when game started (for calculating time spent)
 
-  // QUESTION ANALYTICS - Track each individual question response
-  private questionResponses: Record<string, {
+  // PHASE MANAGEMENT - Two-phase game system
+  private gamePhase: GamePhase = GamePhase.MASTERY;
+  private finalMasteryScore = 0; // Score captured at end of mastery phase (for leaderboard)
+  private questionsAnsweredCorrectly = new Set<number>(); // Question indices answered correctly (at least once)
+  private incorrectQuestionPool: number[] = []; // Questions answered wrong (need recycling)
+  private endlessHighScore = 0; // Highest score reached in endless mode
+  private masteryAttempts = 0; // Total answer attempts made during mastery phase (for accuracy calculation)
+
+  // QUESTION ANALYTICS - Track ALL attempts at each question (not just final)
+  private questionAttempts: Array<{
     questionText: string;
     selectedAnswer: string;
     correctAnswer: string;
-    correct: boolean;
-  }> = {};
+    wasCorrect: boolean;
+    attemptNumber: number; // Per-question attempt counter
+  }> = [];
+
+  // Per-question attempt counters (tracks how many times each question has been attempted)
+  private attemptCounters: Record<number, number> = {};
 
   private exitButton!: Phaser.GameObjects.Rectangle;
+  private exitText!: Phaser.GameObjects.Text;
 
   // Input
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
@@ -106,12 +125,8 @@ export default class SnakeScene extends Phaser.Scene {
 
   // Mobile support
   private isMobile = false;
-  private isLandscape = true;
-  private orientationOverlay?: Phaser.GameObjects.Container;
-  private countdownOverlay?: Phaser.GameObjects.Container;
   private swipeStartX = 0;
   private swipeStartY = 0;
-  private isPausedForOrientation = false;
   private isPausedForVisibility = false;
   private visibilityHandler?: () => void;
 
@@ -128,14 +143,10 @@ export default class SnakeScene extends Phaser.Scene {
     // If undefined, the game is in demo mode and won't save statistics
     this.gameId = data.gameId;
 
-    // Store original quiz data for reshuffling on retry
-    this.originalQuizData = JSON.parse(JSON.stringify(data.quiz));
-
-    // Shuffle questions immediately for first playthrough
-    const shuffledQuestions = this.shuffleArray([...this.originalQuizData.questions]);
-    this.quizData = {
-      questions: shuffledQuestions
-    };
+    // Store original quiz data with shuffled questions for variety
+    const quizCopy = JSON.parse(JSON.stringify(data.quiz));
+    quizCopy.questions = this.shuffleArray(quizCopy.questions);
+    this.originalQuizData = quizCopy;
   }
 
   create() {
@@ -161,7 +172,7 @@ export default class SnakeScene extends Phaser.Scene {
 
     // Calculate grid dimensions based on number of questions
     // More questions = larger grid (more cells) for more challenge
-    const numQuestions = this.quizData.questions.length;
+        const numQuestions = this.originalQuizData.questions.length;
     const gridMultiplier = Math.max(1, Math.min(numQuestions / 3, 2)); // Scale between 1x and 2x
     this.gridWidth = Math.floor(this.baseGridSize * gridMultiplier);
     this.gridHeight = Math.floor(this.baseGridSize * gridMultiplier);
@@ -214,7 +225,7 @@ export default class SnakeScene extends Phaser.Scene {
     // Exit button (top left) - always on top
     this.exitButton = this.add.rectangle(70, 30, 120, 40, 0xff4444).setDepth(3000);
     this.exitButton.setInteractive({ useHandCursor: true });
-    const exitText = this.add.text(70, 30, 'Exit', {
+    this.exitText = this.add.text(70, 30, 'Exit', {
       fontSize: '20px',
       color: '#ffffff',
       fontFamily: 'Quicksand, sans-serif',
@@ -222,10 +233,8 @@ export default class SnakeScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(3001);
 
     this.exitButton.on('pointerdown', () => {
-      // Navigate to student dashboard
-      if (typeof window !== 'undefined') {
-        window.location.href = '/student/dashboard';
-      }
+      // End the game, which will handle saving and show the results screen
+      this.endGame('manual_exit');
     });
 
     this.exitButton.on('pointerover', () => {
@@ -320,13 +329,11 @@ export default class SnakeScene extends Phaser.Scene {
   }
 
   showQuestion(wasCorrect?: boolean, pointsEarned?: number, currentStreak?: number, answeredQuestion?: QuizQuestion) {
-    if (this.currentQuestionIndex >= this.quizData.questions.length) {
-      this.winGame();
-      return;
-    }
+    // Select next question based on phase (mastery recycling or endless random)
+    this.currentQuestionIndex = this.selectNextQuestion();
 
     this.isPausedForQuestion = true;
-    this.currentQuestion = this.quizData.questions[this.currentQuestionIndex];
+    this.currentQuestion = this.originalQuizData.questions[this.currentQuestionIndex];
 
     // Shuffle answer options AND colors
     const shuffledColors = this.shuffleArray([...ANSWER_COLORS]);
@@ -369,7 +376,7 @@ export default class SnakeScene extends Phaser.Scene {
     const questionNum = this.add.text(
       panelStartX + panelWidth / 2,
       topMargin,
-      `Question ${this.currentQuestionIndex + 1}/${this.quizData.questions.length}`,
+            `Question ${this.currentQuestionIndex + 1}/${this.originalQuizData.questions.length}`,
       {
         fontSize: questionNumFontSize,
         color: '#95b607',
@@ -456,20 +463,6 @@ export default class SnakeScene extends Phaser.Scene {
 
     // Position instructions below the last answer option with some spacing
     const instructionsY = currentY + 30;
-
-    // 5-second countdown
-    const countdownText = this.add.text(
-      panelStartX + panelWidth / 2,
-      instructionsY,
-      'Game starts in: 5',
-      {
-        fontSize: '20px',
-        color: '#95b607',
-        fontFamily: 'Quicksand, sans-serif',
-        fontStyle: 'bold'
-      }
-    ).setOrigin(0.5);
-    elements.push(countdownText);
 
     this.questionPanel = this.add.container(0, 0, elements);
 
@@ -772,16 +765,13 @@ export default class SnakeScene extends Phaser.Scene {
   }
 
   showCorrectFeedback(pointsEarned: number, currentStreak: number) {
-    // Save the question we just answered BEFORE incrementing
+    // Save the question we just answered
     const answeredQuestion = this.currentQuestion!;
 
-    // Check if this was the last question
-    const isLastQuestion = this.currentQuestionIndex >= this.quizData.questions.length - 1;
+    // In endless mode, there is no "last question"
+    const isLastQuestion = false; // Always show Continue + Explanation buttons
 
-    // Increment to next question
-    this.currentQuestionIndex++;
-
-    // Show feedback overlay for all correct answers (last or not)
+    // Show feedback overlay for all correct answers
     const screenWidth = this.scale.width;
     const screenHeight = this.scale.height;
     const panel = 400;
@@ -1175,7 +1165,7 @@ export default class SnakeScene extends Phaser.Scene {
   }
 
   update(time: number, delta: number) {
-    if (!this.gameStarted || this.gamePaused || this.gameOver || this.isPausedForQuestion || this.isPausedForOrientation || this.isPausedForVisibility) {
+    if (!this.gameStarted || this.gameOver || this.isPausedForQuestion || this.isPausedForVisibility) {
       return;
     }
 
@@ -1260,18 +1250,39 @@ export default class SnakeScene extends Phaser.Scene {
         this.streak++;
         this.correctAnswers++;
 
-        // QUESTION ANALYTICS - Record this correct answer
+        // PHASE MANAGEMENT - Mark question as answered correctly
         const selectedAnswer = this.currentQuestion!.options[eatenApple.answerIndex];
-        this.questionResponses[`q${this.currentQuestionIndex}`] = {
+        this.questionsAnsweredCorrectly.add(this.currentQuestionIndex);
+
+        // Remove from incorrect pool if it was there
+        const poolIndex = this.incorrectQuestionPool.indexOf(this.currentQuestionIndex);
+        if (poolIndex > -1) {
+          this.incorrectQuestionPool.splice(poolIndex, 1);
+        }
+
+        // QUESTION ANALYTICS - Track this attempt
+        const attemptNum = (this.attemptCounters[this.currentQuestionIndex] || 0) + 1;
+        this.attemptCounters[this.currentQuestionIndex] = attemptNum;
+
+        // FIRST TRY TRACKING - Increment count if this was answered correctly on first attempt
+        if (attemptNum === 1) {
+          this.firstTryCorrectCount++;
+        }
+
+        this.questionAttempts.push({
           questionText: this.currentQuestion!.question,
           selectedAnswer: selectedAnswer,
           correctAnswer: this.currentQuestion!.answer,
-          correct: true
-        };
+          wasCorrect: true,
+          attemptNumber: attemptNum
+        });
+
+        // MASTERY ACCURACY - Increment mastery attempt counter (only in mastery phase)
+        if (this.gamePhase === GamePhase.MASTERY) {
+          this.masteryAttempts++;
+        }
 
         // ANALYTICS SYSTEM - Track longest streak achieved
-        // This is saved to the database for analytics dashboard display
-        // Updates whenever the current streak surpasses the previous record
         if (this.streak > this.longestStreak) {
           this.longestStreak = this.streak;
         }
@@ -1333,17 +1344,35 @@ export default class SnakeScene extends Phaser.Scene {
         // Wrong answer!
         const studentAnswer = this.currentQuestion!.options[eatenApple.answerIndex];
 
-        // QUESTION ANALYTICS - Record this wrong answer
-        this.questionResponses[`q${this.currentQuestionIndex}`] = {
+        // PHASE MANAGEMENT - Add to incorrect pool (only in mastery phase)
+        if (this.gamePhase === GamePhase.MASTERY) {
+          // Only add if not already in pool and not already answered correctly
+          if (!this.incorrectQuestionPool.includes(this.currentQuestionIndex) &&
+              !this.questionsAnsweredCorrectly.has(this.currentQuestionIndex)) {
+            this.incorrectQuestionPool.push(this.currentQuestionIndex);
+          }
+        }
+
+        // QUESTION ANALYTICS - Track this attempt
+        const attemptNum = (this.attemptCounters[this.currentQuestionIndex] || 0) + 1;
+        this.attemptCounters[this.currentQuestionIndex] = attemptNum;
+
+        this.questionAttempts.push({
           questionText: this.currentQuestion!.question,
           selectedAnswer: studentAnswer,
           correctAnswer: this.currentQuestion!.answer,
-          correct: false
-        };
+          wasCorrect: false,
+          attemptNumber: attemptNum
+        });
+
+        // MASTERY ACCURACY - Increment mastery attempt counter (only in mastery phase)
+        if (this.gamePhase === GamePhase.MASTERY) {
+          this.masteryAttempts++;
+        }
 
         this.streak = 0; // Reset streak
         this.streakText.setText(`Streak: ${this.streak}`);
-        this.wrongAnswer(`Wrong answer! Correct: ${this.currentQuestion!.answer}`, studentAnswer);
+        this.wrongAnswer(`That's not quite right. Review the explanation carefully!`, studentAnswer);
       }
     } else {
       // Normal movement (no apple eaten)
@@ -1371,6 +1400,19 @@ export default class SnakeScene extends Phaser.Scene {
   }
 
   handleSelfCollision() {
+    // ENDLESS MODE: Game over on collision (classic snake)
+    if (this.gamePhase === GamePhase.ENDLESS) {
+      // Update endless high score if current score is higher
+      if (this.score > this.endlessHighScore) {
+        this.endlessHighScore = this.score;
+      }
+
+      // End the game
+      this.endGame('collision');
+      return;
+    }
+
+    // MASTERY MODE: Respawn with penalty (forgiving, educational)
     // Calculate penalty (20% of current score, don't go negative)
     const penalty = Math.floor(this.score * 0.2);
     this.score = Math.max(0, this.score - penalty);
@@ -1695,15 +1737,8 @@ export default class SnakeScene extends Phaser.Scene {
       // Remove overlay and buttons
       overlayElements.forEach(el => el.destroy());
 
-      // Move to next question
-      this.currentQuestionIndex++;
-      if (this.currentQuestionIndex >= this.quizData.questions.length) {
-        // If no more questions, end game
-        this.winGame();
-      } else {
-        // Show next question
-        this.showQuestion();
-      }
+      // Show next question (selectNextQuestion will handle recycling wrong answers)
+      this.showQuestion();
     });
 
     // Explanation button click
@@ -1803,45 +1838,51 @@ export default class SnakeScene extends Phaser.Scene {
         ease: 'Back.easeOut'
       });
 
-      // Correct Answer label
+      // Correct Answer label (only show if answer was correct)
       let currentY = titleY + 60;
-      const correctAnswerLabel = this.add.text(
-        this.gameOffsetX + (size / 2),
-        currentY,
-        'Correct Answer:',
-        {
-          fontSize: '16px',
-          color: '#00b894',
-          fontFamily: 'Quicksand, sans-serif',
-          fontStyle: 'bold'
-        }
-      ).setOrigin(0.5, 0).setDepth(2001).setAlpha(0);
+      let correctAnswerLabel: Phaser.GameObjects.Text | undefined;
+      let correctAnswerText: Phaser.GameObjects.Text | undefined;
 
-      currentY += 25;
-      const correctAnswerText = this.add.text(
-        this.gameOffsetX + (size / 2),
-        currentY,
-        questionData.answer,
-        {
-          fontSize: '15px',
-          color: '#ffffff',
-          fontFamily: 'Quicksand, sans-serif',
-          align: 'center',
-          wordWrap: { width: size - 120 }
-        }
-      ).setOrigin(0.5, 0).setDepth(2001).setAlpha(0);
+      if (wasCorrect) {
+        correctAnswerLabel = this.add.text(
+          this.gameOffsetX + (size / 2),
+          currentY,
+          'Correct Answer:',
+          {
+            fontSize: '16px',
+            color: '#00b894',
+            fontFamily: 'Quicksand, sans-serif',
+            fontStyle: 'bold'
+          }
+        ).setOrigin(0.5, 0).setDepth(2001).setAlpha(0);
 
-      // Fade in correct answer
-      this.tweens.add({
-        targets: [correctAnswerLabel, correctAnswerText],
-        alpha: 1,
-        duration: 300,
-        delay: 300,
-        ease: 'Power2'
-      });
+        currentY += 25;
+        correctAnswerText = this.add.text(
+          this.gameOffsetX + (size / 2),
+          currentY,
+          questionData.answer,
+          {
+            fontSize: '15px',
+            color: '#ffffff',
+            fontFamily: 'Quicksand, sans-serif',
+            align: 'center',
+            wordWrap: { width: size - 120 }
+          }
+        ).setOrigin(0.5, 0).setDepth(2001).setAlpha(0);
+
+        // Fade in correct answer
+        this.tweens.add({
+          targets: [correctAnswerLabel, correctAnswerText],
+          alpha: 1,
+          duration: 300,
+          delay: 300,
+          ease: 'Power2'
+        });
+
+        currentY += correctAnswerText.height + 20;
+      }
 
       // Your answer label
-      currentY += correctAnswerText.height + 20;
       const yourAnswerLabel = this.add.text(
         this.gameOffsetX + (size / 2),
         currentY,
@@ -1943,8 +1984,8 @@ export default class SnakeScene extends Phaser.Scene {
         // Destroy explanation overlay and all elements
         explainOverlay.destroy();
         titleText.destroy();
-        correctAnswerLabel.destroy();
-        correctAnswerText.destroy();
+        correctAnswerLabel?.destroy();
+        correctAnswerText?.destroy();
         yourAnswerLabel.destroy();
         yourAnswerText.destroy();
         explanationText.destroy();
@@ -2158,29 +2199,51 @@ export default class SnakeScene extends Phaser.Scene {
         ? Math.floor((Date.now() - this.startTime) / 1000)
         : 0;
 
+      // Calculate mastery accuracy (unique questions / total attempts during mastery)
+      const totalUniqueQuestions = this.originalQuizData.questions.length;
+      const masteryAccuracy = this.masteryAttempts > 0
+        ? (totalUniqueQuestions / this.masteryAttempts) * 100
+        : 0;
+
       // Prepare metadata with Snake-specific statistics
       // These keys must match the metrics defined in lib/game-types.ts for SNAKE
       const metadata = {
-        longestStreak: this.longestStreak,      // Tracked in correct answer handler
-        finalLength: this.snake.length,         // Current snake length at game end
-        totalQuestions: this.quizData.questions.length
+        longestStreak: this.longestStreak,
+        finalLength: this.snake.length,
+        totalQuestions: this.originalQuizData.questions.length,
+        gamePhase: this.gamePhase, // Track which phase the game ended in
+        masteryCompleted: this.gamePhase === GamePhase.ENDLESS, // True if student completed mastery
+        masteryAttempts: this.masteryAttempts, // Total attempts made during mastery phase
+        masteryAccuracy: Math.round(masteryAccuracy * 100) / 100 // Accuracy percentage (rounded to 2 decimals)
       };
 
-      // Dynamically import the server action to avoid bundling issues
-      // This prevents the server action from being bundled into the client code
+      // Determine which score to save for leaderboard
+      // LEADERBOARD RULE: Only mastery score counts (finalMasteryScore)
+      // If student never completed mastery, they won't appear on leaderboard
+      const leaderboardScore = this.gamePhase === GamePhase.ENDLESS
+        ? this.finalMasteryScore
+        : null;
+
+      // DEBUGGING: Log the values being sent to the backend
+      console.log('--- DEBUG: Preparing to save session ---');
+      console.log('Game Phase:', this.gamePhase);
+      console.log('Final Mastery Score:', this.finalMasteryScore);
+      console.log('Score being sent for leaderboard:', leaderboardScore);
+      console.log('------------------------------------');
+
+      // Dynamically import the server action
       const { saveGameSession } = await import('@/app/actions/game');
 
       // Call the server action to save the session
-      // The server action handles authentication and database writes
-      // Only class members will have their analytics tracked
       const result = await saveGameSession({
         gameId: this.gameId,
-        score: this.score,
-        correctAnswers: this.correctAnswers,
-        totalQuestions: this.quizData.questions.length,
+        score: leaderboardScore, // LEADERBOARD: Only set if mastery completed
+        endlessHighScore: this.endlessHighScore > 0 ? this.endlessHighScore : null,
+        correctAnswers: this.firstTryCorrectCount, // FIRST TRY ONLY: Unique questions answered correctly on first attempt
+        totalQuestions: this.originalQuizData.questions.length,
         timeSpent,
-        metadata,  // Snake-specific stats go here
-        questionResponses: this.questionResponses  // QUESTION ANALYTICS - Individual question data
+        metadata,
+        questionAttempts: this.questionAttempts // NEW: All attempts for detailed analytics
       });
 
       if (!result.success) {
@@ -2198,21 +2261,42 @@ export default class SnakeScene extends Phaser.Scene {
     }
   }
 
-  endGame(reason: string) {
+  async endGame(reason: string) {
     this.gameOver = true;
 
     // ANALYTICS SYSTEM - Save game session to database
-    // This records the student's performance for the analytics dashboard
-    this.saveSession();
+    // Only save if: (1) not a manual exit, OR (2) manual exit after completing mastery
+    const shouldSave = reason !== 'manual_exit' || this.gamePhase === GamePhase.ENDLESS;
+    if (shouldSave) {
+      await this.saveSession();
+    }
 
-    // Disable exit button
-    this.exitButton.disableInteractive();
+    // Handle manual exit: redirect immediately
+    if (reason === 'manual_exit') {
+      window.location.href = '/student/dashboard';
+      return;
+    }
+
+    // Hide game elements before showing overlay for cleaner look
+    this.snakeGraphics.forEach(g => g.setVisible(false));
+    this.apples.forEach(apple => apple.graphics.setVisible(false));
+
+    // Re-enable exit button with high depth so it's clickable over overlay
+    this.exitButton.setDepth(9000);
+    this.exitButton.setInteractive({ useHandCursor: true });
+    if (this.exitText) {
+      this.exitText.setDepth(9001);
+    }
+    this.exitText.setDepth(9001);
 
     const width = this.scale.width;
     const height = this.scale.height;
 
-    // Overlay
-    this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.7);
+    // User-friendly message for collision
+    const displayReason = reason === 'collision' ? 'You Crashed!' : reason;
+
+    // Overlay (higher opacity for better visibility)
+    this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.85).setDepth(1000);
 
     // Game Over text
     this.add.text(width / 2, height / 2 - 80, 'GAME OVER!', {
@@ -2220,14 +2304,14 @@ export default class SnakeScene extends Phaser.Scene {
       color: '#ff6b6b',
       fontFamily: 'Quicksand, sans-serif',
       fontStyle: 'bold'
-    }).setOrigin(0.5);
+    }).setOrigin(0.5).setDepth(1001);
 
     // Reason
-    this.add.text(width / 2, height / 2, reason, {
+    this.add.text(width / 2, height / 2, displayReason, {
       fontSize: '24px',
       color: '#ffffff',
       fontFamily: 'Quicksand, sans-serif'
-    }).setOrigin(0.5);
+    }).setOrigin(0.5).setDepth(1001);
 
     // Final score
     this.add.text(width / 2, height / 2 + 60, `Final Score: ${this.score}`, {
@@ -2235,17 +2319,17 @@ export default class SnakeScene extends Phaser.Scene {
       color: '#95b607',
       fontFamily: 'Quicksand, sans-serif',
       fontStyle: 'bold'
-    }).setOrigin(0.5);
+    }).setOrigin(0.5).setDepth(1001);
 
     // Retry button
-    const retryButton = this.add.rectangle(width / 2, height / 2 + 130, 200, 50, 0x95b607);
+    const retryButton = this.add.rectangle(width / 2, height / 2 + 130, 200, 50, 0x95b607).setDepth(1001);
     retryButton.setInteractive({ useHandCursor: true });
     const retryText = this.add.text(width / 2, height / 2 + 130, 'Play Again', {
       fontSize: '24px',
       color: '#ffffff',
       fontFamily: 'Quicksand, sans-serif',
       fontStyle: 'bold'
-    }).setOrigin(0.5);
+    }).setOrigin(0.5).setDepth(1002);
 
     retryButton.on('pointerdown', () => {
       this.resetGame();
@@ -2277,7 +2361,7 @@ export default class SnakeScene extends Phaser.Scene {
     this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.7);
 
     // Determine completion message based on performance
-    const totalQuestions = this.quizData.questions.length;
+    const totalQuestions = this.originalQuizData.questions.length;
     const percentage = (this.correctAnswers / totalQuestions) * 100;
 
     let completionText = 'QUIZ COMPLETE!';
@@ -2309,7 +2393,7 @@ export default class SnakeScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     // Questions correct
-    this.add.text(width / 2, height / 2 - 20, `${this.correctAnswers}/${this.quizData.questions.length} Questions Correct`, {
+    this.add.text(width / 2, height / 2 - 20, `${this.correctAnswers}/${this.originalQuizData.questions.length} Questions Correct`, {
       fontSize: '28px',
       color: '#ffffff',
       fontFamily: 'Quicksand, sans-serif',
@@ -2350,6 +2434,98 @@ export default class SnakeScene extends Phaser.Scene {
   /**
    * Shuffle array using Fisher-Yates algorithm
    */
+  /**
+   * Select the next question based on current game phase
+   * MASTERY: Prioritize wrong answers, then new questions
+   * ENDLESS: Random selection from all questions
+   */
+  private selectNextQuestion(): number {
+    if (this.gamePhase === GamePhase.MASTERY) {
+      // Priority 1: Recycle incorrect answers
+      if (this.incorrectQuestionPool.length > 0) {
+        // Remove and return first incorrect question
+        return this.incorrectQuestionPool.shift()!;
+      }
+
+      // Priority 2: Find a new question not yet answered correctly
+      for (let i = 0; i < this.originalQuizData.questions.length; i++) {
+        if (!this.questionsAnsweredCorrectly.has(i)) {
+          return i;
+        }
+      }
+
+      // All questions answered correctly → Transition to endless mode
+      this.transitionToEndlessMode();
+      // After transition, select random question for endless
+      return Math.floor(Math.random() * this.originalQuizData.questions.length);
+    } else {
+      // ENDLESS mode: Random selection from all questions
+      return Math.floor(Math.random() * this.originalQuizData.questions.length);
+    }
+  }
+
+  /**
+   * Transition from Mastery phase to Endless phase
+   * Captures final mastery score for leaderboard
+   */
+  private transitionToEndlessMode(): void {
+    this.gamePhase = GamePhase.ENDLESS;
+    this.finalMasteryScore = this.score; // Capture leaderboard score
+
+    // Show seamless notification
+    this.showPhaseTransitionNotification();
+  }
+
+  /**
+   * Show "Mastery Complete! Entering Endless Mode..." notification
+   * Fades in and out without pausing gameplay
+   */
+  private showPhaseTransitionNotification(): void {
+    const width = this.scale.width;
+    const height = this.scale.height;
+    const panel = 400;
+    const available = width - panel;
+    const size = Math.min(available, height);
+
+    const notificationText = this.add.text(
+      this.gameOffsetX + (size / 2),
+      this.gameOffsetY + 40,
+      'Mastery Complete!\nEntering Endless Mode...',
+      {
+        fontSize: '24px',
+        color: '#96b902',
+        fontFamily: 'Quicksand, sans-serif',
+        fontStyle: 'bold',
+        align: 'center',
+        backgroundColor: '#000000',
+        padding: { x: 20, y: 10 }
+      }
+    ).setOrigin(0.5).setDepth(2000).setAlpha(0);
+
+    // Fade in
+    this.tweens.add({
+      targets: notificationText,
+      alpha: 1,
+      duration: 500,
+      ease: 'Power2',
+      onComplete: () => {
+        // Hold for 2 seconds
+        this.time.delayedCall(2000, () => {
+          // Fade out
+          this.tweens.add({
+            targets: notificationText,
+            alpha: 0,
+            duration: 500,
+            ease: 'Power2',
+            onComplete: () => {
+              notificationText.destroy();
+            }
+          });
+        });
+      }
+    });
+  }
+
   private shuffleArray<T>(array: T[]): T[] {
     const shuffled = [...array];
     for (let i = shuffled.length - 1; i > 0; i--) {
@@ -2365,7 +2541,7 @@ export default class SnakeScene extends Phaser.Scene {
   private resetGame() {
     // Shuffle questions
     const shuffledQuestions = this.shuffleArray(this.originalQuizData.questions);
-    this.quizData = {
+    this.originalQuizData = {
       questions: shuffledQuestions
     };
 
@@ -2407,7 +2583,7 @@ export default class SnakeScene extends Phaser.Scene {
     this.drawSnake();
 
     // Restart scene (clean slate)
-    this.scene.restart({ quiz: this.quizData });
+    this.scene.restart({ quiz: this.originalQuizData });
   }
 
   // =============================================================================
@@ -2427,9 +2603,6 @@ export default class SnakeScene extends Phaser.Scene {
 
     // Setup swipe controls
     this.setupSwipeControls();
-
-    // Orientation is handled at React level - NO Phaser overlays
-    // this.setupOrientationDetection(); // DISABLED
 
     // Setup visibility change detection (tab/app switch)
     this.setupVisibilityDetection();
@@ -2496,104 +2669,6 @@ export default class SnakeScene extends Phaser.Scene {
     });
   }
 
-  private setupOrientationDetection() {
-    // Listen for orientation changes
-    window.addEventListener('orientationchange', () => {
-      // Small delay to let the browser update dimensions
-      setTimeout(() => this.checkOrientation(), 100);
-    });
-
-    // Also listen for resize as fallback
-    window.addEventListener('resize', () => {
-      setTimeout(() => this.checkOrientation(), 100);
-    });
-  }
-
-  private checkOrientation() {
-    if (!this.isMobile) return;
-
-    const wasLandscape = this.isLandscape;
-    this.isLandscape = window.innerWidth > window.innerHeight;
-
-    if (!this.isLandscape) {
-      // Portrait mode - show rotate prompt
-      this.showOrientationOverlay();
-    } else if (wasLandscape === false && this.isLandscape) {
-      // Just rotated to landscape - show countdown
-      this.hideOrientationOverlay();
-      this.showCountdownOverlay();
-    }
-  }
-
-  private showOrientationOverlay() {
-    if (this.orientationOverlay) return; // Already showing
-
-    this.isPausedForOrientation = true;
-
-    // Hide question panel so it doesn't show through
-    if (this.questionPanel) {
-      this.questionPanel.setVisible(false);
-    }
-
-    const width = this.scale.width;
-    const height = this.scale.height;
-
-    const elements: Phaser.GameObjects.GameObject[] = [];
-
-    // Dark overlay - fully opaque to block everything underneath
-    const overlay = this.add.rectangle(
-      width / 2,
-      height / 2,
-      width,
-      height,
-      0x000000,
-      1.0
-    ).setDepth(10000);
-    elements.push(overlay);
-
-    // Rotate icon (using text as placeholder)
-    const rotateIcon = this.add.text(
-      width / 2,
-      height / 2 - 60,
-      '📱↔️',
-      {
-        fontSize: '64px'
-      }
-    ).setOrigin(0.5).setDepth(10001);
-    elements.push(rotateIcon);
-
-    // Message
-    const message = this.add.text(
-      width / 2,
-      height / 2 + 20,
-      'Please rotate your device\nto landscape mode to play',
-      {
-        fontSize: '24px',
-        color: '#ffffff',
-        fontFamily: 'Quicksand, sans-serif',
-        fontStyle: 'bold',
-        align: 'center'
-      }
-    ).setOrigin(0.5).setDepth(10001);
-    elements.push(message);
-
-    this.orientationOverlay = this.add.container(0, 0, elements);
-  }
-
-  private hideOrientationOverlay() {
-    if (this.orientationOverlay) {
-      this.orientationOverlay.destroy();
-      this.orientationOverlay = undefined;
-    }
-
-    // Show question panel again when orientation is correct
-    if (this.questionPanel) {
-      this.questionPanel.setVisible(true);
-    }
-
-    this.isPausedForOrientation = false;
-  }
-
   private handleResize(gameSize: Phaser.Structs.Size) {
     const width = gameSize.width;
     const height = gameSize.height;
@@ -2608,74 +2683,6 @@ export default class SnakeScene extends Phaser.Scene {
     // The question panel will be recreated naturally when the next question is shown
   }
 
-  private showCountdownOverlay() {
-    if (this.countdownOverlay) return;
-
-    const width = this.scale.width;
-    const height = this.scale.height;
-
-    const elements: Phaser.GameObjects.GameObject[] = [];
-
-    // Semi-transparent overlay
-    const overlay = this.add.rectangle(
-      width / 2,
-      height / 2,
-      width,
-      height,
-      0x000000,
-      0.7
-    ).setDepth(4000);
-    elements.push(overlay);
-
-    // Countdown text
-    const countdownText = this.add.text(
-      width / 2,
-      height / 2,
-      '3',
-      {
-        fontSize: '120px',
-        color: '#ffffff',
-        fontFamily: 'Quicksand, sans-serif',
-        fontStyle: 'bold'
-      }
-    ).setOrigin(0.5).setDepth(4001);
-    elements.push(countdownText);
-
-    this.countdownOverlay = this.add.container(0, 0, elements);
-
-    // Countdown sequence
-    let count = 3;
-
-    const countdownTimer = this.time.addEvent({
-      delay: 1000,
-      callback: () => {
-        count--;
-        if (count > 0) {
-          countdownText.setText(count.toString());
-          // Pulse animation
-          this.tweens.add({
-            targets: countdownText,
-            scale: { from: 1.2, to: 1 },
-            duration: 300,
-            ease: 'Power2'
-          });
-        } else {
-          // Countdown finished
-          this.hideCountdownOverlay();
-        }
-      },
-      repeat: 2
-    });
-  }
-
-  private hideCountdownOverlay() {
-    if (this.countdownOverlay) {
-      this.countdownOverlay.destroy();
-      this.countdownOverlay = undefined;
-    }
-    this.isPausedForVisibility = false;
-  }
-
   private setupVisibilityDetection() {
     this.visibilityHandler = () => {
       if (document.hidden) {
@@ -2684,16 +2691,8 @@ export default class SnakeScene extends Phaser.Scene {
           this.isPausedForVisibility = true;
         }
       } else {
-        // Tab/app returned
-        if (this.isPausedForVisibility) {
-          if (this.gameStarted && !this.gameOver) {
-            // Game is running - show countdown before resuming
-            this.showCountdownOverlay();
-          } else {
-            // Game hasn't started or already ended - just reset the flag
-            this.isPausedForVisibility = false;
-          }
-        }
+        // Tab/app returned - resume immediately
+        this.isPausedForVisibility = false;
       }
     };
 
