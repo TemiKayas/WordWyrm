@@ -9,6 +9,7 @@
 
 import { analyzeClassPerformance } from '@/app/actions/analytics';
 import Link from 'next/link';
+import { Users, Target, TrendingUp, FileText, AlertTriangle, UserX, Trophy, Lightbulb } from 'lucide-react';
 
 export default async function ClassAnalysisPage({
   params,
@@ -57,15 +58,24 @@ export default async function ClassAnalysisPage({
           </h1>
           <div className="grid grid-cols-3 gap-4">
             <div className="bg-gradient-to-br from-[#FFD700]/20 to-[#FFA500]/20 border-2 border-[#FFD700] rounded-[15px] p-4">
-              <p className="text-sm text-[#473025]/70 font-quicksand font-semibold">Total Students</p>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm text-[#473025]/70 font-quicksand font-semibold">Total Students</p>
+                <Users size={24} className="text-[#FFD700]" />
+              </div>
               <p className="text-2xl font-bold text-[#473025] font-quicksand">{totalStudents}</p>
             </div>
             <div className="bg-gradient-to-br from-[#96b902]/20 to-[#7a9700]/20 border-2 border-[#96b902] rounded-[15px] p-4">
-              <p className="text-sm text-[#473025]/70 font-quicksand font-semibold">Average Score</p>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm text-[#473025]/70 font-quicksand font-semibold">Average Score</p>
+                <Target size={24} className="text-[#96b902]" />
+              </div>
               <p className="text-2xl font-bold text-[#473025] font-quicksand">{averageScore}</p>
             </div>
             <div className="bg-gradient-to-br from-[#ff9f22]/20 to-[#ff8800]/20 border-2 border-[#ff9f22] rounded-[15px] p-4">
-              <p className="text-sm text-[#473025]/70 font-quicksand font-semibold">Average Accuracy</p>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm text-[#473025]/70 font-quicksand font-semibold">Average Accuracy</p>
+                <TrendingUp size={24} className="text-[#ff9f22]" />
+              </div>
               <p className="text-2xl font-bold text-[#473025] font-quicksand">{averageAccuracy}%</p>
             </div>
           </div>
@@ -76,7 +86,8 @@ export default async function ClassAnalysisPage({
           {/* Summary */}
           <div className="bg-white rounded-[20px] border-2 border-[#473025]/10 overflow-hidden">
             <div className="bg-gradient-to-r from-[#95b607] to-[#7a9700] px-6 py-4">
-              <h2 className="text-white font-quicksand font-bold text-xl">
+              <h2 className="text-white font-quicksand font-bold text-xl flex items-center gap-2">
+                <FileText size={24} />
                 Summary
               </h2>
             </div>
@@ -90,7 +101,8 @@ export default async function ClassAnalysisPage({
           {/* Difficult Questions */}
           <div className="bg-white rounded-[20px] border-2 border-[#473025]/10 overflow-hidden">
             <div className="bg-gradient-to-r from-[#ff9f22] to-[#ff8800] px-6 py-4">
-              <h2 className="text-white font-quicksand font-bold text-xl">
+              <h2 className="text-white font-quicksand font-bold text-xl flex items-center gap-2">
+                <AlertTriangle size={24} />
                 Most Difficult Questions
               </h2>
             </div>
@@ -122,7 +134,8 @@ export default async function ClassAnalysisPage({
             {/* Students Needing Help */}
             <div className="bg-white rounded-[20px] border-2 border-[#473025]/10 overflow-hidden">
               <div className="bg-gradient-to-r from-[#ff9f22] to-[#ff8800] px-6 py-4">
-                <h2 className="text-white font-quicksand font-bold text-lg">
+                <h2 className="text-white font-quicksand font-bold text-lg flex items-center gap-2">
+                  <UserX size={20} />
                   Students Needing Help
                 </h2>
               </div>
@@ -141,7 +154,8 @@ export default async function ClassAnalysisPage({
             {/* Top Performers */}
             <div className="bg-white rounded-[20px] border-2 border-[#473025]/10 overflow-hidden">
               <div className="bg-gradient-to-r from-[#95b607] to-[#7a9700] px-6 py-4">
-                <h2 className="text-white font-quicksand font-bold text-lg">
+                <h2 className="text-white font-quicksand font-bold text-lg flex items-center gap-2">
+                  <Trophy size={20} />
                   Top Performers
                 </h2>
               </div>
@@ -161,7 +175,8 @@ export default async function ClassAnalysisPage({
           {/* Teaching Recommendations */}
           <div className="bg-white rounded-[20px] border-2 border-[#473025]/10 overflow-hidden">
             <div className="bg-gradient-to-r from-[#473025] to-[#5a3d30] px-6 py-4">
-              <h2 className="text-white font-quicksand font-bold text-xl">
+              <h2 className="text-white font-quicksand font-bold text-xl flex items-center gap-2">
+                <Lightbulb size={24} />
                 Teaching Recommendations
               </h2>
             </div>

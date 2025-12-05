@@ -6,7 +6,7 @@ import Navbar from '@/components/shared/Navbar';
 import SlidingSidebar from '@/components/shared/SlidingSidebar';
 import { getGameLeaderboard } from '@/app/actions/game';
 import { getGameQuestionAnalytics, analyzeClassPerformance } from '@/app/actions/analytics';
-import { BarChart3, Trophy, AlertTriangle, Sparkles } from 'lucide-react';
+import { BarChart3, Trophy, AlertTriangle, Sparkles, Users, Target, TrendingUp } from 'lucide-react';
 import Button from '@/components/ui/Button';
 
 type LeaderboardEntry = {
@@ -243,7 +243,7 @@ export default function TeacherGameResultsPage() {
                   <h3 className="font-quicksand font-bold text-[#473025] text-sm uppercase tracking-wide">
                     Total Players
                   </h3>
-                  <span className="text-3xl">👥</span>
+                  <Users size={32} className="text-[#FFD700]" />
                 </div>
                 <p className="font-quicksand font-bold text-[#473025] text-4xl">
                   {summaryStats.totalStudents}
@@ -256,7 +256,7 @@ export default function TeacherGameResultsPage() {
                   <h3 className="font-quicksand font-bold text-[#473025] text-sm uppercase tracking-wide">
                     Average Score
                   </h3>
-                  <span className="text-3xl">🎯</span>
+                  <Target size={32} className="text-[#96b902]" />
                 </div>
                 <p className="font-quicksand font-bold text-[#473025] text-4xl">
                   {summaryStats.averageScore}
@@ -269,7 +269,7 @@ export default function TeacherGameResultsPage() {
                   <h3 className="font-quicksand font-bold text-[#473025] text-sm uppercase tracking-wide">
                     Average Accuracy
                   </h3>
-                  <span className="text-3xl">📊</span>
+                  <TrendingUp size={32} className="text-[#ff9f22]" />
                 </div>
                 <p className="font-quicksand font-bold text-[#473025] text-4xl">
                   {summaryStats.averageAccuracy}%
@@ -287,7 +287,6 @@ export default function TeacherGameResultsPage() {
               >
                 <Sparkles size={24} />
                 <span className="text-lg">Get AI Class Insights</span>
-                <span className="text-sm opacity-90">✨ Powered by AI</span>
               </button>
             </div>
           )}

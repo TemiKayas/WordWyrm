@@ -9,6 +9,7 @@
 
 import { analyzeStudentPerformance } from '@/app/actions/analytics';
 import Link from 'next/link';
+import { CheckCircle, AlertCircle, BarChart3, Lightbulb } from 'lucide-react';
 
 export default async function StudentAnalysisPage({
   params,
@@ -68,7 +69,7 @@ export default async function StudentAnalysisPage({
           <div className="bg-white rounded-[20px] border-2 border-[#473025]/10 overflow-hidden">
             <div className="bg-gradient-to-r from-[#95b607] to-[#7a9700] px-6 py-4">
               <h2 className="text-xl font-bold text-white font-quicksand flex items-center gap-2">
-                <span className="text-2xl">✓</span>
+                <CheckCircle size={24} />
                 Strengths
               </h2>
             </div>
@@ -83,7 +84,7 @@ export default async function StudentAnalysisPage({
           <div className="bg-white rounded-[20px] border-2 border-[#473025]/10 overflow-hidden">
             <div className="bg-gradient-to-r from-[#ff9f22] to-[#ff8800] px-6 py-4">
               <h2 className="text-xl font-bold text-white font-quicksand flex items-center gap-2">
-                <span className="text-2xl">!</span>
+                <AlertCircle size={24} />
                 Areas for Improvement
               </h2>
             </div>
@@ -98,7 +99,7 @@ export default async function StudentAnalysisPage({
           <div className="bg-white rounded-[20px] border-2 border-[#473025]/10 overflow-hidden">
             <div className="bg-gradient-to-r from-[#473025] to-[#5a3d30] px-6 py-4">
               <h2 className="text-xl font-bold text-white font-quicksand flex items-center gap-2">
-                <span className="text-2xl">📊</span>
+                <BarChart3 size={24} />
                 Patterns Detected
               </h2>
             </div>
@@ -113,7 +114,7 @@ export default async function StudentAnalysisPage({
           <div className="bg-white rounded-[20px] border-2 border-[#473025]/10 overflow-hidden">
             <div className="bg-gradient-to-r from-[#95b607] to-[#7a9700] px-6 py-4">
               <h2 className="text-xl font-bold text-white font-quicksand flex items-center gap-2">
-                <span className="text-2xl">💡</span>
+                <Lightbulb size={24} />
                 Recommendations
               </h2>
             </div>

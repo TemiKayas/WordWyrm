@@ -1260,25 +1260,25 @@ export default class SnakeScene extends Phaser.Scene {
           this.incorrectQuestionPool.splice(poolIndex, 1);
         }
 
-        // QUESTION ANALYTICS - Track this attempt
-        const attemptNum = (this.attemptCounters[this.currentQuestionIndex] || 0) + 1;
-        this.attemptCounters[this.currentQuestionIndex] = attemptNum;
-
-        // FIRST TRY TRACKING - Increment count if this was answered correctly on first attempt
-        if (attemptNum === 1) {
-          this.firstTryCorrectCount++;
-        }
-
-        this.questionAttempts.push({
-          questionText: this.currentQuestion!.question,
-          selectedAnswer: selectedAnswer,
-          correctAnswer: this.currentQuestion!.answer,
-          wasCorrect: true,
-          attemptNumber: attemptNum
-        });
-
-        // MASTERY ACCURACY - Increment mastery attempt counter (only in mastery phase)
+        // QUESTION ANALYTICS - Track this attempt (MASTERY ONLY)
         if (this.gamePhase === GamePhase.MASTERY) {
+          const attemptNum = (this.attemptCounters[this.currentQuestionIndex] || 0) + 1;
+          this.attemptCounters[this.currentQuestionIndex] = attemptNum;
+
+          // FIRST TRY TRACKING - Increment count if this was answered correctly on first attempt
+          if (attemptNum === 1) {
+            this.firstTryCorrectCount++;
+          }
+
+          this.questionAttempts.push({
+            questionText: this.currentQuestion!.question,
+            selectedAnswer: selectedAnswer,
+            correctAnswer: this.currentQuestion!.answer,
+            wasCorrect: true,
+            attemptNumber: attemptNum
+          });
+
+          // MASTERY ACCURACY - Increment mastery attempt counter
           this.masteryAttempts++;
         }
 
@@ -1344,6 +1344,12 @@ export default class SnakeScene extends Phaser.Scene {
         // Wrong answer!
         const studentAnswer = this.currentQuestion!.options[eatenApple.answerIndex];
 
+        // ENDLESS MODE - Game over on wrong answer
+        if (this.gamePhase === GamePhase.ENDLESS) {
+          this.endGame('wrong_answer');
+          return;
+        }
+
         // PHASE MANAGEMENT - Add to incorrect pool (only in mastery phase)
         if (this.gamePhase === GamePhase.MASTERY) {
           // Only add if not already in pool and not already answered correctly
@@ -1353,20 +1359,20 @@ export default class SnakeScene extends Phaser.Scene {
           }
         }
 
-        // QUESTION ANALYTICS - Track this attempt
-        const attemptNum = (this.attemptCounters[this.currentQuestionIndex] || 0) + 1;
-        this.attemptCounters[this.currentQuestionIndex] = attemptNum;
-
-        this.questionAttempts.push({
-          questionText: this.currentQuestion!.question,
-          selectedAnswer: studentAnswer,
-          correctAnswer: this.currentQuestion!.answer,
-          wasCorrect: false,
-          attemptNumber: attemptNum
-        });
-
-        // MASTERY ACCURACY - Increment mastery attempt counter (only in mastery phase)
+        // QUESTION ANALYTICS - Track this attempt (MASTERY ONLY)
         if (this.gamePhase === GamePhase.MASTERY) {
+          const attemptNum = (this.attemptCounters[this.currentQuestionIndex] || 0) + 1;
+          this.attemptCounters[this.currentQuestionIndex] = attemptNum;
+
+          this.questionAttempts.push({
+            questionText: this.currentQuestion!.question,
+            selectedAnswer: studentAnswer,
+            correctAnswer: this.currentQuestion!.answer,
+            wasCorrect: false,
+            attemptNumber: attemptNum
+          });
+
+          // MASTERY ACCURACY - Increment mastery attempt counter
           this.masteryAttempts++;
         }
 
@@ -2292,8 +2298,13 @@ export default class SnakeScene extends Phaser.Scene {
     const width = this.scale.width;
     const height = this.scale.height;
 
-    // User-friendly message for collision
-    const displayReason = reason === 'collision' ? 'You Crashed!' : reason;
+    // User-friendly messages
+    let displayReason = reason;
+    if (reason === 'collision') {
+      displayReason = 'You Crashed!';
+    } else if (reason === 'wrong_answer') {
+      displayReason = 'Wrong Answer!';
+    }
 
     // Overlay (higher opacity for better visibility)
     this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.85).setDepth(1000);
