@@ -284,17 +284,37 @@ model GameSession {
   guestName         String? // Name for guest players (required if studentId is null)
   startedAt         DateTime  @default(now())
   completedAt       DateTime?
-  score             Int?
+  score             Int? // LEADERBOARD SCORE - Captured at end of mastery phase (competitive)
+  endlessHighScore  Int? // Highest score achieved in endless mode (non-competitive, tracking only)
   totalQuestions    Int?
   correctAnswers    Int?
   timeSpent         Int? // Time spent in seconds
   answersJson       Json? // Store student answers if needed for review
   metadata          Json? // Game-specific statistics (e.g., streak, longest streak, towers built)
-  questionResponses Json? // QUESTION ANALYTICS - Detailed per-question data: { "q0": { questionText, selectedAnswer, correctAnswer, correct }, ... }
+  questionResponses Json? // DEPRECATED - Use QuestionAttempt model instead for detailed attempt tracking
 
-  game    Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
-  student Student? @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  game             Game              @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  student          Student?          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  questionAttempts QuestionAttempt[] // All question attempts for this session
 
   @@index([gameId])
   @@index([studentId])
+}
+
+// QUESTION ANALYTICS - Tracks every attempt at answering a question
+// Supports mastery phase (recycling wrong answers) and detailed learning analytics
+model QuestionAttempt {
+  id             String      @id @default(cuid())
+  gameSessionId  String
+  questionText   String      @db.Text
+  selectedAnswer String
+  correctAnswer  String
+  wasCorrect     Boolean
+  attemptNumber  Int // Per-question attempt counter (1st try, 2nd try, etc.)
+  createdAt      DateTime    @default(now())
+
+  gameSession GameSession @relation(fields: [gameSessionId], references: [id], onDelete: Cascade)
+
+  @@index([gameSessionId])
+  @@index([wasCorrect]) // For analytics: "How many students got this wrong?"
 }
