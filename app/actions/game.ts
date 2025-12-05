@@ -6,11 +6,42 @@ import { generateUniqueShareCode } from '@/lib/utils/share-code';
 import { generateGameQRCode } from '@/lib/utils/qr-code';
 import type { Game, Quiz, ProcessedContent, PDF, Subject } from '@prisma/client';
 import { GameMode, Prisma } from '@prisma/client';
+import { uploadGameImage, deleteGameImage } from '@/lib/blob';
 
 //type of server action results, success or fail, T is the type of return.
 type ActionResult<T> =
   | { success: true; data: T }
   | { success: false; error: string };
+
+// Upload game image
+export async function uploadGameImageAction(
+  formData: FormData
+): Promise<ActionResult<{ imageUrl: string }>> {
+  try {
+    const session = await auth();
+    if (!session?.user || session.user.role !== 'TEACHER') {
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    const file = formData.get('image') as File;
+    if (!file) {
+      return { success: false, error: 'No image provided' };
+    }
+
+    const imageUrl = await uploadGameImage(file);
+
+    return {
+      success: true,
+      data: { imageUrl },
+    };
+  } catch (error) {
+    console.error('Upload game image error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to upload game image',
+    };
+  }
+}
 
 // Type for game with related quiz data
 type GameWithQuiz = Game & {
@@ -523,7 +554,6 @@ export async function getPublicGames(
       description: string | null;
       gameMode: GameMode;
       shareCode: string;
-      imageUrl: string | null;
       createdAt: Date;
       teacher: {
         name: string;
@@ -605,7 +635,6 @@ export async function getPublicGames(
       description: game.description,
       gameMode: game.gameMode,
       shareCode: game.shareCode,
-      imageUrl: game.imageUrl,
       createdAt: game.createdAt,
       teacher: {
         name: game.teacher.user.name,

@@ -37,7 +37,7 @@ export default function Button({
   fullWidth = false,
   ...props
 }: ButtonProps) {
-  const baseClasses = 'font-quicksand font-bold rounded-[15px] transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2 shadow-[0_6px_0_0] active:shadow-[0_2px_0_0] active:translate-y-1 hover:-translate-y-0.5 hover:shadow-[0_8px_0_0]';
+  const baseClasses = 'font-quicksand font-bold rounded-[15px] transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2 shadow-[0_6px_0_0] active:shadow-[0_2px_0_0] active:translate-y-1 hover:-translate-y-0.5 hover:shadow-[0_8px_0_0] will-change-transform relative';
 
   const variantClasses = {
     primary: 'bg-[#473025] border-[3px] border-[#2d1f18] shadow-[#2d1f18] hover:bg-[#5a3d2e] text-white',

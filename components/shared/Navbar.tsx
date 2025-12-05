@@ -61,10 +61,10 @@ export default function Navbar({
 
       <div className="navbar-center flex items-center">
         <Link href={logoHref} className="cursor-pointer">
-          <div className="w-28 h-28 md:w-36 md:h-36 relative">
+          <div className="w-40 h-40 md:w-48 md:h-48 relative">
             <Image
-              src="/LearnWyrmLogo.svg"
-              alt="WordWyrm"
+              src="/assets/LearnWyrm.svg"
+              alt="LearnWyrm"
               fill
               className="object-contain"
               priority

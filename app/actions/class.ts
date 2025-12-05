@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { auth } from '@/lib/auth';
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
+import { uploadClassImage, deleteClassImage } from '@/lib/blob';
 
 // Validation schemas
 const createClassSchema = z.object({
@@ -127,6 +128,7 @@ export async function getTeacherClasses(): Promise<
       id: string;
       name: string;
       description: string | null;
+      imageUrl: string | null;
       isActive: boolean;
       createdAt: Date;
       _count: {
@@ -141,15 +143,20 @@ export async function getTeacherClasses(): Promise<
     }>
   >
 > {
+  console.log("--- DEBUG: Entering getTeacherClasses ---");
   try {
     const session = await auth();
+    console.log("--- DEBUG: Session object ---", session);
+
     if (!session?.user || session.user.role !== 'TEACHER') {
       return { success: false, error: 'You must be logged in as a teacher to create classes.' };
     }
 
+    console.log("--- DEBUG: User is authorized, fetching teacher profile for userId:", session.user.id);
     const teacher = await db.teacher.findUnique({
       where: { userId: session.user.id },
     });
+    console.log("--- DEBUG: Teacher profile ---", teacher);
 
     if (!teacher) {
       return { success: false, error: 'Your teacher profile is not set up. Please contact support.' };
@@ -176,6 +183,7 @@ export async function getTeacherClasses(): Promise<
       },
       orderBy: { createdAt: 'desc' },
     });
+    console.log("--- DEBUG: Fetched classes count ---", classes.length);
 
     return { success: true, data: classes };
   } catch (error) {
@@ -184,6 +192,8 @@ export async function getTeacherClasses(): Promise<
       success: false,
       error: 'Failed to fetch classes',
     };
+  } finally {
+    console.log("--- DEBUG: Exiting getTeacherClasses ---");
   }
 }
 
@@ -340,6 +350,20 @@ export async function updateClass(
       return { success: false, error: 'This class doesn\'t exist or has been deleted.' };
     }
 
+    // Handle image upload if provided
+    let imageUrl = classToUpdate.imageUrl;
+    const imageFile = formData.get('image') as File | null;
+
+    if (imageFile && imageFile.size > 0) {
+      // Delete old image if exists
+      if (classToUpdate.imageUrl) {
+        await deleteClassImage(classToUpdate.imageUrl);
+      }
+
+      // Upload new image
+      imageUrl = await uploadClassImage(imageFile);
+    }
+
     // Update class
     await db.class.update({
       where: { id: validatedData.classId },
@@ -347,6 +371,7 @@ export async function updateClass(
         name: validatedData.name,
         description: validatedData.description,
         isActive: validatedData.isActive,
+        imageUrl,
       },
     });
 
@@ -568,6 +593,78 @@ export async function getStudentClasses(): Promise<
     return {
       success: false,
       error: 'Failed to fetch classes',
+    };
+  }
+}
+
+/**
+ * Update class image
+ */
+export async function updateClassImage(
+  classId: string,
+  formData: FormData
+): Promise<ActionResult<{ imageUrl: string }>> {
+  try {
+    const session = await auth();
+    if (!session?.user || session.user.role !== 'TEACHER') {
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    const teacher = await db.teacher.findUnique({
+      where: { userId: session.user.id },
+    });
+
+    if (!teacher) {
+      return { success: false, error: 'Teacher profile not found' };
+    }
+
+    // Verify class belongs to teacher
+    const classToUpdate = await db.class.findFirst({
+      where: {
+        id: classId,
+        teacherId: teacher.id,
+      },
+    });
+
+    if (!classToUpdate) {
+      return { success: false, error: 'Class not found' };
+    }
+
+    const file = formData.get('image') as File;
+    if (!file) {
+      return { success: false, error: 'No image provided' };
+    }
+
+    // Delete old image if exists
+    if (classToUpdate.imageUrl) {
+      try {
+        await deleteClassImage(classToUpdate.imageUrl);
+      } catch (error) {
+        console.error('Failed to delete old class image:', error);
+      }
+    }
+
+    // Upload new image
+    const imageUrl = await uploadClassImage(file);
+
+    // Update class
+    await db.class.update({
+      where: { id: classId },
+      data: { imageUrl },
+    });
+
+    revalidatePath('/teacher/dashboard');
+    revalidatePath(`/teacher/class/${classId}`);
+
+    return {
+      success: true,
+      data: { imageUrl },
+    };
+  } catch (error) {
+    console.error('Update class image error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to update class image',
     };
   }
 }

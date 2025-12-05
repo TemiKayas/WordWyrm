@@ -70,7 +70,7 @@ export default function FileUploadButton({ onClick, disabled = false }: FileUplo
       </div>
 
       {/* button text */}
-      <span>Choose File</span>
+      <span>Choose File(s)</span>
     </button>
   );
 }
