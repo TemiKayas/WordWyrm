@@ -352,6 +352,20 @@ export async function updateClass(
       return { success: false, error: 'Class not found' };
     }
 
+    // Handle image upload if provided
+    let imageUrl = classToUpdate.imageUrl;
+    const imageFile = formData.get('image') as File | null;
+
+    if (imageFile && imageFile.size > 0) {
+      // Delete old image if exists
+      if (classToUpdate.imageUrl) {
+        await deleteClassImage(classToUpdate.imageUrl);
+      }
+
+      // Upload new image
+      imageUrl = await uploadClassImage(imageFile);
+    }
+
     // Update class
     await db.class.update({
       where: { id: validatedData.classId },
@@ -359,6 +373,7 @@ export async function updateClass(
         name: validatedData.name,
         description: validatedData.description,
         isActive: validatedData.isActive,
+        imageUrl,
       },
     });
 

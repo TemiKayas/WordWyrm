@@ -9,7 +9,8 @@ import TeacherPageLayout from "@/components/shared/TeacherPageLayout";
 import MultiStepIndicator from "@/components/fileupload/MultiStepIndicator";
 import { GameMode } from "@prisma/client";
 import Image from "next/image";
-import { FixedSizeList, ListChildComponentProps } from "react-window";
+import { List } from "react-window";
+import type { RowComponentProps } from "react-window";
 
 interface QuizQuestion {
   question: string;
@@ -22,12 +23,21 @@ interface Quiz {
   questions: QuizQuestion[];
 }
 
+interface QuestionButtonProps {
+  indices: number[];
+  currentQuestionIndex: number;
+  setCurrentQuestionIndex: (index: number) => void;
+  type: string;
+}
+
 const QuestionNumberButton = ({
   index,
   style,
-  data,
-}: ListChildComponentProps) => {
-  const { indices, currentQuestionIndex, setCurrentQuestionIndex, type } = data;
+  indices,
+  currentQuestionIndex,
+  setCurrentQuestionIndex,
+  type,
+}: RowComponentProps<QuestionButtonProps>) => {
   const questionNumber = indices[index];
   const isCurrent = questionNumber === currentQuestionIndex;
 
@@ -454,20 +464,18 @@ function GameSettingsContent() {
                       Confirmed:
                     </h4>
                     {confirmedIndices.length > 0 ? (
-                      <FixedSizeList
-                        height={80} // Adjust height as needed
-                        itemCount={confirmedIndices.length}
-                        itemSize={40} // Adjust size for each button
-                        width="100%"
-                        itemData={{
+                      <List<QuestionButtonProps>
+                        defaultHeight={80}
+                        rowCount={confirmedIndices.length}
+                        rowHeight={40}
+                        rowProps={{
                           indices: confirmedIndices,
                           currentQuestionIndex,
                           setCurrentQuestionIndex,
                           type: "confirmed"
                         }}
-                      >
-                        {QuestionNumberButton}
-                      </FixedSizeList>
+                        rowComponent={QuestionNumberButton}
+                      />
                     ) : (
                       <span className="font-quicksand text-[#a7613c] text-[11px]">
                         No questions confirmed yet
@@ -481,20 +489,18 @@ function GameSettingsContent() {
                       Under Review:
                     </h4>
                     {underReviewIndices.length > 0 ? (
-                    <FixedSizeList
-                      height={120} // Adjust height as needed
-                      itemCount={underReviewIndices.length}
-                      itemSize={40} // Adjust size for each button
-                      width="100%"
-                      itemData={{
+                    <List<QuestionButtonProps>
+                      defaultHeight={120}
+                      rowCount={underReviewIndices.length}
+                      rowHeight={40}
+                      rowProps={{
                         indices: underReviewIndices,
                         currentQuestionIndex,
                         setCurrentQuestionIndex,
                         type: "under-review"
                       }}
-                    >
-                      {QuestionNumberButton}
-                    </FixedSizeList>
+                      rowComponent={QuestionNumberButton}
+                    />
                     ) : (
                       <span className="font-quicksand text-[#a7613c] text-[11px]">
                         All questions reviewed!

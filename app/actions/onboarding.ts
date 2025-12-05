@@ -17,11 +17,7 @@ export async function markOnboardingComplete(): Promise<
       return { success: false, error: 'Not authenticated' };
     }
 
-    await db.user.update({
-      where: { id: session.user.id },
-      data: { hasCompletedOnboarding: true },
-    });
-
+    // Onboarding is disabled - always return success
     return { success: true, data: { completed: true } };
   } catch (error) {
     console.error('Mark onboarding complete error:', error);
@@ -48,7 +44,6 @@ export async function checkOnboardingStatus(): Promise<
     const user = await db.user.findUnique({
       where: { id: session.user.id },
       select: {
-        hasCompletedOnboarding: true,
         role: true,
       },
     });
@@ -60,7 +55,7 @@ export async function checkOnboardingStatus(): Promise<
     return {
       success: true,
       data: {
-        completed: user.hasCompletedOnboarding,
+        completed: true, // Onboarding is disabled - always completed
         role: user.role,
       },
     };

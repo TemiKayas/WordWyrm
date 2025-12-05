@@ -63,10 +63,9 @@ export async function createGame(params: {
   title: string;
   description?: string;
   gameMode?: GameMode;
-  imageUrl?: string;
 }): Promise<ActionResult<{ gameId: string; shareCode: string }>> {
   try {
-    const { quizId, title, description, gameMode, imageUrl } = params;
+    const { quizId, title, description, gameMode } = params;
 
     // ensure user is a teacher
     const session = await auth();
@@ -119,7 +118,6 @@ export async function createGame(params: {
         shareCode,
         qrCodeUrl,
         gameMode: gameMode || GameMode.TRADITIONAL,
-        imageUrl,
       },
     });
 
@@ -550,7 +548,6 @@ export async function getPublicGames(
       description: string | null;
       gameMode: GameMode;
       shareCode: string;
-      imageUrl: string | null;
       createdAt: Date;
       teacher: {
         name: string;
@@ -643,7 +640,6 @@ export async function getPublicGames(
       description: game.description,
       gameMode: game.gameMode,
       shareCode: game.shareCode,
-      imageUrl: game.imageUrl,
       createdAt: game.createdAt,
       teacher: {
         name: game.teacher.user.name,

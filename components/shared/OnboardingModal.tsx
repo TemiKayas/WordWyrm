@@ -14,7 +14,7 @@ interface OnboardingModalProps {
 interface OnboardingCard {
   step: number;
   title: string;
-  description?: string;
+  description: string;
   image: string;
   imageAlt: string;
   imageWidth: number;
@@ -28,29 +28,32 @@ const teacherCards: OnboardingCard[] = [
   {
     step: 1,
     title: 'Create Games\nfor your Students',
+    description: 'Upload PDFs or create custom quizzes powered by AI. Turn any content into engaging games your students will love!',
     image: '/assets/onboarding/27f0bc773218feb1f33fcb7da210f02c61215925.png',
     imageAlt: 'AI Floopa',
-    imageWidth: 339,
-    imageHeight: 352,
-    imagePosition: 'right-[50px] bottom-[20px]',
+    imageWidth: 220,
+    imageHeight: 228,
+    imagePosition: 'right-[20px] bottom-[10px]',
   },
   {
     step: 2,
     title: 'Track Student\nProgress',
+    description: 'Monitor individual and class performance with detailed analytics. See which questions challenge your students most.',
     image: '/assets/onboarding/c7d97bc4f08e16c5bf0692b8a1696dd9b6696103.png',
     imageAlt: 'Student Progress',
-    imageWidth: 351,
-    imageHeight: 364,
-    imagePosition: 'right-[30px] bottom-[40px]',
+    imageWidth: 228,
+    imageHeight: 236,
+    imagePosition: 'right-[15px] bottom-[20px]',
   },
   {
     step: 3,
     title: 'Watch students\neager to learn',
+    description: 'With gamified learning and instant feedback, students stay motivated and engaged. Learning has never been this fun!',
     image: '/assets/dashboard/woah-floopa.png',
     imageAlt: 'Excited Students',
-    imageWidth: 200,
-    imageHeight: 200,
-    imagePosition: 'right-[80px] bottom-[40px]',
+    imageWidth: 150,
+    imageHeight: 150,
+    imagePosition: 'right-[50px] bottom-[30px]',
     isLastCard: true,
   },
 ];
@@ -59,31 +62,34 @@ const studentCards: OnboardingCard[] = [
   {
     step: 1,
     title: 'Join Games',
+    description: 'Use the game code your teacher gives you to join fun quizzes and challenges. Compete with classmates and test your knowledge!',
     image: '/assets/onboarding/8e89875a574638f8c7324ec764e151aae13edc02.png',
     imageAlt: 'Woah Floopa',
-    imageWidth: 475,
-    imageHeight: 493,
+    imageWidth: 280,
+    imageHeight: 290,
     imagePosition: 'right-0 bottom-0',
-    isLastCard: true,
   },
   {
     step: 2,
     title: 'Earn Coins to\nspend in the Shop!',
+    description: 'Get rewarded for correct answers and completing games. Collect coins to unlock awesome items and customize your experience!',
     image: '/assets/onboarding/b5537993144d95b93a959b526aa2e8089401a375.png',
     imageAlt: 'Coins',
-    imageWidth: 253,
-    imageHeight: 108,
-    imagePosition: 'left-1/2 -translate-x-1/2 bottom-[100px]',
+    imageWidth: 180,
+    imageHeight: 77,
+    imagePosition: 'left-1/2 -translate-x-1/2 bottom-[80px]',
     showCoins: true,
   },
   {
     step: 3,
     title: 'Learn and\nhave Fun!',
+    description: 'Master new topics while having a blast! See your progress, beat your high scores, and become a learning champion!',
     image: '/assets/onboarding/4e9b715f5084e888d240a18368dbfaab69eb1299.png',
     imageAlt: 'Learning Floopa',
-    imageWidth: 341,
-    imageHeight: 354,
-    imagePosition: 'left-1/2 -translate-x-1/2 bottom-[30px]',
+    imageWidth: 220,
+    imageHeight: 228,
+    imagePosition: 'left-1/2 -translate-x-1/2 bottom-[20px]',
+    isLastCard: true,
   },
 ];
 
@@ -160,102 +166,15 @@ export default function OnboardingModal({ isOpen, onClose, userRole }: Onboardin
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
       <div
         ref={modalRef}
-        className="relative w-full max-w-[90vw] md:max-w-[1200px] h-[90vh] md:h-[700px] bg-[#fffaf2] rounded-[30px] shadow-[0px_2px_2px_0px_rgba(0,0,0,0.25)] p-4 md:p-0 overflow-hidden"
+        className="relative w-full max-w-[90vw] sm:max-w-[600px] md:max-w-[700px] bg-[#fffaf2] rounded-[20px] shadow-xl overflow-hidden"
       >
-        {/* Stack of cards in background */}
-        <div className="absolute top-[31px] left-1/2 -translate-x-1/2">
-          <div className="bg-[#473025] h-[99px] w-[332px] rounded-t-[50px]" />
-        </div>
-
-        {/* Main card container */}
-        <div className="absolute top-[50%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[1124px] h-[610px] bg-[#fffaf2] border-4 border-[#473025] rounded-[30px] flex items-center justify-center mt-2">
-
-          {/* Card content */}
-          <div
-            ref={(el) => {
-              cardRefs.current[currentStep] = el;
-            }}
-            className="relative w-full h-full p-8 flex flex-col items-center"
-            style={{ perspective: '1000px' }}
-          >
-            {/* Welcome header */}
-            <p className="absolute top-[-80px] font-quicksand font-bold text-[#fffaf2] text-[20px] text-center">
-              Welcome to LearnWyrm!
-            </p>
-
-            {/* Step indicator */}
-            <div className="absolute top-[30px] left-[50px] flex items-center gap-4">
-              <div className="bg-[#95b607] rounded-full w-[82px] h-[82px] flex items-center justify-center">
-                <p className="font-quicksand font-bold text-[#fffaf2] text-[50px]">
-                  {currentCard.step}
-                </p>
-              </div>
-              <h2 className="font-quicksand font-bold text-[#473025] text-[32px] leading-[1.2] whitespace-pre-line">
-                {currentCard.title}
-              </h2>
-            </div>
-
-            {/* Content card */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[10%] bg-[#fffaf2] border-4 border-[#473025] rounded-[15px] w-[660px] h-[358px] overflow-hidden">
-
-              {/* Image */}
-              {currentCard.image && (
-                <div className={`absolute ${currentCard.imagePosition}`}>
-                  <Image
-                    src={currentCard.image}
-                    alt={currentCard.imageAlt}
-                    width={currentCard.imageWidth}
-                    height={currentCard.imageHeight}
-                    className="object-contain"
-                  />
-                </div>
-              )}
-
-              {/* Coins indicator */}
-              {currentCard.showCoins && (
-                <p className="absolute top-[30%] left-1/2 -translate-x-1/2 font-quicksand font-bold text-[#473025] text-[34px]">
-                  +100
-                </p>
-              )}
-
-              {/* Got it button for last card */}
-              {currentCard.isLastCard && (
-                <div className="absolute bottom-[30px] left-1/2 -translate-x-1/2">
-                  <Button
-                    onClick={handleNext}
-                    variant="primary"
-                    size="lg"
-                    className="bg-[#473025] hover:bg-[#5a3d2e] text-[#fffaf2] text-[35px] px-12 py-3 rounded-[21px] border-4 border-[#2d1f18]"
-                  >
-                    Got it!
-                  </Button>
-                </div>
-              )}
-            </div>
-
-            {/* Next button (for non-last cards) */}
-            {!currentCard.isLastCard && (
-              <div className="absolute bottom-[-80px] right-[50px]">
-                <Button
-                  onClick={handleNext}
-                  variant="primary"
-                  size="lg"
-                  className="bg-[#95b607] hover:bg-[#7a9505] text-[#fffaf2] text-[24px] px-8 py-2"
-                >
-                  Next →
-                </Button>
-              </div>
-            )}
-          </div>
-        </div>
-
         {/* Close button */}
         <button
           onClick={handleClose}
-          className="absolute top-6 right-6 btn btn-circle btn-ghost hover:bg-[#473025]/10 text-[#473025] z-10"
+          className="absolute top-4 right-4 z-50 w-10 h-10 rounded-full bg-white/80 hover:bg-white flex items-center justify-center text-[#473025] transition-colors"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -272,6 +191,90 @@ export default function OnboardingModal({ isOpen, onClose, userRole }: Onboardin
             />
           </svg>
         </button>
+
+        {/* Welcome header */}
+        <div className="bg-[#473025] py-4 px-6 rounded-t-[20px]">
+          <p className="font-quicksand font-bold text-[#fffaf2] text-[20px] sm:text-[22px] text-center">
+            Welcome to LearnWyrm!
+          </p>
+        </div>
+
+        {/* Card content */}
+        <div
+          ref={(el) => {
+            cardRefs.current[currentStep] = el;
+          }}
+          className="relative px-6 py-6 sm:px-8 sm:py-8"
+          style={{ perspective: '1000px' }}
+        >
+          {/* Step indicator and title */}
+          <div className="flex items-start gap-3 mb-4">
+            <div className="bg-[#95b607] rounded-full w-[50px] h-[50px] sm:w-[60px] sm:h-[60px] flex items-center justify-center flex-shrink-0">
+              <p className="font-quicksand font-bold text-[#fffaf2] text-[28px] sm:text-[36px]">
+                {currentCard.step}
+              </p>
+            </div>
+            <div className="flex-1">
+              <h2 className="font-quicksand font-bold text-[#473025] text-[20px] sm:text-[24px] leading-[1.2] whitespace-pre-line mb-2">
+                {currentCard.title}
+              </h2>
+              <p className="font-quicksand text-[#473025] text-[14px] sm:text-[16px] leading-[1.4]">
+                {currentCard.description}
+              </p>
+            </div>
+          </div>
+
+          {/* Content card */}
+          <div className="relative bg-[#fffaf2] border-3 border-[#473025] rounded-[12px] w-full h-[250px] sm:h-[300px] overflow-hidden mb-4">
+            {/* Image */}
+            {currentCard.image && (
+              <div className={`absolute ${currentCard.imagePosition}`}>
+                <Image
+                  src={currentCard.image}
+                  alt={currentCard.imageAlt}
+                  width={currentCard.imageWidth}
+                  height={currentCard.imageHeight}
+                  className="object-contain max-w-full h-auto"
+                />
+              </div>
+            )}
+
+            {/* Coins indicator */}
+            {currentCard.showCoins && (
+              <p className="absolute top-[30%] left-1/2 -translate-x-1/2 font-quicksand font-bold text-[#473025] text-[24px] sm:text-[28px]">
+                +100
+              </p>
+            )}
+
+            {/* Got it button for last card */}
+            {currentCard.isLastCard && (
+              <div className="absolute bottom-[20px] left-1/2 -translate-x-1/2">
+                <Button
+                  onClick={handleNext}
+                  variant="primary"
+                  size="md"
+                  className="bg-[#473025] hover:bg-[#5a3d2e] text-[#fffaf2] text-[18px] sm:text-[20px] px-6 sm:px-8"
+                >
+                  Got it!
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {/* Next button (for non-last cards) */}
+          {!currentCard.isLastCard && (
+            <div className="flex justify-end">
+              <Button
+                onClick={handleNext}
+                variant="success"
+                size="md"
+                className="text-[16px] sm:text-[18px] px-6"
+              >
+                Next →
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

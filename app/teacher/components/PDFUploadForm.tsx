@@ -181,12 +181,12 @@ export default function PDFUploadForm({ onFileSelect }: PDFUploadFormProps) {
   return (
     <div className="w-full">
       {/* Step Indicator */}
-      <div ref={stepRef} className="mb-6 flex justify-center opacity-0">
+      <div ref={stepRef} className="mb-8 flex justify-center opacity-0">
         <StepIndicator step={1} title="Add your content" />
       </div>
 
       {/* File Upload Drop Zone - Now at the top */}
-      <div ref={uploadRef} className="mb-6 opacity-0">
+      <div ref={uploadRef} className="mb-8 opacity-0">
         <FileUploadDropZone
           onFileSelect={handleFileSelect}
           disabled={isPending}
@@ -220,14 +220,14 @@ export default function PDFUploadForm({ onFileSelect }: PDFUploadFormProps) {
       )}
 
       {/* Divider */}
-      <div className="flex items-center mb-6">
+      <div className="flex items-center my-8">
         <div className="flex-1 border-t-2 border-[#473025]/20"></div>
         <span className="px-4 text-[#473025]/60 font-bold text-sm">OR ADD TEXT</span>
         <div className="flex-1 border-t-2 border-[#473025]/20"></div>
       </div>
 
       {/* Text Input Area - Now below, without border */}
-      <div ref={textRef} className="mb-6 opacity-0">
+      <div ref={textRef} className="mb-8 opacity-0">
         <label
           htmlFor="textContent"
           className="block text-[#473025] font-bold text-base mb-2"
