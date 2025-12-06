@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import TeacherPageLayout from '@/components/shared/TeacherPageLayout';
 import { getTeacherQuizzes } from '@/app/actions/quiz';
 import { getTeacherClasses } from '@/app/actions/class';
@@ -27,8 +27,9 @@ interface ClassWithGames {
   games: Game[];
 }
 
-export default function TeacherGamesPage() {
+function TeacherGamesContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [classesWithGames, setClassesWithGames] = useState<ClassWithGames[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -95,6 +96,23 @@ export default function TeacherGamesPage() {
     }
     loadGames();
   }, []);
+
+  // Check for gameId parameter and auto-open modal
+  useEffect(() => {
+    const gameId = searchParams.get('gameId');
+    if (gameId && classesWithGames.length > 0) {
+      // Find the game by ID
+      const allGames = classesWithGames.flatMap(c => c.games);
+      const game = allGames.find(g => g.id === gameId);
+      if (game) {
+        setFullscreenGame(game);
+        // Remove the gameId parameter from the URL
+        const newUrl = new URL(window.location.href);
+        newUrl.searchParams.delete('gameId');
+        router.replace(newUrl.pathname + newUrl.search, { scroll: false });
+      }
+    }
+  }, [searchParams, classesWithGames, router]);
 
   const handleCopyCode = (gameId: string, text: string) => {
     navigator.clipboard.writeText(text);
@@ -527,5 +545,28 @@ export default function TeacherGamesPage() {
       onClose={() => setShowClassModal(false)}
     />
     </>
+  );
+}
+
+export default function TeacherGamesPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#fffaf2] flex flex-col items-center justify-center">
+        <div className="w-[200px] h-[200px] mb-6 relative">
+          <Image
+            src="/assets/dashboard/floopa-character.png"
+            alt="Loading"
+            width={200}
+            height={200}
+            className="object-contain animate-bounce"
+          />
+        </div>
+        <div className="text-[#473025] font-quicksand font-bold text-xl">
+          Loading games...
+        </div>
+      </div>
+    }>
+      <TeacherGamesContent />
+    </Suspense>
   );
 }
