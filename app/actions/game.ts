@@ -103,9 +103,8 @@ export async function createGame(params: {
     // gen a unique 6-character code for sharing the game
     const shareCode = await generateUniqueShareCode();
 
-    // generate QR code and upload to Vercel Blob
-    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
-    const qrCodeUrl = await generateGameQRCode(shareCode, baseUrl);
+    // generate QR code and upload to Vercel Blob (always uses production URL)
+    const qrCodeUrl = await generateGameQRCode(shareCode);
 
     // create the new game record in the db
     const game = await db.game.create({
@@ -176,9 +175,8 @@ export async function createGameFromQuiz(
     // gen a unique 6-character code for sharing the game
     const shareCode = await generateUniqueShareCode();
 
-    // generate QR code and upload to Vercel Blob
-    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
-    const qrCodeUrl = await generateGameQRCode(shareCode, baseUrl);
+    // generate QR code and upload to Vercel Blob (always uses production URL)
+    const qrCodeUrl = await generateGameQRCode(shareCode);
 
     // create the new game record in the db linking it to the quiz and teacher
     const game = await db.game.create({
