@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import Navbar from './Navbar';
 import SlidingSidebar from './SlidingSidebar';
+import OnboardingModal from './OnboardingModal';
+import { checkOnboardingStatus, markOnboardingComplete } from '@/app/actions/onboarding';
 
 interface TeacherPageLayoutProps {
   children: React.ReactNode;
@@ -13,9 +15,11 @@ interface TeacherPageLayoutProps {
 export default function TeacherPageLayout({ children, showSignOut = true, defaultSidebarOpen = false }: TeacherPageLayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(defaultSidebarOpen);
   const [userName, setUserName] = useState('');
-  const [userRole, setUserRole] = useState('TEACHER');
+  const [userRole, setUserRole] = useState<'TEACHER' | 'STUDENT'>('TEACHER');
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [hasCheckedOnboarding, setHasCheckedOnboarding] = useState(false);
 
-  // Fetch user session
+  // Fetch user session and check onboarding status
   useEffect(() => {
     async function fetchUser() {
       const response = await fetch('/api/auth/session');
@@ -23,10 +27,24 @@ export default function TeacherPageLayout({ children, showSignOut = true, defaul
       if (session?.user) {
         setUserName(session.user.name || 'Teacher');
         setUserRole('TEACHER');
+
+        // Check if user has completed onboarding
+        if (!hasCheckedOnboarding) {
+          const result = await checkOnboardingStatus();
+          if (result.success && !result.data.completed) {
+            setShowOnboarding(true);
+          }
+          setHasCheckedOnboarding(true);
+        }
       }
     }
     fetchUser();
-  }, []);
+  }, [hasCheckedOnboarding]);
+
+  const handleOnboardingClose = async () => {
+    await markOnboardingComplete();
+    setShowOnboarding(false);
+  };
 
   return (
     <div className="min-h-screen bg-[#fffaf2]">
@@ -40,6 +58,13 @@ export default function TeacherPageLayout({ children, showSignOut = true, defaul
       <SlidingSidebar
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
+        onHelpClick={() => setShowOnboarding(true)}
+      />
+
+      <OnboardingModal
+        isOpen={showOnboarding}
+        onClose={handleOnboardingClose}
+        userRole={userRole}
       />
 
       <main

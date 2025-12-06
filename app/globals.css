@@ -169,3 +169,36 @@ body {
 [data-loaded] {
   opacity: 1;
 }
+
+/* Custom Green Scrollbar Styling */
+/* For Webkit browsers (Chrome, Safari, Edge) */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f5f5f5;
+  border-radius: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #95b607;
+  border-radius: 6px;
+  border: 2px solid #f5f5f5;
+  transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #7a9700;
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: #6a8500;
+}
+
+/* For Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #95b607 #f5f5f5;
+}

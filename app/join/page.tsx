@@ -193,11 +193,11 @@ export default function JoinGamePage() {
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-[#fffaf2]">
-      {/* Background Image Layer */}
+      {/* Sky Background Layer */}
       <div className="absolute inset-0 w-full h-full">
         <Image
-          src="/assets/join/03079bae0be02c1a42bae6bee5b4f6d75fa6b6a6.png"
-          alt="Background"
+          src="/assets/join/sky.png"
+          alt="Sky Background"
           fill
           className="object-cover object-center"
           priority
@@ -255,7 +255,7 @@ export default function JoinGamePage() {
         <div className="flex justify-center pt-4">
           <img
             ref={logoRef}
-            src="/images/learnwyrm-logo.svg"
+            src="/assets/LearnWyrm.svg"
             alt="LearnWyrm"
             className="h-[32px] sm:h-[36px] w-auto"
           />

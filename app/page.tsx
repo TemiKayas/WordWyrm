@@ -264,7 +264,7 @@ export default function Home() {
         {/* wordwyrm logo */}
         <div ref={logoRef} className="mb-6 sm:mb-8">
           <Image
-            src="/LearnWyrm.svg"
+            src="/assets/LearnWyrm.svg"
             alt="WordWyrm"
             width={300}
             height={60}
