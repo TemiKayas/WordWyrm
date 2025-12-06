@@ -188,9 +188,15 @@ export async function getTeacherClasses(): Promise<
     return { success: true, data: classes };
   } catch (error) {
     console.error('Get teacher classes error:', error);
+    console.error('Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      type: typeof error,
+      fullError: error,
+    });
     return {
       success: false,
-      error: 'Failed to fetch classes',
+      error: `Failed to fetch classes: ${error instanceof Error ? error.message : 'Unknown error'}`,
     };
   } finally {
     console.log("--- DEBUG: Exiting getTeacherClasses ---");
