@@ -18,6 +18,7 @@ interface Game {
   qrCodeUrl: string | null;
   numQuestions: number;
   classId: string;
+  createdAt: Date;
 }
 
 interface ClassWithGames {
@@ -34,8 +35,8 @@ export default function TeacherGamesPage() {
   const [origin, setOrigin] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedClass, setSelectedClass] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<'title' | 'questions' | 'code'>('title');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [sortBy, setSortBy] = useState<'title' | 'questions' | 'code' | 'created'>('created');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [fullscreenGame, setFullscreenGame] = useState<Game | null>(null);
   const [showClassModal, setShowClassModal] = useState(false);
 
@@ -59,6 +60,7 @@ export default function TeacherGamesPage() {
             qrCodeUrl: quiz.qrCodeUrl || null,
             numQuestions: quiz.numQuestions,
             classId: quiz.classId || '',
+            createdAt: quiz.createdAt,
           }));
 
         // Group games by class
@@ -117,16 +119,19 @@ export default function TeacherGamesPage() {
         comparison = a.numQuestions - b.numQuestions;
       } else if (sortBy === 'code') {
         comparison = a.shareCode.localeCompare(b.shareCode);
+      } else if (sortBy === 'created') {
+        comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
       }
       return sortOrder === 'asc' ? comparison : -comparison;
     });
 
-  const toggleSort = (newSortBy: 'title' | 'questions' | 'code') => {
+  const toggleSort = (newSortBy: 'title' | 'questions' | 'code' | 'created') => {
     if (sortBy === newSortBy) {
       setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
     } else {
       setSortBy(newSortBy);
-      setSortOrder('asc');
+      // Default to desc for created (newest first), asc for others
+      setSortOrder(newSortBy === 'created' ? 'desc' : 'asc');
     }
   };
 
@@ -243,7 +248,18 @@ export default function TeacherGamesPage() {
               </div>
 
               {/* Sort Buttons */}
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
+                <button
+                  onClick={() => toggleSort('created')}
+                  className={`flex items-center gap-2 px-4 py-3 rounded-[12px] font-quicksand font-bold text-[14px] transition-all border-[3px] ${
+                    sortBy === 'created'
+                      ? 'bg-[#473025] text-white border-[#473025]'
+                      : 'bg-white text-[#473025] border-[#473025]/20 hover:border-[#473025]'
+                  }`}
+                >
+                  <Calendar size={16} className={sortBy === 'created' && sortOrder === 'desc' ? 'rotate-180' : ''} />
+                  Created
+                </button>
                 <button
                   onClick={() => toggleSort('title')}
                   className={`flex items-center gap-2 px-4 py-3 rounded-[12px] font-quicksand font-bold text-[14px] transition-all border-[3px] ${
@@ -274,7 +290,7 @@ export default function TeacherGamesPage() {
                       : 'bg-white text-[#473025] border-[#473025]/20 hover:border-[#473025]'
                   }`}
                 >
-                  <Calendar size={16} className={sortBy === 'code' && sortOrder === 'desc' ? 'rotate-180' : ''} />
+                  <ArrowUpDown size={16} className={sortBy === 'code' && sortOrder === 'desc' ? 'rotate-180' : ''} />
                   Code
                 </button>
               </div>
