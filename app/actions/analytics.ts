@@ -69,6 +69,7 @@ export async function analyzeStudentPerformance(
           select: {
             title: true,
             teacherId: true,
+            gameMode: true,
           },
         },
         questionAttempts: {
@@ -139,6 +140,8 @@ export async function analyzeStudentPerformance(
 Student: ${studentName}
 Score: ${gameSession.score || 0}
 Correct: ${gameSession.correctAnswers || 0} / ${gameSession.totalQuestions || 0} (${Math.round(accuracy)}%)
+Game Mode: ${gameSession.game.gameMode}
+Game Stats: ${JSON.stringify(gameSession.metadata)}
 
 Questions Answered Correctly:
 ${correctQuestions.map(q => `- Q${q.questionNumber}: ${q.questionText}`).join('\n') || 'None'}
@@ -150,11 +153,18 @@ ${incorrectQuestions.map(q =>
   Correct answer: ${q.correctAnswer}`
 ).join('\n') || 'None'}
 
+IMPORTANT: Use the Game Stats ONLY to infer learning behavior, NOT to critique gameplay strategy.
+
+Examples:
+- High 'longestStreak' (Snake) -> Consistent recall/focus
+- High 'masteryAttempts' (Snake) -> Persistence in learning
+- Do NOT give advice on how to play the game (e.g., 'build more towers'). Focus on the academic content.
+
 Provide a JSON response with this structure:
 {
   "strengths": "A paragraph describing what topics/concepts the student understands well based on correct answers",
   "weaknesses": "A paragraph describing what topics the student struggled with based on incorrect answers",
-  "patterns": "A paragraph identifying any patterns in mistakes or learning style (e.g., rushes through, confuses similar concepts, etc.)",
+  "patterns": "A paragraph identifying any patterns in mistakes or learning style (e.g., rushes through, confuses similar concepts, etc.). Use Game Stats to infer learning behavior like consistency, focus, or persistence.",
   "recommendations": ["Specific recommendation 1", "Specific recommendation 2", "Specific recommendation 3"]
 }
 
