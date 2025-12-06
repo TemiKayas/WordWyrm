@@ -18,11 +18,6 @@ const nextConfig: NextConfig = {
     },
   },
   serverExternalPackages: ['pdf-parse'],
-  eslint: {
-    // Warning: This allows production builds to successfully complete even if
-    // your project has ESLint errors. Only use in development/staging.
-    ignoreDuringBuilds: true,
-  },
   typescript: {
     // Warning: This allows production builds to successfully complete even if
     // your project has type errors. Use with caution.

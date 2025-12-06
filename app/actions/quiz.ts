@@ -94,6 +94,7 @@ export async function getTeacherQuizzes(classId?: string): Promise<
         qrCodeUrl: quiz.games[0]?.qrCodeUrl || null,
         pdfFilename: pdf.filename,
         gameMode: quiz.games[0]?.gameMode,
+        classId: pdf.classId,
       })) || []
     );
 

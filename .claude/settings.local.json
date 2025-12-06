@@ -25,7 +25,9 @@
       "Bash(git merge:*)",
       "Bash(/tmp/original_page.tsx)",
       "Bash(npm run dev:*)",
-      "Bash(pkill:*)"
+      "Bash(pkill:*)",
+      "Bash(npx tsx:*)",
+      "Bash(npm install:*)"
     ],
     "deny": [],
     "ask": []

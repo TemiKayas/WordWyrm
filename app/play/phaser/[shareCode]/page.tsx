@@ -46,16 +46,22 @@ function LoginPromptPopup({
             You&apos;re not logged in
           </h3>
           <p className="text-gray-600 font-quicksand text-sm mb-4">
-            Would you like to sign in? Your progress will be saved if you&apos;re a member of this class.
+            Would you like to sign in? Your progress will not be saved unless you sign in.
           </p>
 
           {/* Buttons */}
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-3">
             <button
               onClick={onLogin}
-              className="w-full py-2 px-4 bg-[#95b607] text-white font-quicksand font-semibold rounded hover:bg-[#7a9406] transition-colors"
+              className="w-full py-3 px-4 bg-[#95b607] text-white font-quicksand font-semibold rounded-lg hover:bg-[#7a9406] transition-colors"
             >
               Sign Up or Log In
+            </button>
+            <button
+              onClick={onClose}
+              className="w-full py-3 px-4 bg-[#ff9f22] text-white font-quicksand font-semibold rounded-lg hover:bg-[#e6832b] transition-colors"
+            >
+              Continue Anyway
             </button>
           </div>
         </div>

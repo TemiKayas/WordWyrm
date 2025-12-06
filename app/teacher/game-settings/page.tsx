@@ -11,6 +11,7 @@ import { GameMode } from "@prisma/client";
 import Image from "next/image";
 import { List } from "react-window";
 import type { RowComponentProps } from "react-window";
+import { Pencil, Check, X } from 'lucide-react';
 
 interface QuizQuestion {
   question: string;
@@ -84,7 +85,10 @@ function GameSettingsContent() {
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [reviewedQuestions, setReviewedQuestions] = useState<Set<number>>(new Set());
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [pdfFilename, setPdfFilename] = useState<string>('');
+
+  // Edit mode state
+  const [isEditingQuestion, setIsEditingQuestion] = useState(false);
+  const [editedQuestion, setEditedQuestion] = useState<QuizQuestion | null>(null);
 
   // UI state
   const [isLoading, setIsLoading] = useState(true);
@@ -115,8 +119,6 @@ function GameSettingsContent() {
 
         setTitle(quiz.title || '');
         setQuestions(quizData.questions);
-        const pdfFilename = (quiz as {processedContent?: {pdf?: {filename?: string}}}).processedContent?.pdf?.filename || 'Unknown PDF';
-        setPdfFilename(pdfFilename);
       }
       setIsLoading(false);
     }
@@ -133,6 +135,51 @@ function GameSettingsContent() {
     if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
     }
+  };
+
+  const handleDenyQuestion = () => {
+    // Remove the question from the array
+    const newQuestions = questions.filter((_, index) => index !== currentQuestionIndex);
+    setQuestions(newQuestions);
+
+    // Update reviewed questions indices to account for removed question
+    const newReviewed = new Set<number>();
+    reviewedQuestions.forEach(index => {
+      if (index < currentQuestionIndex) {
+        newReviewed.add(index);
+      } else if (index > currentQuestionIndex) {
+        newReviewed.add(index - 1);
+      }
+    });
+    setReviewedQuestions(newReviewed);
+
+    // Adjust current question index if needed
+    if (currentQuestionIndex >= newQuestions.length && newQuestions.length > 0) {
+      setCurrentQuestionIndex(newQuestions.length - 1);
+    } else if (newQuestions.length === 0) {
+      // If all questions are denied, you might want to handle this case
+      setCurrentQuestionIndex(0);
+    }
+  };
+
+  const handleEditQuestion = () => {
+    setEditedQuestion({ ...questions[currentQuestionIndex] });
+    setIsEditingQuestion(true);
+  };
+
+  const handleSaveEdit = () => {
+    if (editedQuestion) {
+      const newQuestions = [...questions];
+      newQuestions[currentQuestionIndex] = editedQuestion;
+      setQuestions(newQuestions);
+      setIsEditingQuestion(false);
+      setEditedQuestion(null);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditingQuestion(false);
+    setEditedQuestion(null);
   };
 
   const handlePublish = async () => {
@@ -159,12 +206,13 @@ function GameSettingsContent() {
         title,
         description,
         gameMode,
+        isPublic, // Pass the public/private setting
       });
 
       if (result.success) {
         setSaveMessage({ type: 'success', text: 'Game published successfully! Redirecting...' });
         setTimeout(() => {
-          router.push('/teacher/games');
+          router.push(`/teacher/games?gameId=${result.data.gameId}`);
         }, 1500);
       } else {
         setSaveMessage({ type: 'error', text: result.error || 'Failed to create game' });
@@ -186,7 +234,6 @@ function GameSettingsContent() {
   }
 
   const currentQuestion = questions[currentQuestionIndex];
-  const confirmedCount = reviewedQuestions.size;
   const confirmedIndices = Array.from(reviewedQuestions);
   const underReviewIndices = questions
     .map((_, index) => index)
@@ -371,7 +418,7 @@ function GameSettingsContent() {
             <div className="animate-fade-in">
               <p className="font-quicksand text-[#a7613c] text-[13px] mb-4">
                 Our AI assistant has created questions based off of your source material.
-                Now all you have to do is confirm the questions or make any changes you'd like!
+                Now all you have to do is confirm the questions or make any changes you&apos;d like!
               </p>
 
               <div className="grid grid-cols-[1fr_250px] gap-6">
@@ -379,16 +426,34 @@ function GameSettingsContent() {
                 <div>
                   {currentQuestion && (
                     <div className="border-[2px] border-[#473025] rounded-[12px] p-5 bg-white">
-                      {/* Question Number Badge */}
+                      {/* Question Number Badge and Edit Button */}
                       <div className="flex items-center gap-3 mb-4">
                         <div className="w-[50px] h-[50px] bg-[#473025] rounded-[8px] flex items-center justify-center flex-shrink-0">
                           <span className="font-quicksand font-bold text-white text-[18px]">
                             Q{currentQuestionIndex + 1}
                           </span>
                         </div>
-                        <h3 className="font-quicksand font-bold text-[#473025] text-[16px] flex-1">
-                          {currentQuestion.question}
-                        </h3>
+                        {isEditingQuestion ? (
+                          <input
+                            type="text"
+                            value={editedQuestion?.question || ''}
+                            onChange={(e) => setEditedQuestion(prev => prev ? { ...prev, question: e.target.value } : null)}
+                            className="flex-1 bg-white border-[2px] border-[#ff9f22] rounded-[8px] px-3 py-2 font-quicksand font-bold text-[#473025] text-[16px] focus:outline-none focus:border-[#ff9f22]"
+                          />
+                        ) : (
+                          <h3 className="font-quicksand font-bold text-[#473025] text-[16px] flex-1">
+                            {currentQuestion.question}
+                          </h3>
+                        )}
+                        {!isEditingQuestion && (
+                          <button
+                            onClick={handleEditQuestion}
+                            className="w-[40px] h-[40px] bg-[#ff9f22] hover:bg-[#e6832b] rounded-[8px] flex items-center justify-center transition-colors flex-shrink-0"
+                            title="Edit question"
+                          >
+                            <Pencil size={18} className="text-white" />
+                          </button>
+                        )}
                       </div>
 
                       {/* Correct Answer Indicator */}
@@ -403,8 +468,10 @@ function GameSettingsContent() {
 
                       {/* Answer Options */}
                       <div className="space-y-2 mb-5">
-                        {currentQuestion.options.map((option, optionIndex) => {
-                          const isCorrect = option === currentQuestion.answer;
+                        {(isEditingQuestion ? editedQuestion?.options : currentQuestion.options)?.map((option, optionIndex) => {
+                          const isCorrect = isEditingQuestion
+                            ? option === editedQuestion?.answer
+                            : option === currentQuestion.answer;
                           const letter = String.fromCharCode(65 + optionIndex);
                           return (
                             <div
@@ -420,25 +487,84 @@ function GameSettingsContent() {
                               }`}>
                                 {letter}
                               </div>
-                              <p className="font-quicksand text-[#473025] text-[14px] flex-1 mt-1">
-                                {option}
-                              </p>
+                              {isEditingQuestion ? (
+                                <div className="flex-1 flex items-center gap-2">
+                                  <input
+                                    type="text"
+                                    value={option}
+                                    onChange={(e) => {
+                                      const newOptions = [...(editedQuestion?.options || [])];
+                                      newOptions[optionIndex] = e.target.value;
+                                      setEditedQuestion(prev => prev ? { ...prev, options: newOptions } : null);
+                                    }}
+                                    className="flex-1 bg-white border-[1px] border-[#d1c5b8] rounded-[6px] px-2 py-1 font-quicksand text-[#473025] text-[14px] focus:outline-none focus:border-[#ff9f22]"
+                                  />
+                                  <button
+                                    onClick={() => setEditedQuestion(prev => prev ? { ...prev, answer: option } : null)}
+                                    className={`px-2 py-1 rounded-[6px] font-quicksand text-[11px] font-semibold transition-colors ${
+                                      isCorrect
+                                        ? 'bg-[#ff9f22] text-white'
+                                        : 'bg-[#f1e8d9] text-[#473025] hover:bg-[#ff9f22] hover:text-white'
+                                    }`}
+                                    title="Set as correct answer"
+                                  >
+                                    {isCorrect ? '✓ Correct' : 'Set'}
+                                  </button>
+                                </div>
+                              ) : (
+                                <p className="font-quicksand text-[#473025] text-[14px] flex-1 mt-1">
+                                  {option}
+                                </p>
+                              )}
                             </div>
                           );
                         })}
                       </div>
 
-                      {/* Approve Button */}
-                      <div className="flex justify-center">
-                        <Button
-                          onClick={handleApproveQuestion}
-                          variant="success"
-                          size="md"
-                          className="min-w-[140px]"
-                          disabled={reviewedQuestions.has(currentQuestionIndex)}
-                        >
-                          {reviewedQuestions.has(currentQuestionIndex) ? 'APPROVED' : 'APPROVE'}
-                        </Button>
+                      {/* Action Buttons */}
+                      <div className="flex justify-center gap-3">
+                        {isEditingQuestion ? (
+                          <>
+                            <Button
+                              onClick={handleCancelEdit}
+                              variant="secondary"
+                              size="md"
+                              className="min-w-[140px]"
+                            >
+                              <X size={16} className="inline mr-1" />
+                              CANCEL
+                            </Button>
+                            <Button
+                              onClick={handleSaveEdit}
+                              variant="success"
+                              size="md"
+                              className="min-w-[140px]"
+                            >
+                              <Check size={16} className="inline mr-1" />
+                              SAVE
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <Button
+                              onClick={handleDenyQuestion}
+                              variant="danger"
+                              size="md"
+                              className="min-w-[140px]"
+                            >
+                              DENY
+                            </Button>
+                            <Button
+                              onClick={handleApproveQuestion}
+                              variant="success"
+                              size="md"
+                              className="min-w-[140px]"
+                              disabled={reviewedQuestions.has(currentQuestionIndex)}
+                            >
+                              {reviewedQuestions.has(currentQuestionIndex) ? 'APPROVED' : 'APPROVE'}
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </div>
                   )}
@@ -595,7 +721,7 @@ function GameSettingsContent() {
                         Available for anyone to play!
                       </p>
                       <p className="font-quicksand text-[#a7613c] text-[10px] italic">
-                        (Game will appear in the "Discover" tab)
+                        (Game will appear in the &quot;Discover&quot; tab)
                       </p>
                     </div>
                   </div>
