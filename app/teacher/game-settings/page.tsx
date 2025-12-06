@@ -212,7 +212,7 @@ function GameSettingsContent() {
       if (result.success) {
         setSaveMessage({ type: 'success', text: 'Game published successfully! Redirecting...' });
         setTimeout(() => {
-          router.push('/teacher/games');
+          router.push(`/teacher/games?gameId=${result.data.gameId}`);
         }, 1500);
       } else {
         setSaveMessage({ type: 'error', text: result.error || 'Failed to create game' });
