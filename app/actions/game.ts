@@ -63,9 +63,10 @@ export async function createGame(params: {
   title: string;
   description?: string;
   gameMode?: GameMode;
+  isPublic?: boolean;
 }): Promise<ActionResult<{ gameId: string; shareCode: string }>> {
   try {
-    const { quizId, title, description, gameMode } = params;
+    const { quizId, title, description, gameMode, isPublic } = params;
 
     // ensure user is a teacher
     const session = await auth();
@@ -117,6 +118,8 @@ export async function createGame(params: {
         shareCode,
         qrCodeUrl,
         gameMode: gameMode || GameMode.TRADITIONAL,
+        isPublic: isPublic ?? false, // Default to private if not specified
+        wasEverPublic: isPublic ?? false, // Set wasEverPublic if game is public
       },
     });
 

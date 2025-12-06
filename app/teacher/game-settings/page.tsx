@@ -135,6 +135,31 @@ function GameSettingsContent() {
     }
   };
 
+  const handleDenyQuestion = () => {
+    // Remove the question from the array
+    const newQuestions = questions.filter((_, index) => index !== currentQuestionIndex);
+    setQuestions(newQuestions);
+
+    // Update reviewed questions indices to account for removed question
+    const newReviewed = new Set<number>();
+    reviewedQuestions.forEach(index => {
+      if (index < currentQuestionIndex) {
+        newReviewed.add(index);
+      } else if (index > currentQuestionIndex) {
+        newReviewed.add(index - 1);
+      }
+    });
+    setReviewedQuestions(newReviewed);
+
+    // Adjust current question index if needed
+    if (currentQuestionIndex >= newQuestions.length && newQuestions.length > 0) {
+      setCurrentQuestionIndex(newQuestions.length - 1);
+    } else if (newQuestions.length === 0) {
+      // If all questions are denied, you might want to handle this case
+      setCurrentQuestionIndex(0);
+    }
+  };
+
   const handlePublish = async () => {
     if (!quizId || !title.trim()) {
       setSaveMessage({ type: 'error', text: 'Title is required' });
@@ -159,6 +184,7 @@ function GameSettingsContent() {
         title,
         description,
         gameMode,
+        isPublic, // Pass the public/private setting
       });
 
       if (result.success) {
@@ -428,8 +454,16 @@ function GameSettingsContent() {
                         })}
                       </div>
 
-                      {/* Approve Button */}
-                      <div className="flex justify-center">
+                      {/* Approve/Deny Buttons */}
+                      <div className="flex justify-center gap-3">
+                        <Button
+                          onClick={handleDenyQuestion}
+                          variant="danger"
+                          size="md"
+                          className="min-w-[140px]"
+                        >
+                          DENY
+                        </Button>
                         <Button
                           onClick={handleApproveQuestion}
                           variant="success"
