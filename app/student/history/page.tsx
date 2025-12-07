@@ -18,6 +18,7 @@ type GameSession = {
   completedAt: Date;
   className: string;
   teacherName: string;
+  metadata: any | null;
 };
 
 export default function GameHistoryPage() {
@@ -78,9 +79,16 @@ export default function GameHistoryPage() {
     }
   };
 
-  const getPercentage = (correct: number, total: number) => {
-    if (total === 0) return 0;
-    return Math.round((correct / total) * 100);
+  const getPercentage = (session: GameSession) => {
+    // Use masteryAccuracy from metadata if available (for Snake game with mastery mode)
+    if (session.metadata?.masteryAccuracy !== undefined) {
+      return Math.round(session.metadata.masteryAccuracy);
+    }
+
+    // Fall back to traditional calculation
+    if (session.totalQuestions === 0) return 0;
+    const percentage = (session.correctAnswers / session.totalQuestions) * 100;
+    return Math.min(Math.round(percentage), 100); // Cap at 100%
   };
 
   const getPerformanceColor = (percentage: number) => {
@@ -156,14 +164,23 @@ export default function GameHistoryPage() {
           {/* Game History List */}
           <div className="space-y-4">
             {sessions.map((session) => {
-              const percentage = getPercentage(session.correctAnswers, session.totalQuestions);
+              const percentage = getPercentage(session);
               const badge = getPerformanceBadge(percentage);
 
               return (
                 <div
                   key={session.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`View leaderboard for ${session.gameTitle}. Score: ${session.score}, Accuracy: ${percentage}%`}
                   className="bg-white rounded-[20px] shadow-sm border-[2px] border-[#473025]/10 p-6 hover:shadow-md transition-shadow cursor-pointer"
                   onClick={() => router.push(`/student/leaderboard/${session.gameId}`)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      router.push(`/student/leaderboard/${session.gameId}`);
+                    }
+                  }}
                 >
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     {/* Left: Game Info */}

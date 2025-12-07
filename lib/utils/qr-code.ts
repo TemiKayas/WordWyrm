@@ -4,15 +4,14 @@ import { put } from '@vercel/blob';
 /**
  * Generate QR code for a game and upload to Vercel Blob
  * @param shareCode - The game's share code
- * @param baseUrl - The base URL of the application (e.g., process.env.NEXTAUTH_URL)
  * @returns The URL of the uploaded QR code image
  */
 export async function generateGameQRCode(
-  shareCode: string,
-  baseUrl: string
+  shareCode: string
 ): Promise<string> {
-  // construct the game URL using the join link
-  const gameUrl = `${baseUrl}/join/${shareCode}`;
+  // Always use production URL for QR codes, even in local development
+  const PRODUCTION_URL = 'https://word-wyrm.vercel.app';
+  const gameUrl = `${PRODUCTION_URL}/join/${shareCode}`;
 
   // generate QR code as buffer
   const qrBuffer = await QRCode.toBuffer(gameUrl, {

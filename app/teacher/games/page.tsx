@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import TeacherPageLayout from '@/components/shared/TeacherPageLayout';
 import { getTeacherQuizzes } from '@/app/actions/quiz';
 import { getTeacherClasses } from '@/app/actions/class';
@@ -18,6 +18,7 @@ interface Game {
   qrCodeUrl: string | null;
   numQuestions: number;
   classId: string;
+  createdAt: Date;
 }
 
 interface ClassWithGames {
@@ -26,16 +27,17 @@ interface ClassWithGames {
   games: Game[];
 }
 
-export default function TeacherGamesPage() {
+function TeacherGamesContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [classesWithGames, setClassesWithGames] = useState<ClassWithGames[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [origin, setOrigin] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedClass, setSelectedClass] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<'title' | 'questions' | 'code'>('title');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [sortBy, setSortBy] = useState<'title' | 'questions' | 'code' | 'created'>('created');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [fullscreenGame, setFullscreenGame] = useState<Game | null>(null);
   const [showClassModal, setShowClassModal] = useState(false);
 
@@ -59,6 +61,7 @@ export default function TeacherGamesPage() {
             qrCodeUrl: quiz.qrCodeUrl || null,
             numQuestions: quiz.numQuestions,
             classId: quiz.classId || '',
+            createdAt: quiz.createdAt,
           }));
 
         // Group games by class
@@ -94,6 +97,23 @@ export default function TeacherGamesPage() {
     loadGames();
   }, []);
 
+  // Check for gameId parameter and auto-open modal
+  useEffect(() => {
+    const gameId = searchParams.get('gameId');
+    if (gameId && classesWithGames.length > 0) {
+      // Find the game by ID
+      const allGames = classesWithGames.flatMap(c => c.games);
+      const game = allGames.find(g => g.id === gameId);
+      if (game) {
+        setFullscreenGame(game);
+        // Remove the gameId parameter from the URL
+        const newUrl = new URL(window.location.href);
+        newUrl.searchParams.delete('gameId');
+        router.replace(newUrl.pathname + newUrl.search, { scroll: false });
+      }
+    }
+  }, [searchParams, classesWithGames, router]);
+
   const handleCopyCode = (gameId: string, text: string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(gameId);
@@ -117,16 +137,19 @@ export default function TeacherGamesPage() {
         comparison = a.numQuestions - b.numQuestions;
       } else if (sortBy === 'code') {
         comparison = a.shareCode.localeCompare(b.shareCode);
+      } else if (sortBy === 'created') {
+        comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
       }
       return sortOrder === 'asc' ? comparison : -comparison;
     });
 
-  const toggleSort = (newSortBy: 'title' | 'questions' | 'code') => {
+  const toggleSort = (newSortBy: 'title' | 'questions' | 'code' | 'created') => {
     if (sortBy === newSortBy) {
       setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
     } else {
       setSortBy(newSortBy);
-      setSortOrder('asc');
+      // Default to desc for created (newest first), asc for others
+      setSortOrder(newSortBy === 'created' ? 'desc' : 'asc');
     }
   };
 
@@ -243,7 +266,18 @@ export default function TeacherGamesPage() {
               </div>
 
               {/* Sort Buttons */}
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
+                <button
+                  onClick={() => toggleSort('created')}
+                  className={`flex items-center gap-2 px-4 py-3 rounded-[12px] font-quicksand font-bold text-[14px] transition-all border-[3px] ${
+                    sortBy === 'created'
+                      ? 'bg-[#473025] text-white border-[#473025]'
+                      : 'bg-white text-[#473025] border-[#473025]/20 hover:border-[#473025]'
+                  }`}
+                >
+                  <Calendar size={16} className={sortBy === 'created' && sortOrder === 'desc' ? 'rotate-180' : ''} />
+                  Created
+                </button>
                 <button
                   onClick={() => toggleSort('title')}
                   className={`flex items-center gap-2 px-4 py-3 rounded-[12px] font-quicksand font-bold text-[14px] transition-all border-[3px] ${
@@ -274,7 +308,7 @@ export default function TeacherGamesPage() {
                       : 'bg-white text-[#473025] border-[#473025]/20 hover:border-[#473025]'
                   }`}
                 >
-                  <Calendar size={16} className={sortBy === 'code' && sortOrder === 'desc' ? 'rotate-180' : ''} />
+                  <ArrowUpDown size={16} className={sortBy === 'code' && sortOrder === 'desc' ? 'rotate-180' : ''} />
                   Code
                 </button>
               </div>
@@ -511,5 +545,28 @@ export default function TeacherGamesPage() {
       onClose={() => setShowClassModal(false)}
     />
     </>
+  );
+}
+
+export default function TeacherGamesPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#fffaf2] flex flex-col items-center justify-center">
+        <div className="w-[200px] h-[200px] mb-6 relative">
+          <Image
+            src="/assets/dashboard/floopa-character.png"
+            alt="Loading"
+            width={200}
+            height={200}
+            className="object-contain animate-bounce"
+          />
+        </div>
+        <div className="text-[#473025] font-quicksand font-bold text-xl">
+          Loading games...
+        </div>
+      </div>
+    }>
+      <TeacherGamesContent />
+    </Suspense>
   );
 }

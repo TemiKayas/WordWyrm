@@ -92,13 +92,6 @@ export default function GamesView({ onCreateGame, classId, hideTitle = false }: 
     router.push(`/teacher/games/edit?quizId=${game.id}`);
   };
 
-  // ANALYTICS SYSTEM - Navigate to analytics dashboard for this game
-  const handleViewAnalytics = (game: Game) => {
-    if (game.gameId) {
-      router.push(`/teacher/analytics/${game.gameId}`);
-    }
-  };
-
   const handleViewShareCode = (game: Game) => {
     if (game.gameId) {
       router.push(`/teacher/game-preview?gameId=${game.gameId}`);
@@ -203,7 +196,6 @@ export default function GamesView({ onCreateGame, classId, hideTitle = false }: 
                 onPlay={() => handlePlay(game)}
                 onEdit={() => handleEdit(game)}
                 onDelete={() => handleDelete(game)}
-                onViewAnalytics={() => handleViewAnalytics(game)}
                 onViewShareCode={() => handleViewShareCode(game)}
                 onViewLeaderboard={() => handleViewLeaderboard(game)}
               />

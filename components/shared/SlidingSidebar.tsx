@@ -11,9 +11,10 @@ import Button from '@/components/ui/Button';
 interface SlidingSidebarProps {
   isOpen: boolean;
   onClose: () => void;
+  onHelpClick?: () => void;
 }
 
-export default function SlidingSidebar({ isOpen, onClose }: SlidingSidebarProps) {
+export default function SlidingSidebar({ isOpen, onClose, onHelpClick }: SlidingSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [showClassModal, setShowClassModal] = useState(false);
@@ -174,25 +175,25 @@ export default function SlidingSidebar({ isOpen, onClose }: SlidingSidebarProps)
           ))}
         </nav>
 
-        {/* Settings at bottom */}
+        {/* Help at bottom */}
         <div className="mt-auto px-4 md:px-6 lg:px-[35px] pb-6 md:pb-8">
-          <Link
-            href="/teacher/settings"
-            onClick={onClose}
-            className="flex items-center gap-3 md:gap-4 px-3 md:px-4 py-2 md:py-3 rounded-[9px] hover:bg-[#473025]/10 transition-all cursor-pointer"
+          <button
+            onClick={() => {
+              onHelpClick?.();
+              onClose();
+            }}
+            className="flex items-center gap-3 md:gap-4 px-3 md:px-4 py-2 md:py-3 rounded-[9px] hover:bg-[#473025]/10 transition-all cursor-pointer w-full"
           >
             <div className="w-5 h-5 md:w-6 md:h-6 relative flex-shrink-0">
-              <Image
-                src="/assets/dashboard/settings-gear-icon.svg"
-                alt="Settings"
-                fill
-                className="object-contain"
-              />
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="w-full h-full">
+                <circle cx="12" cy="12" r="10" stroke="#473025" strokeWidth="2"/>
+                <path d="M12 16V12M12 8H12.01" stroke="#473025" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
             </div>
             <span className="font-quicksand font-bold text-[18px] md:text-[22px] lg:text-[24px] text-[#473025]">
-              Settings
+              Help
             </span>
-          </Link>
+          </button>
         </div>
       </div>
 

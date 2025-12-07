@@ -71,6 +71,11 @@ export async function analyzeStudentPerformance(
             teacherId: true,
           },
         },
+        questionAttempts: {
+          orderBy: {
+            createdAt: 'asc',
+          },
+        },
       },
     });
 
@@ -91,26 +96,31 @@ export async function analyzeStudentPerformance(
       ? ((gameSession.correctAnswers || 0) / gameSession.totalQuestions) * 100
       : 0;
 
-    // Get question responses
-    const questionResponses = gameSession.questionResponses as Record<string, {
-      questionText: string;
-      selectedAnswer: string;
-      correctAnswer: string;
-      correct: boolean;
-    }> | null;
-
-    if (!questionResponses || Object.keys(questionResponses).length === 0) {
+    // Get question attempts (use only the LAST attempt per question for analysis)
+    if (!gameSession.questionAttempts || gameSession.questionAttempts.length === 0) {
       return {
         success: false,
         error: 'No detailed question data available for analysis'
       };
     }
 
+    // Group by question text and take the last attempt for each question
+    const lastAttempts = new Map<string, typeof gameSession.questionAttempts[0]>();
+    gameSession.questionAttempts.forEach(attempt => {
+      const existing = lastAttempts.get(attempt.questionText);
+      if (!existing || attempt.attemptNumber > existing.attemptNumber) {
+        lastAttempts.set(attempt.questionText, attempt);
+      }
+    });
+
     // Prepare data for AI analysis
-    const responsesList = Object.entries(questionResponses).map(([key, response]) => ({
-      questionNumber: parseInt(key.replace('q', '')) + 1,
-      ...response
-    })).sort((a, b) => a.questionNumber - b.questionNumber);
+    const responsesList = Array.from(lastAttempts.values()).map((attempt, index) => ({
+      questionNumber: index + 1,
+      questionText: attempt.questionText,
+      selectedAnswer: attempt.selectedAnswer,
+      correctAnswer: attempt.correctAnswer,
+      correct: attempt.wasCorrect,
+    }));
 
     const correctQuestions = responsesList.filter(r => r.correct);
     const incorrectQuestions = responsesList.filter(r => !r.correct);
@@ -230,6 +240,7 @@ export async function analyzeClassPerformance(
                 },
               },
             },
+            questionAttempts: true,
           },
         },
       },
@@ -269,32 +280,37 @@ export async function analyzeClassPerformance(
     }> = {};
 
     sessions.forEach(session => {
-      const responses = session.questionResponses as Record<string, {
-        questionText: string;
-        selectedAnswer: string;
-        correctAnswer: string;
-        correct: boolean;
-      }> | null;
+      if (!session.questionAttempts) return;
 
-      if (responses) {
-        Object.entries(responses).forEach(([qId, response]) => {
-          if (!questionStats[qId]) {
-            questionStats[qId] = {
-              question: response.questionText,
-              correctCount: 0,
-              totalAttempts: 0,
-              wrongAnswers: [],
-            };
-          }
+      // Group by question and take last attempt per question per student
+      const lastAttempts = new Map<string, typeof session.questionAttempts[0]>();
+      session.questionAttempts.forEach(attempt => {
+        const existing = lastAttempts.get(attempt.questionText);
+        if (!existing || attempt.attemptNumber > existing.attemptNumber) {
+          lastAttempts.set(attempt.questionText, attempt);
+        }
+      });
 
-          questionStats[qId].totalAttempts++;
-          if (response.correct) {
-            questionStats[qId].correctCount++;
-          } else {
-            questionStats[qId].wrongAnswers.push(response.selectedAnswer);
-          }
-        });
-      }
+      // Aggregate stats across all students
+      lastAttempts.forEach(attempt => {
+        const qId = attempt.questionText; // Use question text as key
+
+        if (!questionStats[qId]) {
+          questionStats[qId] = {
+            question: attempt.questionText,
+            correctCount: 0,
+            totalAttempts: 0,
+            wrongAnswers: [],
+          };
+        }
+
+        questionStats[qId].totalAttempts++;
+        if (attempt.wasCorrect) {
+          questionStats[qId].correctCount++;
+        } else {
+          questionStats[qId].wrongAnswers.push(attempt.selectedAnswer);
+        }
+      });
     });
 
     // Find most difficult questions
@@ -410,4 +426,150 @@ function getMostCommon(arr: string[]): string | null {
   }
 
   return mostCommon;
+}
+
+/**
+ * Get question-level analytics for a game
+ * Shows which questions students struggled with most
+ */
+export async function getGameQuestionAnalytics(
+  gameId: string
+): Promise<ActionResult<{
+  questionAnalytics: Array<{
+    questionText: string;
+    totalAttempts: number;
+    incorrectCount: number;
+    uniqueStrugglingStudents: number;
+    totalStudents: number;
+    difficultyScore: number;
+  }>;
+}>> {
+  try {
+    const session = await auth();
+
+    // Must be logged in as teacher
+    if (!session?.user || session.user.role !== 'TEACHER') {
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    // Get teacher profile
+    const teacher = await db.teacher.findUnique({
+      where: { userId: session.user.id },
+    });
+
+    if (!teacher) {
+      return { success: false, error: 'Teacher profile not found' };
+    }
+
+    // Get game and verify ownership
+    const game = await db.game.findUnique({
+      where: { id: gameId },
+      select: {
+        id: true,
+        teacherId: true,
+      },
+    });
+
+    if (!game) {
+      return { success: false, error: 'Game not found' };
+    }
+
+    if (game.teacherId !== teacher.id) {
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    // Get all question attempts for this game
+    const attempts = await db.questionAttempt.findMany({
+      where: {
+        gameSession: {
+          gameId: gameId,
+        },
+      },
+      include: {
+        gameSession: {
+          select: {
+            studentId: true,
+          },
+        },
+      },
+    });
+
+    if (attempts.length === 0) {
+      return {
+        success: true,
+        data: {
+          questionAnalytics: [],
+        },
+      };
+    }
+
+    // Calculate total unique students who played
+    const uniqueStudents = new Set(
+      attempts
+        .map(a => a.gameSession.studentId)
+        .filter(id => id !== null)
+    );
+    const totalStudents = uniqueStudents.size;
+
+    // Group attempts by question text
+    const questionMap = new Map<string, {
+      totalAttempts: number;
+      incorrectCount: number;
+      strugglingStudents: Set<string>;
+    }>();
+
+    attempts.forEach(attempt => {
+      const studentId = attempt.gameSession.studentId;
+      if (!studentId) return; // Skip guest attempts
+
+      if (!questionMap.has(attempt.questionText)) {
+        questionMap.set(attempt.questionText, {
+          totalAttempts: 0,
+          incorrectCount: 0,
+          strugglingStudents: new Set(),
+        });
+      }
+
+      const stats = questionMap.get(attempt.questionText)!;
+      stats.totalAttempts++;
+
+      if (!attempt.wasCorrect) {
+        stats.incorrectCount++;
+        stats.strugglingStudents.add(studentId);
+      }
+    });
+
+    // Convert to array and calculate difficulty scores
+    const questionAnalytics = Array.from(questionMap.entries()).map(([questionText, stats]) => {
+      const uniqueStrugglingStudents = stats.strugglingStudents.size;
+      const difficultyScore = totalStudents > 0
+        ? (uniqueStrugglingStudents / totalStudents) * 100
+        : 0;
+
+      return {
+        questionText,
+        totalAttempts: stats.totalAttempts,
+        incorrectCount: stats.incorrectCount,
+        uniqueStrugglingStudents,
+        totalStudents,
+        difficultyScore: Math.round(difficultyScore * 10) / 10, // Round to 1 decimal
+      };
+    });
+
+    // Sort by difficulty score descending (hardest first)
+    questionAnalytics.sort((a, b) => b.difficultyScore - a.difficultyScore);
+
+    return {
+      success: true,
+      data: {
+        questionAnalytics,
+      },
+    };
+  } catch (error) {
+    console.error('Error getting question analytics:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to get question analytics'
+    };
+  }
 }

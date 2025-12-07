@@ -1,12 +1,14 @@
 'use client';
 
-import { useState, useTransition, useEffect } from 'react';
+import { useState, useTransition, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { processContentForQuiz } from '@/app/actions/pdf';
 import FileUploadDropZone from '@/components/fileupload/FileUploadDropZone';
 import StepIndicator from '@/components/fileupload/StepIndicator';
 import Button from '@/components/ui/Button';
 import { useToast } from '@/components/providers/ToastProvider';
+import { gsap } from 'gsap';
+import ProcessingModal from '@/components/ui/ProcessingModal';
 
 const MAX_TOTAL_SIZE_MB = 25;
 const MAX_TOTAL_SIZE_BYTES = MAX_TOTAL_SIZE_MB * 1024 * 1024;
@@ -27,12 +29,60 @@ export default function PDFUploadForm({ onFileSelect }: PDFUploadFormProps) {
   const [subject, setSubject] = useState<string>('');
   const [textContent, setTextContent] = useState<string>('');
 
+  // GSAP refs
+  const stepRef = useRef<HTMLDivElement>(null);
+  const uploadRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLDivElement>(null);
+  const subjectRef = useRef<HTMLDivElement>(null);
+  const questionsRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLDivElement>(null);
+
   // Redirect if no classId is provided
   useEffect(() => {
     if (!classId) {
       router.push('/teacher/dashboard');
     }
   }, [classId, router]);
+
+  // GSAP animations on mount
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      const timeline = gsap.timeline();
+
+      timeline
+        .fromTo(stepRef.current,
+          { y: -30, opacity: 0 },
+          { y: 0, opacity: 1, duration: 0.5, ease: 'back.out(1.7)' }
+        )
+        .fromTo(uploadRef.current,
+          { y: 30, opacity: 0, scale: 0.95 },
+          { y: 0, opacity: 1, scale: 1, duration: 0.6, ease: 'back.out(1.7)' },
+          '-=0.3'
+        )
+        .fromTo(textRef.current,
+          { x: -20, opacity: 0 },
+          { x: 0, opacity: 1, duration: 0.4, ease: 'power2.out' },
+          '-=0.3'
+        )
+        .fromTo(subjectRef.current,
+          { x: -20, opacity: 0 },
+          { x: 0, opacity: 1, duration: 0.4, ease: 'power2.out' },
+          '-=0.2'
+        )
+        .fromTo(questionsRef.current,
+          { x: -20, opacity: 0 },
+          { x: 0, opacity: 1, duration: 0.4, ease: 'power2.out' },
+          '-=0.2'
+        )
+        .fromTo(buttonRef.current,
+          { y: 20, opacity: 0 },
+          { y: 0, opacity: 1, duration: 0.5, ease: 'back.out(1.7)' },
+          '-=0.1'
+        );
+    });
+
+    return () => ctx.revert();
+  }, []);
 
   async function handleFileSelect(file: File | File[]) {
     const files = Array.isArray(file) ? file : [file];
@@ -131,43 +181,12 @@ export default function PDFUploadForm({ onFileSelect }: PDFUploadFormProps) {
   return (
     <div className="w-full">
       {/* Step Indicator */}
-      <div className="mb-4 animate-fade-in flex justify-center">
+      <div ref={stepRef} className="mb-8 flex justify-center opacity-0">
         <StepIndicator step={1} title="Add your content" />
       </div>
 
-      {/* Text Input Area */}
-      <div className="mb-4 animate-slide-up" style={{ animationDelay: '0.05s' }}>
-        <label
-          htmlFor="textContent"
-          className="block text-[#473025] font-bold text-sm mb-1"
-        >
-          Text Content <span className="font-normal text-xs text-[#473025]/60">(optional if uploading PDF)</span>
-        </label>
-        <textarea
-          id="textContent"
-          value={textContent}
-          onChange={(e) => setTextContent(e.target.value)}
-          disabled={isPending}
-          placeholder="Paste or type your educational content here... (vocabulary lists, notes, study material, etc.)"
-          className="w-full px-3 py-2 bg-[#fff6e8] border-2 border-[#473025] rounded-lg font-medium text-[#473025] text-xs focus:ring-4 focus:ring-[#96b902]/30 focus:border-[#96b902] transition-all disabled:opacity-50 resize-y min-h-[100px] max-h-[200px]"
-          rows={4}
-        />
-        {textContent.trim().length > 0 && (
-          <p className="text-[#473025]/60 text-xs mt-1">
-            {textContent.trim().length} characters
-          </p>
-        )}
-      </div>
-
-      {/* Divider */}
-      <div className="flex items-center mb-4 animate-fade-in" style={{ animationDelay: '0.1s' }}>
-        <div className="flex-1 border-t-2 border-[#473025]/20"></div>
-        <span className="px-3 text-[#473025]/60 font-bold text-xs">AND/OR</span>
-        <div className="flex-1 border-t-2 border-[#473025]/20"></div>
-      </div>
-
-      {/* File Upload Drop Zone */}
-      <div className="mb-4 animate-slide-up" style={{ animationDelay: '0.15s' }}>
+      {/* File Upload Drop Zone - Now at the top */}
+      <div ref={uploadRef} className="mb-8 opacity-0">
         <FileUploadDropZone
           onFileSelect={handleFileSelect}
           disabled={isPending}
@@ -178,20 +197,20 @@ export default function PDFUploadForm({ onFileSelect }: PDFUploadFormProps) {
 
       {/* Selected Files Info */}
       {selectedFiles.length > 0 && !isPending && (
-        <div className="mb-3 p-2 bg-[#fff6e8] border-2 border-[#ff9f22] rounded-lg animate-fade-in">
-          <div className="flex items-center justify-between mb-1">
-            <p className="text-[#473025] font-semibold text-xs">
+        <div className="mb-4 p-3 bg-[#fff6e8] border-2 border-[#ff9f22] rounded-lg animate-fade-in">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-[#473025] font-semibold text-sm">
               Selected {selectedFiles.length} file(s)
             </p>
             <p className="text-[#473025] font-semibold text-xs">
               Total: {(selectedFiles.reduce((sum, f) => sum + f.size, 0) / 1024 / 1024).toFixed(2)} / {MAX_TOTAL_SIZE_MB} MB
             </p>
           </div>
-          <div className="space-y-1 max-h-[80px] overflow-y-auto">
+          <div className="space-y-1 max-h-[100px] overflow-y-auto">
             {selectedFiles.map((file, index) => (
-              <div key={index} className="flex items-center justify-between text-xs">
+              <div key={index} className="flex items-center justify-between text-sm">
                 <span className="text-[#ff9f22] font-semibold truncate flex-1">{file.name}</span>
-                <span className="text-[#473025] ml-2 text-[10px]">
+                <span className="text-[#473025] ml-2 text-xs">
                   {(file.size / 1024 / 1024).toFixed(2)} MB
                 </span>
               </div>
@@ -200,11 +219,42 @@ export default function PDFUploadForm({ onFileSelect }: PDFUploadFormProps) {
         </div>
       )}
 
+      {/* Divider */}
+      <div className="flex items-center my-8">
+        <div className="flex-1 border-t-2 border-[#473025]/20"></div>
+        <span className="px-4 text-[#473025]/60 font-bold text-sm">OR ADD TEXT</span>
+        <div className="flex-1 border-t-2 border-[#473025]/20"></div>
+      </div>
+
+      {/* Text Input Area - Now below, without border */}
+      <div ref={textRef} className="mb-8 opacity-0">
+        <label
+          htmlFor="textContent"
+          className="block text-[#473025] font-bold text-base mb-2"
+        >
+          Text Content <span className="font-normal text-sm text-[#473025]/60">(optional if uploading PDF)</span>
+        </label>
+        <textarea
+          id="textContent"
+          value={textContent}
+          onChange={(e) => setTextContent(e.target.value)}
+          disabled={isPending}
+          placeholder="Paste or type your educational content here... (vocabulary lists, notes, study material, etc.)"
+          className="w-full px-4 py-3 bg-[#fffaf2] border-2 border-[#473025] rounded-xl font-medium text-[#473025] text-sm focus:ring-4 focus:ring-[#96b902]/30 focus:border-[#96b902] transition-all disabled:opacity-50 resize-y min-h-[120px] max-h-[250px]"
+          rows={5}
+        />
+        {textContent.trim().length > 0 && (
+          <p className="text-[#473025]/60 text-xs mt-2">
+            {textContent.trim().length} characters
+          </p>
+        )}
+      </div>
+
       {/* Subject Selection */}
-      <div className="mb-3 animate-slide-up" style={{ animationDelay: '0.25s' }}>
+      <div ref={subjectRef} className="mb-4 opacity-0">
         <label
           htmlFor="subject"
-          className="block text-[#473025] font-bold text-sm mb-1"
+          className="block text-[#473025] font-bold text-base mb-2"
         >
           Subject
         </label>
@@ -213,7 +263,7 @@ export default function PDFUploadForm({ onFileSelect }: PDFUploadFormProps) {
           value={subject}
           onChange={(e) => setSubject(e.target.value)}
           disabled={isPending}
-          className="w-full px-3 py-2 bg-[#fff6e8] border-2 border-[#473025] rounded-lg font-semibold text-[#473025] text-xs focus:ring-4 focus:ring-[#96b902]/30 focus:border-[#96b902] transition-all disabled:opacity-50 cursor-pointer"
+          className="w-full px-4 py-3 bg-[#fff6e8] border-2 border-[#473025] rounded-xl font-semibold text-[#473025] text-sm focus:ring-4 focus:ring-[#96b902]/30 focus:border-[#96b902] transition-all disabled:opacity-50 cursor-pointer"
         >
           <option value="">General / No specific subject</option>
           <option value="ENGLISH">English</option>
@@ -225,10 +275,10 @@ export default function PDFUploadForm({ onFileSelect }: PDFUploadFormProps) {
       </div>
 
       {/* Number of Questions */}
-      <div className="mb-3 animate-slide-up" style={{ animationDelay: '0.3s' }}>
+      <div ref={questionsRef} className="mb-6 opacity-0">
         <label
           htmlFor="numQuestions"
-          className="block text-[#473025] font-bold text-sm mb-1"
+          className="block text-[#473025] font-bold text-base mb-2"
         >
           Number of Questions
         </label>
@@ -237,7 +287,7 @@ export default function PDFUploadForm({ onFileSelect }: PDFUploadFormProps) {
           value={numQuestions}
           onChange={(e) => setNumQuestions(Number(e.target.value))}
           disabled={isPending}
-          className="w-full px-3 py-2 bg-[#fff6e8] border-2 border-[#473025] rounded-lg font-semibold text-[#473025] text-xs focus:ring-4 focus:ring-[#96b902]/30 focus:border-[#96b902] transition-all disabled:opacity-50 cursor-pointer"
+          className="w-full px-4 py-3 bg-[#fff6e8] border-2 border-[#473025] rounded-xl font-semibold text-[#473025] text-sm focus:ring-4 focus:ring-[#96b902]/30 focus:border-[#96b902] transition-all disabled:opacity-50 cursor-pointer"
         >
           <option value="3">3 questions</option>
           <option value="5">5 questions</option>
@@ -247,35 +297,42 @@ export default function PDFUploadForm({ onFileSelect }: PDFUploadFormProps) {
       </div>
 
       {/* Generate Quiz Button */}
-      <Button
-        type="button"
-        onClick={handleSubmit}
-        disabled={isPending || (selectedFiles.length === 0 && textContent.trim().length === 0)}
-        variant="success"
-        size="md"
-        className="w-full animate-slide-up"
-        style={{ animationDelay: '0.35s' } as React.CSSProperties}
-        isLoading={isPending}
-      >
-        {(() => {
-          const hasText = textContent.trim().length > 0;
-          const hasPDFs = selectedFiles.length > 0;
+      <div ref={buttonRef} className="opacity-0">
+        <Button
+          type="button"
+          onClick={handleSubmit}
+          disabled={isPending || (selectedFiles.length === 0 && textContent.trim().length === 0)}
+          variant="success"
+          size="lg"
+          className="w-full"
+          isLoading={isPending}
+        >
+          {(() => {
+            const hasText = textContent.trim().length > 0;
+            const hasPDFs = selectedFiles.length > 0;
 
-          if (hasText && hasPDFs) {
-            return selectedFiles.length > 1
-              ? `Generate Quiz (Text + ${selectedFiles.length} PDFs)`
-              : 'Generate Quiz (Text + PDF)';
-          } else if (hasPDFs) {
-            return selectedFiles.length > 1
-              ? `Generate Quiz (${selectedFiles.length} PDFs)`
-              : 'Generate Quiz';
-          } else if (hasText) {
-            return 'Generate Quiz from Text';
-          } else {
-            return 'Generate Quiz';
-          }
-        })()}
-      </Button>
+            if (hasText && hasPDFs) {
+              return selectedFiles.length > 1
+                ? `Generate Quiz (Text + ${selectedFiles.length} PDFs)`
+                : 'Generate Quiz (Text + PDF)';
+            } else if (hasPDFs) {
+              return selectedFiles.length > 1
+                ? `Generate Quiz (${selectedFiles.length} PDFs)`
+                : 'Generate Quiz';
+            } else if (hasText) {
+              return 'Generate Quiz from Text';
+            } else {
+              return 'Generate Quiz';
+            }
+          })()}
+        </Button>
+      </div>
+
+      {/* Processing Modal */}
+      <ProcessingModal
+        isOpen={isPending}
+        message="Creating your quiz... This may take a moment."
+      />
     </div>
   );
 }
