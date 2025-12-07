@@ -52,6 +52,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
   private selectedTower: Tower | null = null; // selected for upgrades
   private clickedOnTower: boolean = false; // prevent double-click placement
   private placementPreview?: Phaser.GameObjects.Image | Phaser.GameObjects.Rectangle | Phaser.GameObjects.Container; // preview sprite for tower placement
+  private placementRangePreview?: Phaser.GameObjects.Arc; // range indicator circle for tower placement
 
   // Quiz system (between-wave questions)
   private quizData!: Quiz;
@@ -340,13 +341,9 @@ export default class TowerDefenseScene extends Phaser.Scene {
     // Draw path
     this.pathGraphics = this.add.graphics();
     this.pathGraphics.lineStyle(70, 0x5d4037, 1); // Dark brown path
-    this.pathGraphics.beginPath();
-    this.pathGraphics.moveTo(this.path[0].x, this.path[0].y);
-    for (let i = 1; i < this.path.length; i++) {
-      this.pathGraphics.lineTo(this.path[i].x, this.path[i].y);
-    }
-    this.pathGraphics.strokePath();
-    this.pathGraphics.setDepth(-1);
+    
+    // Initial path calculation will happen in handleResize which is called immediately after
+    this.handleResize(this.scale.baseSize);
 
     // Create goblin walk animation from individual frames
     if (!this.anims.exists('goblin_walk')) {
@@ -426,6 +423,11 @@ export default class TowerDefenseScene extends Phaser.Scene {
     this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
       if (this.placementPreview && this.selectedTowerType) {
         this.placementPreview.setPosition(pointer.x, pointer.y);
+
+        // Move range indicator with cursor
+        if (this.placementRangePreview) {
+          this.placementRangePreview.setPosition(pointer.x, pointer.y);
+        }
 
         // Calculate dynamic game area (excluding sidebar)
         const width = this.scale.width;
@@ -806,6 +808,11 @@ export default class TowerDefenseScene extends Phaser.Scene {
     if (this.selectedTowerType) {
       const stats = this.towerManager.getTowerStats(this.selectedTowerType);
 
+      // Create range indicator circle
+      this.placementRangePreview = this.add.circle(0, 0, stats.range, 0xffffff, 0.1);
+      this.placementRangePreview.setStrokeStyle(1, 0xffffff, 0.3);
+      this.placementRangePreview.setDepth(90); // Below tower preview but above ground
+
       if (this.selectedTowerType === 'fact') {
         // Training Camp - use rectangle
         this.placementPreview = this.add.rectangle(0, 0, 40, 40, stats.color);
@@ -840,143 +847,15 @@ export default class TowerDefenseScene extends Phaser.Scene {
       this.placementPreview.destroy();
       this.placementPreview = undefined;
     }
-  }
-
-  // Create ability UI buttons at bottom center of game area
-  createAbilityButtons() {
-    const width = this.scale.width;
-    const height = this.scale.height;
-    const sidebarWidth = Math.min(220, width * 0.15);
-    const gameWidth = width - sidebarWidth;
-    const centerX = gameWidth / 2;
-    const bottomY = height - 60; // 60px from bottom
-
-    const iconSpacing = 80;
-    const totalWidth = iconSpacing * 2;
-    const startX = centerX - totalWidth / 2;
-
-    const elements: Phaser.GameObjects.GameObject[] = [];
-
-    // Lightning Strike Icon Button (40g + quiz, 45s cooldown)
-    const lightningX = startX;
-    const lightningIcon = this.add.image(lightningX, bottomY, 'icon_lightning');
-    lightningIcon.setScale(0.1);
-    lightningIcon.setInteractive({ useHandCursor: true });
-
-    lightningIcon.on('pointerover', () => {
-      if (this.abilityManager.getLightningStrikeStatus(this.gold).available) {
-        lightningIcon.setScale(0.12);
-      }
-    });
-
-    lightningIcon.on('pointerout', () => {
-      lightningIcon.setScale(0.1);
-    });
-
-    lightningIcon.on('pointerdown', () => {
-      if (this.abilityManager.getLightningStrikeStatus(this.gold).available && this.gameStarted) {
-        this.lastAbilityButtonClicked = { x: lightningIcon.x, y: lightningIcon.y };
-        this.showAbilityQuestion('lightning');
-      }
-    });
-
-    elements.push(lightningIcon);
-
-    // Freeze Icon Button (60g + quiz, 60s cooldown)
-    const freezeX = startX + iconSpacing;
-    const freezeIcon = this.add.image(freezeX, bottomY, 'icon_freeze');
-    freezeIcon.setScale(0.1);
-    freezeIcon.setInteractive({ useHandCursor: true });
-
-    freezeIcon.on('pointerover', () => {
-      if (this.abilityManager.getFreezeStatus(this.gold).available) {
-        freezeIcon.setScale(0.12);
-      }
-    });
-
-    freezeIcon.on('pointerout', () => {
-      freezeIcon.setScale(0.1);
-    });
-
-    freezeIcon.on('pointerdown', () => {
-      if (this.abilityManager.getFreezeStatus(this.gold).available && this.gameStarted) {
-        this.lastAbilityButtonClicked = { x: freezeIcon.x, y: freezeIcon.y };
-        this.showAbilityQuestion('freeze');
-      }
-    });
-
-    elements.push(freezeIcon);
-
-    // Question Icon Button (unlocked by Training Camp, free, 90s cooldown)
-    const questionX = startX + iconSpacing * 2;
-    const questionIcon = this.add.image(questionX, bottomY, 'icon_powerup');
-    questionIcon.setScale(0.1);
-    questionIcon.setInteractive({ useHandCursor: true });
-
-    questionIcon.on('pointerover', () => {
-      if (this.abilityManager.getQuestionAbilityStatus().available) {
-        questionIcon.setScale(0.12);
-      }
-    });
-
-    questionIcon.on('pointerout', () => {
-      questionIcon.setScale(0.1);
-    });
-
-    questionIcon.on('pointerdown', () => {
-      if (this.abilityManager.getQuestionAbilityStatus().available && this.gameStarted) {
-        this.lastAbilityButtonClicked = { x: questionIcon.x, y: questionIcon.y };
-        this.showAbilityQuestion('question');
-      }
-    });
-
-    elements.push(questionIcon);
-
-    this.abilityButtons = this.add.container(0, 0, elements);
-  }
-
-  // Update ability button states (cooldowns, locked status, affordability)
-  updateAbilityButtons() {
-    if (!this.abilityButtons) return;
-
-    const elements = this.abilityButtons.list;
-
-    // Lightning Strike icon (index 0)
-    const lightningIcon = elements[0] as Phaser.GameObjects.Image;
-    const lightningStatus = this.abilityManager.getLightningStrikeStatus(this.gold);
-
-    if (lightningStatus.available) {
-      lightningIcon.setAlpha(1);
-      lightningIcon.setInteractive({ useHandCursor: true });
-    } else {
-      lightningIcon.setAlpha(0.4);
-      lightningIcon.disableInteractive();
-    }
-
-    // Freeze icon (index 1)
-    const freezeIcon = elements[1] as Phaser.GameObjects.Image;
-    const freezeStatus = this.abilityManager.getFreezeStatus(this.gold);
-
-    if (freezeStatus.available) {
-      freezeIcon.setAlpha(1);
-      freezeIcon.setInteractive({ useHandCursor: true });
-    } else {
-      freezeIcon.setAlpha(0.4);
-      freezeIcon.disableInteractive();
-    }
-
-    // Question icon (index 2)
-    const questionIcon = elements[2] as Phaser.GameObjects.Image;
-    const questionStatus = this.abilityManager.getQuestionAbilityStatus();
-
-    if (questionStatus.available) {
-      questionIcon.setAlpha(1);
-      questionIcon.setInteractive({ useHandCursor: true });
-    } else {
-      questionIcon.setAlpha(0.4);
-      questionIcon.disableInteractive();
+    if (this.placementRangePreview) {
+      this.placementRangePreview.destroy();
+      this.placementRangePreview = undefined;
     }
   }
+
+
+
+
 
 
   // ===== PUBLIC METHODS CALLED FROM UISCENE =====
@@ -1263,7 +1142,6 @@ export default class TowerDefenseScene extends Phaser.Scene {
     const currentPrice = this.towerPurchasePrice[towerType];
     this.gold -= currentPrice;
     this.updateUIDisplays(); // Update UI
-    this.updateAbilityButtons();
 
     // Increment purchase count
     this.towerPurchaseCount[towerType]++;
@@ -1274,7 +1152,6 @@ export default class TowerDefenseScene extends Phaser.Scene {
     // Unlock Question ability when first Fact tower is placed
     if (towerType === 'fact' && this.towerPurchaseCount.fact === 1) {
       this.abilityManager.unlockQuestionAbility();
-      this.updateAbilityButtons();
     }
 
     // Update upgrade UI colors if tower is selected
@@ -1463,7 +1340,6 @@ export default class TowerDefenseScene extends Phaser.Scene {
     const currentPrice = this.towerPurchasePrice[towerType];
     this.gold -= currentPrice;
     this.updateUIDisplays(); // Update UI
-    this.updateAbilityButtons(); // Update ability affordability
 
     // Increment purchase count
     this.towerPurchaseCount[towerType]++;
@@ -1474,7 +1350,6 @@ export default class TowerDefenseScene extends Phaser.Scene {
     // Unlock Question ability when first Fact tower is placed
     if (towerType === 'fact' && this.towerPurchaseCount.fact === 1) {
       this.abilityManager.unlockQuestionAbility();
-      this.updateAbilityButtons();
     }
 
     // Update upgrade UI colors if tower is selected
@@ -1643,44 +1518,53 @@ export default class TowerDefenseScene extends Phaser.Scene {
    */
   handleResize(gameSize: Phaser.Structs.Size): void {
     const { width, height } = gameSize;
-    const sidebarWidth = Math.min(220, width * 0.15);
-    const gameWidth = width - sidebarWidth;
+    console.log('[TowerDefenseScene] Resize detected:', width, 'x', height);
 
-    console.log('[TowerDefenseScene] Resize detected:', width, 'x', height, ', Game area:', gameWidth);
+    // Get actual background image dimensions
+    // Default to 1920x1080 if image not loaded yet
+    const bgWidth = this.backgroundImage?.width || 1920;
+    const bgHeight = this.backgroundImage?.height || 1080;
 
-    // Update background if it exists (UpdatedSizeMap covers full screen)
+    // Calculate "Cover" scale (fill screen, maintain aspect ratio)
+    const scaleX = width / bgWidth;
+    const scaleY = height / bgHeight;
+    const scale = Math.max(scaleX, scaleY);
+
+    // Update background if it exists
     if (this.backgroundImage) {
-      this.backgroundImage.setPosition(width / 2, height / 2); // Center of full screen
-
-      // Scale to cover screen while maintaining aspect ratio
-      const scaleX = width / this.backgroundImage.width;
-      const scaleY = height / this.backgroundImage.height;
-      const scale = Math.max(scaleX, scaleY); // Use larger scale to cover entire screen
+      this.backgroundImage.setPosition(width / 2, height / 2); // Center of screen
       this.backgroundImage.setScale(scale);
     }
 
-    // Redraw path if it exists
+    // Path points defined as percentages of the BACKGROUND IMAGE dimensions
+    // This ensures alignment regardless of the image's native resolution
+    const pathY1 = bgHeight * 0.65;
+    const pathY2 = bgHeight * 0.26;
+    const pathY3 = bgHeight * 0.72;
+    
+    const x2 = bgWidth * 0.352;
+    const x4 = bgWidth * 0.66;
+
+    const basePath = [
+      { x: 0, y: pathY1 },
+      { x: x2, y: pathY1 },
+      { x: x2, y: pathY2 },
+      { x: x4, y: pathY2 },
+      { x: x4, y: pathY3 },
+      { x: bgWidth, y: pathY3 }
+    ];
+
+    // Transform base points to screen space using the "Cover" scaling
+    // Formula: (Point - ImageCenter) * Scale + ScreenCenter
+    this.path = basePath.map(p => ({
+      x: (p.x - bgWidth / 2) * scale + width / 2,
+      y: (p.y - bgHeight / 2) * scale + height / 2
+    }));
+
+    // Redraw path
     if (this.pathGraphics) {
-      // Clear existing path graphics
-      this.pathGraphics.destroy();
-
-      // Recalculate path points for new dimensions (hardcoded path from Stage1Config)
-      const pathY1 = height * 0.65;
-      const pathY2 = height * 0.25;
-      const pathY3 = height * 0.72;
-
-      this.path = [
-        { x: 0, y: pathY1 },
-        { x: gameWidth * 0.285, y: pathY1 },
-        { x: gameWidth * 0.285, y: pathY2 },
-        { x: gameWidth * 0.73, y: pathY2 },
-        { x: gameWidth * 0.73, y: pathY3 },
-        { x: gameWidth, y: pathY3 } // End at right edge of game area
-      ];
-
-      // Redraw path
-      this.pathGraphics = this.add.graphics();
-      this.pathGraphics.lineStyle(70, 0x5d4037, 1); // Dark brown path
+      this.pathGraphics.clear();
+      this.pathGraphics.lineStyle(70 * scale, 0x5d4037, 1); // Scale path width
       this.pathGraphics.beginPath();
       this.pathGraphics.moveTo(this.path[0].x, this.path[0].y);
       for (let i = 1; i < this.path.length; i++) {
@@ -1688,9 +1572,18 @@ export default class TowerDefenseScene extends Phaser.Scene {
       }
       this.pathGraphics.strokePath();
       this.pathGraphics.setDepth(-1);
-
-      // Note: Enemy and tower managers don't need path updates since they reference this.path directly
     }
+
+    // Sync updated path with managers
+    if (this.enemyManager) {
+      this.enemyManager.setPath(this.path);
+    }
+    if (this.towerManager) {
+      this.towerManager.setPath(this.path);
+    }
+
+    // Update selection indicator position if active
+    this.updateTowerSelection();
 
     // Emit resize event for UIScene and other listeners
     GameEvents.emit(GAME_EVENTS.RESIZE, gameSize);
@@ -1749,8 +1642,12 @@ export default class TowerDefenseScene extends Phaser.Scene {
     // Question ability cooldown is paused between waves
     this.abilityManager.updateCooldowns(delta, cooldownMultiplier, !this.waveActive);
 
-    // Update ability button UI to reflect cooldown changes
-    this.updateAbilityButtons();
+    // Update UI visuals for abilities
+    if (this.uiScene) {
+      this.uiScene.setPowerButtonState('lightning', this.abilityManager.getLightningStrikeStatus(this.gold).available);
+      this.uiScene.setPowerButtonState('freeze', this.abilityManager.getFreezeStatus(this.gold).available);
+      this.uiScene.setPowerButtonState('question', this.abilityManager.getQuestionAbilityStatus().available);
+    }
 
     // Check for Training Camp boost expiration (2 minute duration)
     this.abilityManager.updateTrainingCampBoosts(this.towerManager.getTowers());
@@ -1848,7 +1745,6 @@ export default class TowerDefenseScene extends Phaser.Scene {
     deaths.forEach(({ enemy, goldReward }) => {
       this.gold += goldReward;
       this.updateUIDisplays(); // Update UI
-      this.updateAbilityButtons(); // Update ability affordability
 
       // Clear boss reference if boss died
       if (enemy.type === EnemyType.BOSS && this.bossEnemy === enemy) {

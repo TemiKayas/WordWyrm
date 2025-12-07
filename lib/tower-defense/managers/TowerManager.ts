@@ -250,6 +250,13 @@ export class TowerManager {
   }
 
   /**
+   * Update path reference (called during window resize)
+   */
+  setPath(path: PathPoint[]): void {
+    this.path = path;
+  }
+
+  /**
    * Clean up all towers (called when scene ends)
    */
   destroy(): void {

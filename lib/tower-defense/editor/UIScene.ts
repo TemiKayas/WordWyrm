@@ -9,46 +9,6 @@ import { LAYOUT } from '@/lib/tower-defense/config/LayoutConfig';
 
 export default class UIScene extends Phaser.Scene {
 
-  // UI Element references
-  startGameButtonBg?: Phaser.GameObjects.Rectangle;
-  startGameButtonText?: Phaser.GameObjects.Text;
-  cleared_rectangle?: Phaser.GameObjects.Image;
-  backButtonText?: Phaser.GameObjects.Text;
-  goldText?: Phaser.GameObjects.Text;
-  waveText?: Phaser.GameObjects.Text;
-  speedText?: Phaser.GameObjects.Text;
-  speedButtonBg?: Phaser.GameObjects.Image;
-  speedButtonText?: Phaser.GameObjects.Text;
-  nextWaveButton?: Phaser.GameObjects.Image;
-  heartIcons: Phaser.GameObjects.Image[] = [];
-
-  // Game state
-  currentSpeed: number = 1;
-
-  // Tower buttons
-  ballistaBtn?: Phaser.GameObjects.Image;
-  trebuchetBtn?: Phaser.GameObjects.Image;
-  knightBtn?: Phaser.GameObjects.Image;
-  trainingCampBtn?: Phaser.GameObjects.Image;
-  archmageBtn?: Phaser.GameObjects.Image;
-  towerButtons: Phaser.GameObjects.Image[] = [];
-
-  // Tower button backgrounds (optional - for highlighting)
-  ballistaBtnBg?: Phaser.GameObjects.Rectangle;
-  trebuchetBtnBg?: Phaser.GameObjects.Rectangle;
-  knightBtnBg?: Phaser.GameObjects.Rectangle;
-  trainingCampBtnBg?: Phaser.GameObjects.Rectangle;
-  archmageBtnBg?: Phaser.GameObjects.Rectangle;
-
-  // Power buttons
-  lightningBtn?: Phaser.GameObjects.Image;
-  freezeBtn?: Phaser.GameObjects.Image;
-  quizBuffBtn?: Phaser.GameObjects.Image;
-
-  // UI containers
-  towersOpenedIcon?: Phaser.GameObjects.Image;
-  powersOpenedIcon?: Phaser.GameObjects.Image;
-
   constructor() {
     super("UIScene");
 
@@ -60,7 +20,7 @@ export default class UIScene extends Phaser.Scene {
   editorCreate(): void {
 
     // rectangle
-    this.add.image(115, 60, "rectangle_110");
+    this.add.image(115, 46, "rectangle_110");
 
     // cleared_rectangle
     const cleared_rectangle = this.add.image(961, 539, "cleared_rectangle");
@@ -86,7 +46,7 @@ export default class UIScene extends Phaser.Scene {
     startGameButtonText.setStyle({ "color": "#ffffff", "fontFamily": "Quicksand", "fontSize": "60px", "fontStyle": "bold" });
 
     // backButtonText
-    const backButtonText = this.add.text(113, 59, "", {});
+    const backButtonText = this.add.text(113, 45, "", {});
     backButtonText.setOrigin(0.5, 0.5);
     backButtonText.text = "← Back";
     backButtonText.setStyle({ "color": "#473025", "fontFamily": "Quicksand", "fontStyle": "bold" });
@@ -122,10 +82,10 @@ export default class UIScene extends Phaser.Scene {
     this.add.image(118, 137, "rectangle_110");
 
     // goldText
-    const goldText = this.add.text(121, 137, "", {});
+    const goldText = this.add.text(121, 138, "", {});
     goldText.setOrigin(0.5, 0.5);
     goldText.text = "100";
-    goldText.setStyle({ "color": "#ff9f22", "fontFamily": "Quicksand", "fontSize": "18px", "fontStyle": "600" });
+    goldText.setStyle({ "color": "#603600ff", "fontFamily": "Quicksand", "fontSize": "22px", "fontStyle": "600" });
 
     // coin_icon
     this.add.image(87, 137, "coin_icon");
@@ -209,28 +169,26 @@ export default class UIScene extends Phaser.Scene {
     text_1.setStyle({ "fontFamily": "Quicksand", "strokeThickness": 1 });
 
     // rectangle_118
-    const rectangle_118 = this.add.image(1829, 231, "rectangle_118");
-    rectangle_118.scaleX = 1.2;
+    this.add.image(1828, 231, "rectangle_118");
 
     // text_2
-    const text_2 = this.add.text(1795, 222, "", {});
+    const text_2 = this.add.text(1797, 222, "", {});
     text_2.text = "SPEED";
     text_2.setStyle({ "color": "#EA1644", "fontSize": "12px", "stroke": "#EA1644" });
 
     // rectangle_118_alt
-    const rectangle_118_alt = this.add.image(1829, 193, "rectangle_118_alt");
-    rectangle_118_alt.scaleX = 1.2;
+    this.add.image(1828, 193, "rectangle_118_alt");
 
     // text
-    const text = this.add.text(1795, 179, "", {});
+    const text = this.add.text(1797, 179, "", {});
     text.text = "START NEXT\nROUND →";
     text.setStyle({ "color": "#EA1644", "fontFamily": "QUICKSAND", "fontSize": "10px", "stroke": "#EA1644" });
 
     // ellipse_63
-    this.add.image(1829, 119, "ellipse_63");
+    this.add.image(1831, 119, "ellipse_63");
 
     // text_3
-    const text_3 = this.add.text(1825, 110, "", {});
+    const text_3 = this.add.text(1827, 110, "", {});
     text_3.text = "1";
     text_3.setStyle({ "color": "#EA1644", "fontFamily": "QUICKSAND", "fontSize": "14px", "stroke": "#EA1644", "strokeThickness": 1 });
 
@@ -340,6 +298,12 @@ export default class UIScene extends Phaser.Scene {
       tdScene.events.on('waveComplete', this.onWaveComplete, this);
       tdScene.events.on('speedChanged', this.onSpeedChanged, this);
     }
+
+    // Apply initial responsive positioning
+    this.handleResize();
+
+    // Listen for window resize events
+    this.scale.on('resize', this.handleResize, this);
   }
 
   assignUIElements(): void {
@@ -394,6 +358,11 @@ export default class UIScene extends Phaser.Scene {
                (child as Phaser.GameObjects.Image).texture.key === 'archmage_icon'
     ) as Phaser.GameObjects.Image;
 
+    this.towersOpenedIcon = allChildren.find(
+      child => child instanceof Phaser.GameObjects.Image &&
+               (child as Phaser.GameObjects.Image).texture.key === 'towers_opened_icon'
+    ) as Phaser.GameObjects.Image;
+
     this.towersToggleIcon = allChildren.find(
       child => child instanceof Phaser.GameObjects.Image &&
                Math.abs(child.x - 748) < 5 && Math.abs(child.y - 880) < 5
@@ -413,6 +382,11 @@ export default class UIScene extends Phaser.Scene {
     this.quizBuffBtn = allChildren.find(
       child => child instanceof Phaser.GameObjects.Image &&
                (child as Phaser.GameObjects.Image).texture.key === 'quiz_buff_icon'
+    ) as Phaser.GameObjects.Image;
+
+    this.powersOpenedIcon = allChildren.find(
+      child => child instanceof Phaser.GameObjects.Image &&
+               (child as Phaser.GameObjects.Image).texture.key === 'powers_opened_icon'
     ) as Phaser.GameObjects.Image;
 
     this.powersToggleIcon = allChildren.find(
@@ -600,6 +574,230 @@ export default class UIScene extends Phaser.Scene {
     });
   }
 
+  /**
+   * Handle window resize - reposition all UI elements responsively
+   * Anchor groups:
+   * - Center: Start Button
+   * - Top-Right: Wave Counter, Speed Button
+   * - Bottom-Center: Tower Menu, Power Menu
+   * - Top-Left: Back Button, Lives, Gold
+   */
+  handleResize(): void {
+    const width = this.scale.width;
+    const height = this.scale.height;
+    const padding = 60;
+
+    // CENTER ANCHOR: Start game button and background
+    if (this.startGameButtonBg) {
+      this.startGameButtonBg.setPosition(width / 2, height / 2);
+    }
+    if (this.startGameButtonText) {
+      this.startGameButtonText.setPosition(width / 2, height / 2);
+    }
+    if (this.cleared_rectangle) {
+      this.cleared_rectangle.setPosition(width / 2, height / 2);
+    }
+
+    // TOP-LEFT ANCHOR: Back button, gold, lives
+    if (this.backButtonText) {
+      this.backButtonText.setPosition(padding + 55, padding);
+    }
+
+    // Gold background and text
+    const allChildren = this.children.getChildren();
+    const goldBackground = allChildren.find(
+      child => child instanceof Phaser.GameObjects.Image &&
+               (child as Phaser.GameObjects.Image).texture.key === 'rectangle_110' &&
+               Math.abs(child.y - 137) < 5
+    );
+    if (goldBackground) {
+      goldBackground.setPosition(padding + 60, 137);
+    }
+    if (this.goldText) {
+      this.goldText.setPosition(padding + 63, 137);
+    }
+
+    // Coin icon
+    const coinIcon = allChildren.find(
+      child => child instanceof Phaser.GameObjects.Image &&
+               (child as Phaser.GameObjects.Image).texture.key === 'coin_icon'
+    );
+    if (coinIcon) {
+      coinIcon.setPosition(padding + 29, 137);
+    }
+
+    // Back button background
+    const backButtonBg = allChildren.find(
+      child => child instanceof Phaser.GameObjects.Image &&
+               (child as Phaser.GameObjects.Image).texture.key === 'rectangle_110' &&
+               Math.abs(child.y - 60) < 5
+    );
+    if (backButtonBg) {
+      backButtonBg.setPosition(padding + 57, 60);
+    }
+
+    // Lives label and hearts
+    const livesLabel = allChildren.find(
+      child => child instanceof Phaser.GameObjects.Text &&
+               (child as Phaser.GameObjects.Text).text.includes('Lives')
+    );
+    if (livesLabel) {
+      livesLabel.setPosition(padding, 90);
+    }
+
+    // Position hearts horizontally starting from lives label
+    this.heartIcons.forEach((heart, index) => {
+      if (heart) {
+        heart.setPosition(padding + 62 + (index * 25), 100);
+      }
+    });
+
+    // TOP-RIGHT ANCHOR: Wave counter and speed button
+    // Set anchor to right edge (elements have built-in offsets of ~90px)
+    const topRightX = width;
+    const topRightStartY = 38;
+
+    // Flag elements (wave counter background)
+    const flagRect1 = allChildren.find(
+      child => child instanceof Phaser.GameObjects.Image &&
+               (child as Phaser.GameObjects.Image).texture.key === 'flag_rectangle1'
+    );
+    if (flagRect1) {
+      flagRect1.setPosition(topRightX - 90, topRightStartY);
+    }
+
+    const flagRect2 = allChildren.find(
+      child => child instanceof Phaser.GameObjects.Image &&
+               (child as Phaser.GameObjects.Image).texture.key === 'flag_rectangle2'
+    );
+    if (flagRect2) {
+      flagRect2.setPosition(topRightX - 9, topRightStartY + 23);
+    }
+
+    const flagRect3 = allChildren.find(
+      child => child instanceof Phaser.GameObjects.Image &&
+               (child as Phaser.GameObjects.Image).texture.key === 'flag_rectangle3'
+    );
+    if (flagRect3) {
+      flagRect3.setPosition(topRightX - 90, topRightStartY + 1);
+    }
+
+    const flagPart = allChildren.find(
+      child => child instanceof Phaser.GameObjects.Image &&
+               (child as Phaser.GameObjects.Image).texture.key === 'flag_part'
+    );
+    if (flagPart) {
+      flagPart.setPosition(topRightX - 171, topRightStartY);
+    }
+
+    // Wave counter text elements
+    const waveCounterLabel = allChildren.find(
+      child => child instanceof Phaser.GameObjects.Text &&
+               (child as Phaser.GameObjects.Text).text === 'ROUND'
+    );
+    if (waveCounterLabel) {
+      waveCounterLabel.setPosition(topRightX - 89, topRightStartY + 39);
+    }
+
+    const subtract = allChildren.find(
+      child => child instanceof Phaser.GameObjects.Image &&
+               (child as Phaser.GameObjects.Image).texture.key === 'subtract'
+    );
+    if (subtract) {
+      subtract.setPosition(topRightX - 90, topRightStartY + 168);
+    }
+
+    const ellipse63 = allChildren.find(
+      child => child instanceof Phaser.GameObjects.Image &&
+               (child as Phaser.GameObjects.Image).texture.key === 'ellipse_63'
+    );
+    if (ellipse63) {
+      ellipse63.setPosition(topRightX - 89, topRightStartY + 81);
+    }
+
+    if (this.waveNumberText) {
+      this.waveNumberText.setPosition(topRightX - 93, topRightStartY + 72);
+    }
+
+    // Start round button (top-right, below wave counter)
+    if (this.startRoundButton) {
+      this.startRoundButton.setPosition(topRightX - 89, topRightStartY + 155);
+    }
+    if (this.startRoundButtonText) {
+      this.startRoundButtonText.setPosition(topRightX - 123, topRightStartY + 141);
+    }
+
+    // Speed button (top-right, below start round button)
+    if (this.speedButton) {
+      this.speedButton.setPosition(topRightX - 89, topRightStartY + 193);
+    }
+    if (this.speedButtonText) {
+      this.speedButtonText.setPosition(topRightX - 123, topRightStartY + 184);
+    }
+
+    const speedLabel = allChildren.find(
+      child => child instanceof Phaser.GameObjects.Text &&
+               (child as Phaser.GameObjects.Text).text === 'SPEED'
+    );
+    if (speedLabel) {
+      speedLabel.setPosition(topRightX - 123, topRightStartY + 184);
+    }
+
+    // BOTTOM-CENTER ANCHOR: Tower and power buttons
+    const bottomCenterY = height - padding;
+    const towerMenuY = bottomCenterY - 108; // Towers are 108px from bottom
+
+    // Tower buttons (centered horizontally)
+    if (this.ballistaBtn) {
+      this.ballistaBtn.setPosition(width / 2 - 363, towerMenuY);
+    }
+    if (this.trebuchetBtn) {
+      this.trebuchetBtn.setPosition(width / 2 - 268, towerMenuY);
+    }
+    if (this.knightBtn) {
+      this.knightBtn.setPosition(width / 2 - 173, towerMenuY);
+    }
+    if (this.trainingCampBtn) {
+      this.trainingCampBtn.setPosition(width / 2 - 78, towerMenuY);
+    }
+    if (this.archmageBtn) {
+      this.archmageBtn.setPosition(width / 2 + 17, towerMenuY);
+    }
+
+    // Tower toggle icon
+    if (this.towersToggleIcon) {
+      this.towersToggleIcon.setPosition(width / 2 - 170, towerMenuY + 92);
+    }
+
+    // Tower menu background (Opened icon)
+    if (this.towersOpenedIcon) {
+      this.towersOpenedIcon.setPosition(width / 2 - 170, towerMenuY - 92); 
+      // Note: Original Y 880 vs Btn 972 = -92 offset.
+    }
+
+    // Power buttons (centered horizontally)
+    if (this.lightningBtn) {
+      this.lightningBtn.setPosition(width / 2 + 142, towerMenuY);
+    }
+    if (this.freezeBtn) {
+      this.freezeBtn.setPosition(width / 2 + 237, towerMenuY);
+    }
+    if (this.quizBuffBtn) {
+      this.quizBuffBtn.setPosition(width / 2 + 332, towerMenuY);
+    }
+
+    // Power toggle icon
+    if (this.powersToggleIcon) {
+      this.powersToggleIcon.setPosition(width / 2 + 236, towerMenuY + 96);
+    }
+
+    // Power menu background (Opened icon)
+    if (this.powersOpenedIcon) {
+      this.powersOpenedIcon.setPosition(width / 2 + 236, towerMenuY - 88);
+      // Note: Original Y 884 vs Btn 972 = -88 offset
+    }
+  }
+
   toggleTowersMenu(): void {
     this.towersMenuOpen = !this.towersMenuOpen;
 
@@ -620,6 +818,21 @@ export default class UIScene extends Phaser.Scene {
 
     // Show/hide power buttons
     this.powerButtons.forEach(btn => btn.setVisible(this.powersMenuOpen));
+  }
+
+  setPowerButtonState(power: 'lightning' | 'freeze' | 'question', available: boolean) {
+    let btn: Phaser.GameObjects.Image | undefined;
+    switch(power) {
+        case 'lightning': btn = this.lightningBtn; break;
+        case 'freeze': btn = this.freezeBtn; break;
+        case 'question': btn = this.quizBuffBtn; break;
+    }
+    if (btn) {
+        btn.setAlpha(available ? 1 : 0.5);
+        // Also update interactivity? 
+        // Ideally yes, but purely visual is safer for now to avoid conflicting with setup logic
+        // The Game logic prevents action anyway.
+    }
   }
 
   // Update methods called from TowerDefenseScene

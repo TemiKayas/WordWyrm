@@ -555,6 +555,13 @@ export class EnemyManager {
   }
 
   /**
+   * Update path reference (called during window resize)
+   */
+  setPath(path: PathPoint[]): void {
+    this.path = path;
+  }
+
+  /**
    * Clean up all enemies (called when scene ends)
    */
   destroy(): void {

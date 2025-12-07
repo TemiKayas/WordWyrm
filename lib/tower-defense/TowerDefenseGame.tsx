@@ -38,10 +38,10 @@ const TowerDefenseGame = ({ quiz }: TowerDefenseGameProps) => {
           height: 1080,
           parent: gameRef.current, // DOM element to render in
           backgroundColor: '#8bc34a',
-          antialias: true, // Enable antialiasing for smooth text
-          pixelArt: false, // Disable pixel art mode for crisp text
+          antialias: false, // Disable antialiasing for crisp UI
+          pixelArt: true, // Enable pixel art mode for sharp edges
           scale: {
-            mode: Phaser.Scale.FIT, // Maintains aspect ratio with letterboxing - ensures full game visible
+            mode: Phaser.Scale.RESIZE, // Dynamic resizing to match container
             autoCenter: Phaser.Scale.CENTER_BOTH,
             parent: gameRef.current,
             width: 1920,
@@ -54,10 +54,10 @@ const TowerDefenseGame = ({ quiz }: TowerDefenseGameProps) => {
             createContainer: true // Enable DOM element support
           },
           render: {
-            antialias: true,
-            antialiasGL: true,
-            roundPixels: false, // Keep false for crisp text
-            pixelArt: false,
+            antialias: false, // Disable antialiasing for crisp UI
+            antialiasGL: false,
+            roundPixels: true, // Snap to whole pixels to prevent sub-pixel blur
+            pixelArt: true, // Enable pixel art mode for sharp edges
           },
           resolution: window.devicePixelRatio || 1, // Match device pixel ratio for crisp rendering
           physics: {
