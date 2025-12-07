@@ -19,8 +19,13 @@ export default class UIScene extends Phaser.Scene {
 
   editorCreate(): void {
 
+    // rectangle_1
+    const rectangle_1 = this.add.image(88, 93, "rectangle_110");
+    rectangle_1.scaleX = 0.5;
+    rectangle_1.scaleY = 0.6;
+
     // rectangle
-    this.add.image(115, 46, "rectangle_110");
+    this.add.image(117, 46, "rectangle_110");
 
     // cleared_rectangle
     const cleared_rectangle = this.add.image(961, 539, "cleared_rectangle");
@@ -46,7 +51,7 @@ export default class UIScene extends Phaser.Scene {
     startGameButtonText.setStyle({ "color": "#ffffff", "fontFamily": "Quicksand", "fontSize": "60px", "fontStyle": "bold" });
 
     // backButtonText
-    const backButtonText = this.add.text(113, 45, "", {});
+    const backButtonText = this.add.text(115, 45, "", {});
     backButtonText.setOrigin(0.5, 0.5);
     backButtonText.text = "← Back";
     backButtonText.setStyle({ "color": "#473025", "fontFamily": "Quicksand", "fontStyle": "bold" });
@@ -85,7 +90,7 @@ export default class UIScene extends Phaser.Scene {
     const goldText = this.add.text(121, 138, "", {});
     goldText.setOrigin(0.5, 0.5);
     goldText.text = "100";
-    goldText.setStyle({ "color": "#603600ff", "fontFamily": "Quicksand", "fontSize": "22px", "fontStyle": "600" });
+    goldText.setStyle({ "color": "#473025", "fontFamily": "Quicksand", "fontSize": "22px", "fontStyle": "600" });
 
     // coin_icon
     this.add.image(87, 137, "coin_icon");
@@ -134,39 +139,39 @@ export default class UIScene extends Phaser.Scene {
     this.add.image(790, 880, "towers_opened_icon");
 
     // heart_icon
-    this.add.image(120, 100, "heart_icon");
+    this.add.image(130, 93, "heart_icon");
 
     // heart_icon_1
-    this.add.image(145, 100, "heart_icon");
+    this.add.image(155, 93, "heart_icon");
 
     // heart_icon_2
-    this.add.image(170, 100, "heart_icon");
+    this.add.image(180, 93, "heart_icon");
 
     // heart_icon_3
-    this.add.image(195, 100, "heart_icon");
+    this.add.image(205, 93, "heart_icon");
 
     // heart_icon_4
-    this.add.image(220, 100, "heart_icon");
+    this.add.image(230, 93, "heart_icon");
 
     // heart_icon_5
-    this.add.image(245, 100, "heart_icon");
+    this.add.image(255, 93, "heart_icon");
 
     // heart_icon_6
-    this.add.image(270, 100, "heart_icon");
+    this.add.image(280, 93, "heart_icon");
 
     // heart_icon_7
-    this.add.image(295, 100, "heart_icon");
+    this.add.image(305, 93, "heart_icon");
 
     // heart_icon_8
-    this.add.image(320, 100, "heart_icon");
+    this.add.image(330, 93, "heart_icon");
 
     // heart_icon_9
-    this.add.image(345, 100, "heart_icon");
+    this.add.image(355, 93, "heart_icon");
 
     // text_1
-    const text_1 = this.add.text(58, 90, "", {});
+    const text_1 = this.add.text(68, 83, "", {});
     text_1.text = "Lives:\n";
-    text_1.setStyle({ "fontFamily": "Quicksand", "strokeThickness": 1 });
+    text_1.setStyle({ "color": "#473025", "fontFamily": "Quicksand", "stroke": "#473025", "strokeThickness": 1 });
 
     // rectangle_118
     this.add.image(1828, 231, "rectangle_118");
@@ -585,26 +590,56 @@ export default class UIScene extends Phaser.Scene {
   handleResize(): void {
     const width = this.scale.width;
     const height = this.scale.height;
+
+    // Calculate UI scale factor based on reference resolution (1920x1080)
+    const scaleX = width / 1920;
+    const scaleY = height / 1080;
+    const uiScale = Math.min(scaleX, scaleY); // Use min to prevent overflow
+    const clampedScale = Math.max(0.5, Math.min(2.0, uiScale)); // Clamp between 0.5x and 2.0x
+
+    // Apply camera zoom to scale entire UI scene
+    this.cameras.main.setZoom(clampedScale);
+
+    // Calculate the visible world size after zoom
+    const worldWidth = width / clampedScale;
+    const worldHeight = height / clampedScale;
+
+    // Center the camera on the visible area
+    this.cameras.main.centerOn(worldWidth / 2, worldHeight / 2);
+
+    // Use scaled padding
     const padding = 60;
 
     // CENTER ANCHOR: Start game button and background
     if (this.startGameButtonBg) {
-      this.startGameButtonBg.setPosition(width / 2, height / 2);
+      this.startGameButtonBg.setPosition(worldWidth / 2, worldHeight / 2);
     }
     if (this.startGameButtonText) {
-      this.startGameButtonText.setPosition(width / 2, height / 2);
+      this.startGameButtonText.setPosition(worldWidth / 2, worldHeight / 2);
     }
     if (this.cleared_rectangle) {
-      this.cleared_rectangle.setPosition(width / 2, height / 2);
+      this.cleared_rectangle.setPosition(worldWidth / 2, worldHeight / 2);
     }
 
     // TOP-LEFT ANCHOR: Back button, gold, lives
+    const allChildren = this.children.getChildren();
+
+    // Back button background (originally at y=46)
+    const backButtonBg = allChildren.find(
+      child => child instanceof Phaser.GameObjects.Image &&
+               (child as Phaser.GameObjects.Image).texture.key === 'rectangle_110' &&
+               Math.abs(child.y - 46) < 5
+    );
+    if (backButtonBg) {
+      backButtonBg.setPosition(padding + 57, padding - 14);
+    }
+
+    // Back button text
     if (this.backButtonText) {
-      this.backButtonText.setPosition(padding + 55, padding);
+      this.backButtonText.setPosition(padding + 55, padding - 15);
     }
 
     // Gold background and text
-    const allChildren = this.children.getChildren();
     const goldBackground = allChildren.find(
       child => child instanceof Phaser.GameObjects.Image &&
                (child as Phaser.GameObjects.Image).texture.key === 'rectangle_110' &&
@@ -614,7 +649,7 @@ export default class UIScene extends Phaser.Scene {
       goldBackground.setPosition(padding + 60, 137);
     }
     if (this.goldText) {
-      this.goldText.setPosition(padding + 63, 137);
+      this.goldText.setPosition(padding + 63, 138);
     }
 
     // Coin icon
@@ -626,23 +661,23 @@ export default class UIScene extends Phaser.Scene {
       coinIcon.setPosition(padding + 29, 137);
     }
 
-    // Back button background
-    const backButtonBg = allChildren.find(
+    // Lives label and hearts background (originally at y=93)
+    const livesBackground = allChildren.find(
       child => child instanceof Phaser.GameObjects.Image &&
                (child as Phaser.GameObjects.Image).texture.key === 'rectangle_110' &&
-               Math.abs(child.y - 60) < 5
+               Math.abs(child.y - 93) < 5
     );
-    if (backButtonBg) {
-      backButtonBg.setPosition(padding + 57, 60);
+    if (livesBackground) {
+      livesBackground.setPosition(padding + 28, 93);
     }
 
-    // Lives label and hearts
+    // Lives label (originally at y=83)
     const livesLabel = allChildren.find(
       child => child instanceof Phaser.GameObjects.Text &&
                (child as Phaser.GameObjects.Text).text.includes('Lives')
     );
     if (livesLabel) {
-      livesLabel.setPosition(padding, 90);
+      livesLabel.setPosition(padding + 8, 83);
     }
 
     // Position hearts horizontally starting from lives label
@@ -654,7 +689,7 @@ export default class UIScene extends Phaser.Scene {
 
     // TOP-RIGHT ANCHOR: Wave counter and speed button
     // Set anchor to right edge (elements have built-in offsets of ~90px)
-    const topRightX = width;
+    const topRightX = worldWidth;
     const topRightStartY = 38;
 
     // Flag elements (wave counter background)
@@ -744,56 +779,56 @@ export default class UIScene extends Phaser.Scene {
     }
 
     // BOTTOM-CENTER ANCHOR: Tower and power buttons
-    const bottomCenterY = height - padding;
+    const bottomCenterY = worldHeight - padding;
     const towerMenuY = bottomCenterY - 108; // Towers are 108px from bottom
 
     // Tower buttons (centered horizontally)
     if (this.ballistaBtn) {
-      this.ballistaBtn.setPosition(width / 2 - 363, towerMenuY);
+      this.ballistaBtn.setPosition(worldWidth / 2 - 363, towerMenuY);
     }
     if (this.trebuchetBtn) {
-      this.trebuchetBtn.setPosition(width / 2 - 268, towerMenuY);
+      this.trebuchetBtn.setPosition(worldWidth / 2 - 268, towerMenuY);
     }
     if (this.knightBtn) {
-      this.knightBtn.setPosition(width / 2 - 173, towerMenuY);
+      this.knightBtn.setPosition(worldWidth / 2 - 173, towerMenuY);
     }
     if (this.trainingCampBtn) {
-      this.trainingCampBtn.setPosition(width / 2 - 78, towerMenuY);
+      this.trainingCampBtn.setPosition(worldWidth / 2 - 78, towerMenuY);
     }
     if (this.archmageBtn) {
-      this.archmageBtn.setPosition(width / 2 + 17, towerMenuY);
+      this.archmageBtn.setPosition(worldWidth / 2 + 17, towerMenuY);
     }
 
     // Tower toggle icon
     if (this.towersToggleIcon) {
-      this.towersToggleIcon.setPosition(width / 2 - 170, towerMenuY + 92);
+      this.towersToggleIcon.setPosition(worldWidth / 2 - 170, towerMenuY + 92);
     }
 
     // Tower menu background (Opened icon)
     if (this.towersOpenedIcon) {
-      this.towersOpenedIcon.setPosition(width / 2 - 170, towerMenuY - 92); 
+      this.towersOpenedIcon.setPosition(worldWidth / 2 - 170, towerMenuY - 92);
       // Note: Original Y 880 vs Btn 972 = -92 offset.
     }
 
     // Power buttons (centered horizontally)
     if (this.lightningBtn) {
-      this.lightningBtn.setPosition(width / 2 + 142, towerMenuY);
+      this.lightningBtn.setPosition(worldWidth / 2 + 142, towerMenuY);
     }
     if (this.freezeBtn) {
-      this.freezeBtn.setPosition(width / 2 + 237, towerMenuY);
+      this.freezeBtn.setPosition(worldWidth / 2 + 237, towerMenuY);
     }
     if (this.quizBuffBtn) {
-      this.quizBuffBtn.setPosition(width / 2 + 332, towerMenuY);
+      this.quizBuffBtn.setPosition(worldWidth / 2 + 332, towerMenuY);
     }
 
     // Power toggle icon
     if (this.powersToggleIcon) {
-      this.powersToggleIcon.setPosition(width / 2 + 236, towerMenuY + 96);
+      this.powersToggleIcon.setPosition(worldWidth / 2 + 236, towerMenuY + 96);
     }
 
     // Power menu background (Opened icon)
     if (this.powersOpenedIcon) {
-      this.powersOpenedIcon.setPosition(width / 2 + 236, towerMenuY - 88);
+      this.powersOpenedIcon.setPosition(worldWidth / 2 + 236, towerMenuY - 88);
       // Note: Original Y 884 vs Btn 972 = -88 offset
     }
   }
