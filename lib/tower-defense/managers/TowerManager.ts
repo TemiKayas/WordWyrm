@@ -38,7 +38,7 @@ export class TowerManager {
   private path: PathPoint[]; // Single path
 
   // Tower base stats configuration
-  private static readonly TOWER_STATS: Record<'basic' | 'sniper' | 'melee' | 'fact' | 'wizard', TowerStats> = {
+  private static readonly TOWER_STATS: Record<'basic' | 'sniper' | 'melee' | 'fact' | 'wizard' | 'cannon', TowerStats> = {
     basic: {
       range: 150,
       fireRate: 500,
@@ -83,6 +83,15 @@ export class TowerManager {
       size: 1.0,
       spriteScale: TOWER_SPRITE_SCALES.archmage,
       color: 0x9c27b0
+    },
+    cannon: {
+      range: 180,
+      fireRate: 1500,
+      damage: 35, // Direct damage (plus 15 splash = 50 total)
+      cost: 70,
+      size: 1.1,
+      spriteScale: TOWER_SPRITE_SCALES.cannon,
+      color: 0x2c3e50 // Dark grey/blue
     }
   };
 
@@ -94,7 +103,7 @@ export class TowerManager {
   /**
    * Get base stats for a tower type
    */
-  getTowerStats(type: 'basic' | 'sniper' | 'melee' | 'fact' | 'wizard'): TowerStats {
+  getTowerStats(type: 'basic' | 'sniper' | 'melee' | 'fact' | 'wizard' | 'cannon'): TowerStats {
     return { ...TowerManager.TOWER_STATS[type] };
   }
 
@@ -135,7 +144,7 @@ export class TowerManager {
   createTowerGraphics(
     x: number,
     y: number,
-    type: 'basic' | 'sniper' | 'melee' | 'fact' | 'wizard',
+    type: 'basic' | 'sniper' | 'melee' | 'fact' | 'wizard' | 'cannon',
     stats: TowerStats
   ): Phaser.GameObjects.Rectangle | Phaser.GameObjects.Image | Phaser.GameObjects.Container {
     if (type === 'fact') {
@@ -165,10 +174,19 @@ export class TowerManager {
 
       return container;
     } else {
-      // Standard towers (Ballista, Trebuchet) - single sprite
-      const spriteKey = type === 'basic' ? 'tower_ballista' : 'tower_catapult';
+      // Standard towers (Ballista, Trebuchet) and Cannon - single sprite
+      let spriteKey = 'tower_ballista';
+      if (type === 'sniper') spriteKey = 'tower_catapult';
+      else if (type === 'cannon') spriteKey = 'tower_catapult'; // Reuse catapult sprite for now
+
       const sprite = this.scene.add.image(x, y, spriteKey);
       sprite.setScale(stats.spriteScale);
+      
+      // Tint Cannon to distinguish it from Trebuchet
+      if (type === 'cannon') {
+        sprite.setTint(0x888888); // Darker/metallic look
+      }
+
       sprite.setInteractive({ useHandCursor: true });
       return sprite;
     }

@@ -19,13 +19,8 @@ export default class UIScene extends Phaser.Scene {
 
   editorCreate(): void {
 
-    // rectangle_1
-    const rectangle_1 = this.add.image(88, 93, "rectangle_110");
-    rectangle_1.scaleX = 0.5;
-    rectangle_1.scaleY = 0.6;
-
     // rectangle
-    this.add.image(117, 46, "rectangle_110");
+    this.add.image(115, 46, "rectangle_110");
 
     // cleared_rectangle
     const cleared_rectangle = this.add.image(961, 539, "cleared_rectangle");
@@ -51,7 +46,7 @@ export default class UIScene extends Phaser.Scene {
     startGameButtonText.setStyle({ "color": "#ffffff", "fontFamily": "Quicksand", "fontSize": "60px", "fontStyle": "bold" });
 
     // backButtonText
-    const backButtonText = this.add.text(115, 45, "", {});
+    const backButtonText = this.add.text(113, 45, "", {});
     backButtonText.setOrigin(0.5, 0.5);
     backButtonText.text = "← Back";
     backButtonText.setStyle({ "color": "#473025", "fontFamily": "Quicksand", "fontStyle": "bold" });
@@ -90,23 +85,23 @@ export default class UIScene extends Phaser.Scene {
     const goldText = this.add.text(121, 138, "", {});
     goldText.setOrigin(0.5, 0.5);
     goldText.text = "100";
-    goldText.setStyle({ "color": "#473025", "fontFamily": "Quicksand", "fontSize": "22px", "fontStyle": "600" });
+    goldText.setStyle({ "color": "#ff9f22", "fontFamily": "Quicksand", "fontSize": "22px", "fontStyle": "600" });
 
     // coin_icon
     this.add.image(87, 137, "coin_icon");
 
     // ballistaBtn
-    const ballistaBtn = this.add.image(597, 972, "ballista_icon");
+    const ballistaBtn = this.add.image(504, 972, "ballista_icon");
     ballistaBtn.scaleX = 1.15;
     ballistaBtn.scaleY = 1.15;
 
     // trainingCampBtn
-    const trainingCampBtn = this.add.image(882, 972, "cannon_icon");
+    const trainingCampBtn = this.add.image(979, 972, "cannon_icon");
     trainingCampBtn.scaleX = 1.15;
     trainingCampBtn.scaleY = 1.15;
 
     // archmageBtn
-    const archmageBtn = this.add.image(977, 972, "archmage_icon");
+    const archmageBtn = this.add.image(884, 972, "archmage_icon");
     archmageBtn.scaleX = 1.15;
     archmageBtn.scaleY = 1.15;
 
@@ -116,7 +111,7 @@ export default class UIScene extends Phaser.Scene {
     freezeBtn.scaleY = 1.15;
 
     // trebuchetBtn
-    const trebuchetBtn = this.add.image(692, 972, "trebuchet_icon");
+    const trebuchetBtn = this.add.image(789, 972, "trebuchet_icon");
     trebuchetBtn.scaleX = 1.15;
     trebuchetBtn.scaleY = 1.15;
 
@@ -126,7 +121,7 @@ export default class UIScene extends Phaser.Scene {
     lightningBtn.scaleY = 1.15;
 
     // knightBtn
-    const knightBtn = this.add.image(787, 972, "knight_icon");
+    const knightBtn = this.add.image(599, 972, "knight_icon");
     knightBtn.scaleX = 1.15;
     knightBtn.scaleY = 1.15;
 
@@ -136,42 +131,42 @@ export default class UIScene extends Phaser.Scene {
     quizBuffBtn.scaleY = 1.15;
 
     // towers_opened_icon
-    this.add.image(790, 880, "towers_opened_icon");
+    this.add.image(740, 880, "towers_opened_icon");
 
     // heart_icon
-    this.add.image(130, 93, "heart_icon");
+    this.add.image(120, 100, "heart_icon");
 
     // heart_icon_1
-    this.add.image(155, 93, "heart_icon");
+    this.add.image(145, 100, "heart_icon");
 
     // heart_icon_2
-    this.add.image(180, 93, "heart_icon");
+    this.add.image(170, 100, "heart_icon");
 
     // heart_icon_3
-    this.add.image(205, 93, "heart_icon");
+    this.add.image(195, 100, "heart_icon");
 
     // heart_icon_4
-    this.add.image(230, 93, "heart_icon");
+    this.add.image(220, 100, "heart_icon");
 
     // heart_icon_5
-    this.add.image(255, 93, "heart_icon");
+    this.add.image(245, 100, "heart_icon");
 
     // heart_icon_6
-    this.add.image(280, 93, "heart_icon");
+    this.add.image(270, 100, "heart_icon");
 
     // heart_icon_7
-    this.add.image(305, 93, "heart_icon");
+    this.add.image(295, 100, "heart_icon");
 
     // heart_icon_8
-    this.add.image(330, 93, "heart_icon");
+    this.add.image(320, 100, "heart_icon");
 
     // heart_icon_9
-    this.add.image(355, 93, "heart_icon");
+    this.add.image(345, 100, "heart_icon");
 
     // text_1
-    const text_1 = this.add.text(68, 83, "", {});
+    const text_1 = this.add.text(58, 90, "", {});
     text_1.text = "Lives:\n";
-    text_1.setStyle({ "color": "#473025", "fontFamily": "Quicksand", "stroke": "#473025", "strokeThickness": 1 });
+    text_1.setStyle({ "fontFamily": "Quicksand", "strokeThickness": 1 });
 
     // rectangle_118
     this.add.image(1828, 231, "rectangle_118");
@@ -200,6 +195,11 @@ export default class UIScene extends Phaser.Scene {
     // powers_opened_icon
     this.add.image(1196, 884, "powers_opened_icon");
 
+    // cannonBtn
+    const cannonBtn = this.add.image(694, 972, "cannon_icon");
+    cannonBtn.scaleX = 1.15;
+    cannonBtn.scaleY = 1.15;
+
     this.events.emit("scene-awake");
   }
 
@@ -223,6 +223,7 @@ export default class UIScene extends Phaser.Scene {
     // Tower icons
     this.load.image('ballista_icon', '/assets/game/Ballista Icon.png');
     this.load.image('cannon_icon', '/assets/game/Cannon Icon.png');
+    this.load.image('cannon_tower_icon', '/assets/game/Cannon Icon.png'); // Alias for actual Cannon Tower
     this.load.image('trebuchet_icon', '/assets/game/Trebuchet Icon.png');
     this.load.image('knight_icon', '/assets/game/Knight Icon.png');
     this.load.image('archmage_icon', '/assets/game/Archmage Icon.png');
@@ -355,7 +356,15 @@ export default class UIScene extends Phaser.Scene {
 
     this.trainingCampBtn = allChildren.find(
       child => child instanceof Phaser.GameObjects.Image &&
-               (child as Phaser.GameObjects.Image).texture.key === 'cannon_icon'
+               (child as Phaser.GameObjects.Image).texture.key === 'cannon_icon' &&
+               Math.abs(child.x - 979) < 5 // Position from editorCreate
+    ) as Phaser.GameObjects.Image;
+
+    // Find new Cannon button (added in Editor at x=694)
+    this.cannonBtn = allChildren.find(
+      child => child instanceof Phaser.GameObjects.Image &&
+               (child as Phaser.GameObjects.Image).texture.key === 'cannon_icon' &&
+               Math.abs(child.x - 694) < 5 // Position from editorCreate
     ) as Phaser.GameObjects.Image;
 
     this.archmageBtn = allChildren.find(
@@ -433,7 +442,7 @@ export default class UIScene extends Phaser.Scene {
     ) as Phaser.GameObjects.Text;
 
     // Populate tower and power button arrays
-    this.towerButtons = [this.ballistaBtn, this.trebuchetBtn, this.knightBtn, this.trainingCampBtn, this.archmageBtn].filter(Boolean);
+    this.towerButtons = [this.ballistaBtn, this.trebuchetBtn, this.knightBtn, this.trainingCampBtn, this.archmageBtn, this.cannonBtn].filter(Boolean);
     this.powerButtons = [this.lightningBtn, this.freezeBtn, this.quizBuffBtn].filter(Boolean);
 
     // Log what was found
@@ -483,13 +492,26 @@ export default class UIScene extends Phaser.Scene {
       this.cleared_rectangle.on('pointerdown', startGameHandler);
     }
 
-    // Tower buttons - Map UI buttons to tower types
-    this.setupTowerButton(this.ballistaBtn, 'basic');      // Ballista
-    this.setupTowerButton(this.trebuchetBtn, 'sniper');    // Trebuchet
-    this.setupTowerButton(this.knightBtn, 'melee');        // Knight
-    this.setupTowerButton(this.trainingCampBtn, 'fact');   // Training Camp (cannon)
-    this.setupTowerButton(this.archmageBtn, 'wizard');     // Archmage
-
+        // Tower buttons - Map UI buttons to tower types
+        this.setupTowerButton(this.ballistaBtn, 'basic');      // Ballista
+        this.setupTowerButton(this.trebuchetBtn, 'sniper');    // Trebuchet
+        this.setupTowerButton(this.knightBtn, 'melee');        // Knight
+        
+        // Training Camp (Fact Tower)
+        if (this.trainingCampBtn) {
+            this.setupTowerButton(this.trainingCampBtn, 'fact');
+        } else {
+            console.warn("[UIScene] trainingCampBtn not found during setup");
+        }
+    
+        this.setupTowerButton(this.archmageBtn, 'wizard');     // Archmage
+    
+        // Cannon button
+        if (this.cannonBtn) {
+          this.setupTowerButton(this.cannonBtn, 'cannon');
+        } else {
+            console.warn("[UIScene] cannonBtn not found during setup");
+        }
     // Power buttons
     this.setupPowerButton(this.lightningBtn, 'lightning');
     this.setupPowerButton(this.freezeBtn, 'freeze');
@@ -782,32 +804,29 @@ export default class UIScene extends Phaser.Scene {
     const bottomCenterY = worldHeight - padding;
     const towerMenuY = bottomCenterY - 108; // Towers are 108px from bottom
 
-    // Tower buttons (centered horizontally)
-    if (this.ballistaBtn) {
-      this.ballistaBtn.setPosition(worldWidth / 2 - 363, towerMenuY);
-    }
-    if (this.trebuchetBtn) {
-      this.trebuchetBtn.setPosition(worldWidth / 2 - 268, towerMenuY);
-    }
-    if (this.knightBtn) {
-      this.knightBtn.setPosition(worldWidth / 2 - 173, towerMenuY);
-    }
-    if (this.trainingCampBtn) {
-      this.trainingCampBtn.setPosition(worldWidth / 2 - 78, towerMenuY);
-    }
-    if (this.archmageBtn) {
-      this.archmageBtn.setPosition(worldWidth / 2 + 17, towerMenuY);
-    }
+    // Tower buttons (centered horizontally) - Layout for 6 buttons
+    // Spacing: 95px between centers
+    // Total width: 5 * 95 = 475px
+    // Start X: Center - 475/2 = Center - 237.5
+    const startX = worldWidth / 2 - 237.5;
+    const spacing = 95;
+
+    // Order based on Editor positions: Ballista, Knight, Cannon, Trebuchet, Archmage, Training Camp
+    if (this.ballistaBtn) this.ballistaBtn.setPosition(startX, towerMenuY);
+    if (this.knightBtn) this.knightBtn.setPosition(startX + spacing, towerMenuY);
+    if (this.cannonBtn) this.cannonBtn.setPosition(startX + spacing * 2, towerMenuY);
+    if (this.trebuchetBtn) this.trebuchetBtn.setPosition(startX + spacing * 3, towerMenuY);
+    if (this.archmageBtn) this.archmageBtn.setPosition(startX + spacing * 4, towerMenuY);
+    if (this.trainingCampBtn) this.trainingCampBtn.setPosition(startX + spacing * 5, towerMenuY);
 
     // Tower toggle icon
     if (this.towersToggleIcon) {
-      this.towersToggleIcon.setPosition(worldWidth / 2 - 170, towerMenuY + 92);
+         this.towersToggleIcon.setPosition(worldWidth / 2, towerMenuY + 92);
     }
 
     // Tower menu background (Opened icon)
     if (this.towersOpenedIcon) {
-      this.towersOpenedIcon.setPosition(worldWidth / 2 - 170, towerMenuY - 92);
-      // Note: Original Y 880 vs Btn 972 = -92 offset.
+         this.towersOpenedIcon.setPosition(worldWidth / 2, towerMenuY - 92);
     }
 
     // Power buttons (centered horizontally)

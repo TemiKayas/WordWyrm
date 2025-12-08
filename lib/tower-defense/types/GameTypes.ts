@@ -41,6 +41,8 @@ export interface Enemy {
   isPriorityTarget?: boolean; // true for HEALER and COMMANDER
   lastHealTime?: number; // timestamp for healer healing tick
   frozen?: boolean; // true when frozen by Freeze ability (prevents commander aura from resetting speed)
+  stunned?: boolean; // true when stunned by Cannon Concussive Blast
+  stunnedUntil?: number; // timestamp when stun expires
 }
 
 // Tower entity - attacks enemies in range
@@ -49,6 +51,7 @@ export interface Enemy {
 // Knight (melee): Very fast fire, 25 gold, 100 range
 // Training Camp (fact): Support tower, 40 gold, 200 buff radius (doesn't attack)
 // Archmage (wizard): Spell rotation, 100 gold, 170 range (requires 5+ correct answers)
+// Cannon (cannon): AoE damage, 70 gold, 180 range
 export interface Tower {
   x: number;
   y: number;
@@ -57,7 +60,7 @@ export interface Tower {
   damage: number;
   cost: number; // purchase price
   lastFired: number; // timestamp of last attack
-  type: 'basic' | 'sniper' | 'melee' | 'fact' | 'wizard';
+  type: 'basic' | 'sniper' | 'melee' | 'fact' | 'wizard' | 'cannon';
   graphics: Phaser.GameObjects.Rectangle | Phaser.GameObjects.Image | Phaser.GameObjects.Container;
   rangeCircle?: Phaser.GameObjects.Arc; // Range indicator circle
   upgrades: {
@@ -68,10 +71,16 @@ export interface Tower {
     lightningDebuff?: boolean; // Archmage Path A: Lightning applies 5% damage debuff
     knowledgeScaling?: boolean; // Archmage Path B: +1% dmg/fire rate per correct answer
     aoeCharge?: boolean; // Archmage Path A Tier 2: 15s charge AoE blast
+    shrapnel?: boolean; // Cannon Path A: +50% AoE radius
+    clusterBomb?: boolean; // Cannon Path A Tier 2: Spawns mini-bombs
+    concussive?: boolean; // Cannon Path B: Stun 0.5s
+    heavySlugs?: boolean; // Cannon Path B Tier 2: +100% dmg to Armored
   };
   baseDamage: number; // original damage (for buff calculations)
   baseFireRate: number; // original fire rate (for buff calculations)
   size: number; // visual scale multiplier
+  relativeX?: number; // X position relative to background (0.0-1.0)
+  relativeY?: number; // Y position relative to background (0.0-1.0)
 
   // Fact tower specific properties
   buffRadius?: number; // Only for fact towers

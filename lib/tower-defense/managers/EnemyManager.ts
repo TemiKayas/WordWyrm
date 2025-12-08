@@ -368,12 +368,28 @@ export class EnemyManager {
    * Update all enemies - move along path, update health bars
    * Returns enemies that died or escaped this frame
    */
-  updateEnemies(scaledDelta: number, goldBuff: boolean): { deaths: EnemyDeath[], escapes: EnemyEscape[] } {
+  updateEnemies(scaledDelta: number, goldBuff: boolean, currentTime: number): { deaths: EnemyDeath[], escapes: EnemyEscape[] } {
     const deaths: EnemyDeath[] = [];
     const escapes: EnemyEscape[] = [];
 
     for (let i = this.enemies.length - 1; i >= 0; i--) {
       const enemy = this.enemies[i];
+
+      // Handle Stun logic
+      if (enemy.stunned && enemy.stunnedUntil) {
+        if (currentTime < enemy.stunnedUntil) {
+           enemy.speed = 0;
+           // Visual feedback for stun?
+           // Maybe tint?
+           // if (enemy.sprite) enemy.sprite.setTint(0x888888); 
+           // but Graphics? 
+        } else {
+           // Stun expired
+           enemy.stunned = false;
+           enemy.speed = enemy.baseSpeed; // Will be updated by aura logic anyway
+           // Reset visual?
+        }
+      }
 
       // Check if reached end of path
       if (enemy.pathIndex >= this.path.length) {
@@ -518,9 +534,9 @@ export class EnemyManager {
    * Update commander auras - apply speed buffs to nearby enemies
    */
   updateCommanderAuras(): void {
-    // First, reset all enemy speeds to base speed (except frozen enemies)
+    // First, reset all enemy speeds to base speed (except frozen or stunned enemies)
     this.enemies.forEach(enemy => {
-      if (!enemy.frozen) {
+      if (!enemy.frozen && !enemy.stunned) {
         enemy.speed = enemy.baseSpeed;
       }
     });
@@ -533,7 +549,7 @@ export class EnemyManager {
       this.enemies.forEach(target => {
         if (target === commander) return; // Don't buff self
         if (target.type === EnemyType.HEALER || target.type === EnemyType.COMMANDER) return; // No aura stacking
-        if (target.frozen) return; // Don't buff frozen enemies
+        if (target.frozen || target.stunned) return; // Don't buff frozen or stunned enemies
 
         const dx = target.x - commander.x;
         const dy = target.y - commander.y;
