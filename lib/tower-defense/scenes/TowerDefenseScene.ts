@@ -1,21 +1,19 @@
 import * as Phaser from 'phaser';
 import { Quiz, QuizQuestion } from '@/lib/processors/ai-generator';
 import { EnemyType, Enemy, Tower, PathPoint } from '@/lib/tower-defense/types/GameTypes';
-import { TOWER_SPRITE_SCALES, PROJECTILE_SPRITE_SCALES, TEXT_STYLES, BALANCE_CONSTANTS } from '@/lib/tower-defense/config/GameConfig';
+import { TOWER_SPRITE_SCALES, PROJECTILE_SPRITE_SCALES, TEXT_STYLES, BALANCE_CONSTANTS, getResponsiveSpriteScale, getResponsiveFontSize } from '@/lib/tower-defense/config/GameConfig';
 import { ProjectileManager } from '@/lib/tower-defense/managers/ProjectileManager';
 import { CombatManager } from '@/lib/tower-defense/managers/CombatManager';
 import { EnemyManager } from '@/lib/tower-defense/managers/EnemyManager';
 import { TowerManager } from '@/lib/tower-defense/managers/TowerManager';
 import { AbilityManager } from '@/lib/tower-defense/managers/AbilityManager';
-import { StageManager } from '@/lib/tower-defense/managers/StageManager';
+import { QuizPopupManager } from '@/lib/tower-defense/managers/QuizPopupManager';
+// Removed StageManager - using single path only
 import { gameDataService } from '@/lib/tower-defense/GameDataService';
 
 import { MobileSupport } from '@/lib/phaser/MobileSupport';
 import { GameEvents, GAME_EVENTS } from '@/lib/tower-defense/events/GameEvents';
 import type UIScene from '@/lib/tower-defense/editor/UIScene';
-
-// DEBUG: Set to false to hide stage debug buttons
-const ENABLE_STAGE_DEBUG_BUTTONS = true;
 
 // Main tower defense scene with quiz integration
 // Wave formula: 5 + (1.25 * waveNumber) enemies per wave
@@ -27,19 +25,20 @@ export default class TowerDefenseScene extends Phaser.Scene {
   private enemyManager!: EnemyManager;
   private towerManager!: TowerManager;
   private abilityManager!: AbilityManager;
-  private stageManager!: StageManager;
+  private quizPopupManager!: QuizPopupManager;
   private mobileSupport!: MobileSupport;
-  private allPaths: PathPoint[][] = []; // array of enemy movement paths
-  private pathGraphicsArray: Phaser.GameObjects.Graphics[] = []; // current path graphics (one per path)
+  private path: PathPoint[] = []; // Single enemy movement path
+  private pathGraphics?: Phaser.GameObjects.Graphics; // Path graphics
   private backgroundImage?: Phaser.GameObjects.Image; // current background image
   private uiScene!: UIScene; // Reference to UIScene for updating displays and handling events
+  private globalScale: number = 1; // Global scale factor for resolution-independent rendering
+  private lastScreenSize: { width: number; height: number } = { width: 1920, height: 1080 }; // Track size changes
 
   // Wave management
   private enemySpawnTimer: number = 0; // ms since last spawn
   private waveActive: boolean = false;
   private waveNumber: number = 0;
   private enemiesToSpawn: number = 0; // remaining spawns in current wave
-  private stageTransitionInProgress: boolean = false; // blocks input during stage change cutscene
 
   // Player state
   private lives: number = 10;
@@ -50,12 +49,14 @@ export default class TowerDefenseScene extends Phaser.Scene {
   private escKey!: Phaser.Input.Keyboard.Key; // ESC for pause
   private gamePaused: boolean = false;
   private pauseOverlay?: Phaser.GameObjects.Container;
+  private questionPopupActive: boolean = false; // Track if any question popup is currently displayed
 
   // Tower placement/selection
-  private selectedTowerType: 'basic' | 'sniper' | 'melee' | 'fact' | 'wizard' | null = null; // Start with no tower selected
+  private selectedTowerType: 'basic' | 'sniper' | 'melee' | 'fact' | 'wizard' | 'cannon' | null = null; // Start with no tower selected
   private selectedTower: Tower | null = null; // selected for upgrades
   private clickedOnTower: boolean = false; // prevent double-click placement
   private placementPreview?: Phaser.GameObjects.Image | Phaser.GameObjects.Rectangle | Phaser.GameObjects.Container; // preview sprite for tower placement
+  private placementRangePreview?: Phaser.GameObjects.Arc; // range indicator circle for tower placement
 
   // Quiz system (between-wave questions)
   private quizData!: Quiz;
@@ -63,22 +64,23 @@ export default class TowerDefenseScene extends Phaser.Scene {
   private waitingForQuestion: boolean = false;
 
   // Tower purchase quiz gate system
-  private towerPurchaseCount: { basic: number; sniper: number; melee: number; fact: number; wizard: number } = {
+  private towerPurchaseCount: { basic: number; sniper: number; melee: number; fact: number; wizard: number; cannon: number } = {
     basic: 0,
     sniper: 0,
     melee: 0,
     fact: 0,
-    wizard: 0
+    wizard: 0,
+    cannon: 0
   };
-  private towerPurchasePrice: { basic: number; sniper: number; melee: number; fact: number; wizard: number } = {
+  private towerPurchasePrice: { basic: number; sniper: number; melee: number; fact: number; wizard: number; cannon: number } = {
     basic: 0, // Will be initialized from TowerManager stats
     sniper: 0,
     melee: 0,
     fact: 0,
-    wizard: 0
+    wizard: 0,
+    cannon: 0
   };
-  private pendingTowerPlacement: { x: number; y: number; type: 'basic' | 'sniper' | 'melee' | 'fact' | 'wizard' } | null = null;
-  private towerPurchaseQuestionPopup?: Phaser.GameObjects.Container;
+  private pendingTowerPlacement: { x: number; y: number; type: 'basic' | 'sniper' | 'melee' | 'fact' | 'wizard' | 'cannon' } | null = null;
   private totalCorrectAnswers: number = 0; // Track all correct answers for wizard unlock
   private ghostTower: Tower | null = null; // Ghost tower waiting for quiz answer
   private totalTowersPlaced: number = 0; // Global tower count for quiz gating (first 2 free)
@@ -98,30 +100,44 @@ export default class TowerDefenseScene extends Phaser.Scene {
     fasterFireRate: boolean;
     explosive: boolean;
     moreDamage: boolean;
+    shrapnel: boolean;
+    clusterBomb: boolean;
+    concussive: boolean;
+    heavySlugs: boolean;
   } = {
     dotArrows: false,
     fasterFireRate: false,
     explosive: false,
-    moreDamage: false
+    moreDamage: false,
+    shrapnel: false,
+    clusterBomb: false,
+    concussive: false,
+    heavySlugs: false
   };
   private upgradePrices: {
     dotArrows: number;
     fasterFireRate: number;
     explosive: number;
     moreDamage: number;
+    shrapnel: number;
+    clusterBomb: number;
+    concussive: number;
+    heavySlugs: number;
   } = {
     dotArrows: BALANCE_CONSTANTS.UPGRADE_BASE_PRICE,
     fasterFireRate: BALANCE_CONSTANTS.UPGRADE_BASE_PRICE,
     explosive: BALANCE_CONSTANTS.UPGRADE_BASE_PRICE,
-    moreDamage: BALANCE_CONSTANTS.UPGRADE_BASE_PRICE
+    moreDamage: BALANCE_CONSTANTS.UPGRADE_BASE_PRICE,
+    shrapnel: 25,
+    clusterBomb: 50,
+    concussive: 25,
+    heavySlugs: 50
   };
-  private pendingUpgrade: { type: 'explosive' | 'dotArrows' | 'fasterFireRate' | 'moreDamage' } | null = null;
-  private upgradeQuestionPopup?: Phaser.GameObjects.Container;
+  private pendingUpgrade: { type: 'explosive' | 'dotArrows' | 'fasterFireRate' | 'moreDamage' | 'shrapnel' | 'clusterBomb' | 'concussive' | 'heavySlugs' } | null = null;
 
   // Active ability system
   private lightningStrikeActive: boolean = false; // Waiting for enemy selection
   private pendingLightningTarget: Enemy | null = null;
-  private abilityQuestionPopup?: Phaser.GameObjects.Container;
   private abilityButtons?: Phaser.GameObjects.Container;
   private frozenEnemies: Set<Enemy> = new Set(); // Track frozen enemies
   private incorrectQuestionIndices: Set<number> = new Set(); // Track incorrect questions for Training Camp tooltips
@@ -135,7 +151,6 @@ export default class TowerDefenseScene extends Phaser.Scene {
   private challengeCorrectCount: number = 0; // Number correct so far
   private challengeQuestions: QuizQuestion[] = []; // The 3 selected questions
   private challengeIncorrectIndices: Set<number> = new Set(); // Track incorrect from challenges for spaced repetition
-  private challengeQuestionPopup?: Phaser.GameObjects.Container;
   private buffSelectionPopup?: Phaser.GameObjects.Container;
 
   // Challenge round buffs (last 10 rounds each)
@@ -148,7 +163,6 @@ export default class TowerDefenseScene extends Phaser.Scene {
   private bossActive: boolean = false;
   private bossEnemy: Enemy | null = null;
   private bossQuestion: QuizQuestion | null = null;
-  private bossQuestionPopup?: Phaser.GameObjects.Container;
   private bossQuestionTimer: number = 0; // 30 second timer
   private bossAnsweredCorrectly: boolean[] = []; // for spaced repetition
   private towerGlobalBuffActive: boolean = false; // +15% damage/fire rate
@@ -169,11 +183,6 @@ export default class TowerDefenseScene extends Phaser.Scene {
   private upgradeContainer?: Phaser.GameObjects.Container;
   private upgradeButtons: Phaser.GameObjects.Rectangle[] = [];
   private startGameButton?: Phaser.GameObjects.Container;
-  private questionPopup?: Phaser.GameObjects.Container;
-  private currentQuizAnswerButtons?: Phaser.GameObjects.Container[];
-  private currentQuizQuestion?: QuizQuestion;
-  private currentQuizOverlay?: Phaser.GameObjects.Rectangle;
-  private currentQuizPanel?: Phaser.GameObjects.Rectangle;
   private currentQuizTextObj?: Phaser.GameObjects.Text;
   private errorMessage?: Phaser.GameObjects.Text;
 
@@ -194,18 +203,20 @@ export default class TowerDefenseScene extends Phaser.Scene {
   preload() {
     this.load.svg('checkmark', '/components/game/data/images/checkmark-1.svg', { width: 20, height: 20 });
 
-    // Load tower sprites
-    this.load.image('tower_ballista', '/assets/game/Tower_Ballista.PNG');
-    this.load.image('tower_catapult', '/assets/game/Tower_Catapult.PNG');
-    this.load.image('tower_melee_back', '/assets/game/Tower_MeleeBack.PNG');
-    this.load.image('tower_melee_front', '/assets/game/Tower_MeleeFront.PNG');
-    this.load.image('tower_wizard_back', '/assets/game/Tower_WizardBack.PNG');
-    this.load.image('tower_wizard_front', '/assets/game/Tower_WizardFront.PNG');
-
     // Load projectile sprites
     this.load.image('proj_ballista', '/assets/game/Projectile_Ballista.PNG');
     this.load.image('proj_catapult', '/assets/game/Projectile_Catapult.PNG');
     this.load.image('proj_wizard', '/assets/game/Projectile_Wizard.PNG');
+    this.load.image('proj_cannon', '/assets/game/Projectile_Cannon.PNG');
+
+    // Load tower sprites
+    this.load.image('tower_ballista', '/assets/game/Tower_Ballista.PNG');
+    this.load.image('tower_catapult', '/assets/game/Tower_Catapult.PNG');
+    this.load.image('tower_cannon', '/assets/game/Tower_Cannon.PNG');
+    this.load.image('tower_melee_back', '/assets/game/Tower_MeleeBack.PNG');
+    this.load.image('tower_melee_front', '/assets/game/Tower_MeleeFront.PNG');
+    this.load.image('tower_wizard_back', '/assets/game/Tower_WizardBack.PNG');
+    this.load.image('tower_wizard_front', '/assets/game/Tower_WizardFront.PNG');
 
     // Load icon sprites
     this.load.image('icon_lightning', '/assets/game/Icon_Lightning.PNG');
@@ -216,19 +227,15 @@ export default class TowerDefenseScene extends Phaser.Scene {
     this.load.image('icon_melee', '/assets/game/Icon_Melee.PNG');
     this.load.image('icon_powerup', '/assets/game/Icon_PowerUp.PNG');
 
-    // Load background maps for each stage
-    this.load.image('grass_map', '/assets/game/GrassMap1080p.png'); // Updated 1080p version (16:9 aspect ratio)
-    this.load.image('stage1_bg', '/assets/game/Stage1_BG.png');
-    this.load.image('stage2_bg', '/assets/game/Stage2_BG.png');
-    this.load.image('stage3_bg', '/assets/game/Stage3_BG.png');
+    // Load background map
+    this.load.image('grass_map', '/assets/game/UpdatedSizeMap.PNG'); // Main background map
 
-    // Load enemy sprites - individual frames (much simpler!)
+    // Load goblin animation frames (individual images)
     this.load.image('goblin_frame_1', '/assets/game/Goblin_1.png');
     this.load.image('goblin_frame_2', '/assets/game/Goblin_2.png');
     this.load.image('goblin_frame_3', '/assets/game/Goblin_3.png');
     this.load.image('goblin_frame_4', '/assets/game/Goblin_4.png');
     this.load.image('goblin_frame_5', '/assets/game/Goblin_5.png');
-    this.load.image('enemy_goblin_still', '/assets/game/Goblin.png'); // Frozen goblin
   }
 
   create() {
@@ -279,8 +286,9 @@ export default class TowerDefenseScene extends Phaser.Scene {
       this.uiScene = this.scene.get('UIScene') as UIScene;
 
       // Wire up UI event handlers now that UI elements exist
-      console.log('[TowerDefenseScene] Setting up UI event handlers...');
-      this.setupUIEventHandlers();
+      // NOTE: Event handlers are now set up in UIScene.ts, not here
+      // this.setupUIEventHandlers(); // OLD - commented out
+      console.log('[TowerDefenseScene] UIScene handles its own events now');
 
       // Update wizard button state (initially locked)
       this.updateWizardButtonState();
@@ -291,11 +299,11 @@ export default class TowerDefenseScene extends Phaser.Scene {
     this.projectileManager = new ProjectileManager(this);
     this.combatManager = new CombatManager(this);
     this.abilityManager = new AbilityManager();
-    this.stageManager = new StageManager(this);
-
+    this.quizPopupManager = new QuizPopupManager(this);
     // Get screen dimensions
     const width = this.scale.width;
     const height = this.scale.height;
+    this.lastScreenSize = { width, height };
     const sidebarWidth = Math.min(220, width * 0.15);
     const gameWidth = width - sidebarWidth;
     console.log('[TowerDefenseScene] Screen dimensions:', width, 'x', height, ', Game area:', gameWidth);
@@ -307,28 +315,53 @@ export default class TowerDefenseScene extends Phaser.Scene {
     // Setup responsive scaling - listen for resize events
     this.scale.on('resize', this.handleResize, this);
 
-    // Initialize GrassMap background (full-screen, behind everything)
-    console.log('[TowerDefenseScene] Loading GrassMap background...');
+    // Initialize UpdatedSizeMap background (full-screen, behind everything)
+    console.log('[TowerDefenseScene] Loading UpdatedSizeMap background...');
     this.backgroundImage = this.add.image(width / 2, height / 2, 'grass_map');
-    this.backgroundImage.setDisplaySize(width, height); // Full screen including sidebar area
+    this.backgroundImage.setOrigin(0.5, 0.5); // Center the image
+
+    // Scale to cover screen while maintaining aspect ratio
+    const scaleX = width / this.backgroundImage.width;
+    const scaleY = height / this.backgroundImage.height;
+    const scale = Math.max(scaleX, scaleY); // Use larger scale to cover entire screen
+    this.backgroundImage.setScale(scale);
+
     this.backgroundImage.setDepth(-2); // Behind everything
-    this.backgroundImage.setOrigin(0.55, 0.5); // Center anchor
-    console.log('[TowerDefenseScene] GrassMap background loaded successfully');
+    console.log('[TowerDefenseScene] UpdatedSizeMap background loaded successfully');
 
-    // Get path points from stage config (returns array of paths)
-    // Always use Stage 1 since we're keeping GrassMap background throughout
-    const currentStage = 1;
-    this.allPaths = this.stageManager.getPathPoints(currentStage, gameWidth, height);
+    // Define single path (hardcoded from Stage1Config)
+    const pathY1 = height * 0.65;
+    const pathY2 = height * 0.26;
+    const pathY3 = height * 0.72;
 
-    // Initialize managers after paths are set
-    this.enemyManager = new EnemyManager(this, this.allPaths);
-    this.towerManager = new TowerManager(this, this.allPaths);
+    this.path = [
+      { x: 0, y: pathY1 },
+      { x: gameWidth * 0.355, y: pathY1 },
+      { x: gameWidth * 0.355, y: pathY2 },
+      { x: gameWidth * 0.79, y: pathY2 },
+      { x: gameWidth * 0.79, y: pathY3 },
+      { x: 1920, y: pathY3 }
+    ];
+
+    // Initialize managers after path is set
+    this.enemyManager = new EnemyManager(this, this.path);
+    this.towerManager = new TowerManager(this, this.path);
 
     // Initialize mobile support (orientation enforcement, pause handling)
     this.mobileSupport = new MobileSupport(this);
     this.mobileSupport.setup(undefined, undefined, 'UIScene');
 
-    // Create goblin walking animation from individual frames
+    // Initialize tower prices from centralized stats
+    this.initializeTowerPrices();
+
+    // Draw path
+    this.pathGraphics = this.add.graphics();
+    this.pathGraphics.lineStyle(70, 0x5d4037, 1); // Dark brown path
+    
+    // Initial path calculation will happen in handleResize which is called immediately after
+    this.handleResize(this.scale.baseSize);
+
+    // Create goblin walk animation from individual frames
     if (!this.anims.exists('goblin_walk')) {
       this.anims.create({
         key: 'goblin_walk',
@@ -339,360 +372,14 @@ export default class TowerDefenseScene extends Phaser.Scene {
           { key: 'goblin_frame_4' },
           { key: 'goblin_frame_5' }
         ],
-        frameRate: 8, // 8 fps - adjust for desired speed
-        repeat: -1 // Loop forever
+        frameRate: 8,
+        repeat: -1
       });
       console.log('[TowerDefenseScene] Created goblin_walk animation with 5 frames');
     }
 
-    // Initialize tower prices from centralized stats
-    this.initializeTowerPrices();
-
-    // Draw all paths for current stage
-    this.pathGraphicsArray = this.stageManager.drawPaths(this.allPaths, currentStage, 1);
-    for (const graphics of this.pathGraphicsArray) {
-      graphics.setDepth(-1);
-    }
-
-    /* ========================================
-     * OLD DOM UI - REPLACED BY PHASER EDITOR UIScene
-     * This section is commented out but kept for reference
-     * The UI is now handled by lib/tower-defense/editor/UIScene.ts
-     * ======================================== */
-    /*
-    // Back button with WordWyrm 3D styling
-    const backButtonStyle = {
-      'background': '#fffcf8',
-      'color': '#473025',
-      'font-family': 'Quicksand, sans-serif',
-      'font-weight': '700',
-      'font-size': '15px',
-      'padding': '10px 20px',
-      'border-radius': '13px',
-      'border': '2px solid #473025',
-      'cursor': 'pointer',
-      'display': 'flex',
-      'align-items': 'center',
-      'gap': '6px',
-      'position': 'relative',
-      'z-index': '1000',
-      'transition': 'all 0.2s ease'
-    };
-
-    this.backButton = this.add.dom(25, 25, 'button', backButtonStyle, '← Back');
-    this.backButton.setDepth(1000);
-    this.backButton.setOrigin(0, 0);
-
-    this.backButton.addListener('click');
-    this.backButton.on('click', () => {
-      window.location.href = '/teacher/dashboard';
-    });
-
-    this.backButton.addListener('mouseenter');
-    this.backButton.on('mouseenter', () => {
-      const el = this.backButton.node as HTMLElement;
-      el.style.transform = 'scale(0.98)';
-      el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.25)';
-      el.style.background = '#fff5e8';
-    });
-
-    this.backButton.addListener('mouseleave');
-    this.backButton.on('mouseleave', () => {
-      const el = this.backButton.node as HTMLElement;
-      el.style.transform = 'scale(1)';
-      el.style.boxShadow = 'none';
-      el.style.background = '#fffcf8';
-    });
-
-    // lives display (top left) - aligned with back button
-    const livesBg = this.add.rectangle(25, 75, 120, 40, 0xffffff, 0.9);
-    livesBg.setOrigin(0, 0);
-    livesBg.setStrokeStyle(2, 0xc4a46f);
-
-    this.livesText = this.add.text(85, 95, `Lives: ${this.lives}`, {
-      fontSize: '18px',
-      color: '#473025',
-      fontFamily: 'Quicksand, sans-serif',
-      fontStyle: '600',
-      resolution: 2
-    }).setOrigin(0.5);
-
-    // gold display in sidebar - clean minimal design
-    const goldBg = this.add.rectangle(width - sidebarWidth/2, 710, sidebarWidth - 20, 40, 0xffffff, 0.95);
-    goldBg.setOrigin(0.5);
-    goldBg.setStrokeStyle(2, 0xc4a46f);
-
-    this.goldText = this.add.text(width - sidebarWidth/2, 710, `Gold: ${this.gold}`, {
-      fontSize: '18px',
-      color: '#ff9f22',
-      fontFamily: 'Quicksand, sans-serif',
-      fontStyle: '600',
-      resolution: 2
-    }).setOrigin(0.5);
-
-    // wave counter (above wave button) - clean and minimal
-    this.waveCounterText = this.add.text(width - sidebarWidth/2, 35, 'Round 0', {
-      fontSize: '18px',
-      color: '#473025',
-      fontFamily: 'Quicksand, sans-serif',
-      fontStyle: '600',
-      resolution: 2
-    }).setOrigin(0.5);
-
-    // Wave button with WordWyrm 3D styling (no gradient, solid color with border)
-    const waveButtonStyle = {
-      'background': '#95b607',
-      'color': 'white',
-      'font-family': 'Quicksand, sans-serif',
-      'font-weight': 'bold',
-      'font-size': '18px',
-      'padding': '12px 20px',
-      'border-radius': '13px',
-      'border': '2px solid #006029',
-      'cursor': 'pointer',
-      'transition': 'all 0.2s ease',
-      'width': '180px',
-      'text-align': 'center'
-    };
-
-    this.waveButton = this.add.dom(width - sidebarWidth/2, 85, 'button', waveButtonStyle, 'Start Wave 1');
-
-    this.waveButton.addListener('click');
-    this.waveButton.on('click', () => {
-      if (!this.waveActive && this.gameStarted && !this.waitingForQuestion) {
-        this.startWave();
-      } else if (this.waveActive) {
-        this.toggleGameSpeed();
-      }
-    });
-
-    this.waveButton.addListener('mouseenter');
-    this.waveButton.on('mouseenter', () => {
-      const el = this.waveButton.node as HTMLElement;
-      el.style.transform = 'scale(0.98)';
-      el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.25)';
-      el.style.background = '#7a9700';
-    });
-
-    this.waveButton.addListener('mouseleave');
-    this.waveButton.on('mouseleave', () => {
-      const el = this.waveButton.node as HTMLElement;
-      el.style.transform = 'scale(1)';
-      el.style.boxShadow = 'none';
-      // Reset to current state's color
-      if (!this.waveActive) {
-        el.style.background = '#95b607';
-      }
-    });
-
-    // tower selector title - clean and minimal
-    this.add.text(width - sidebarWidth/2, 150, 'Select Tower:', {
-      fontSize: '16px',
-      color: '#473025',
-      fontFamily: 'Quicksand, sans-serif',
-      fontStyle: '600',
-      resolution: 2
-    }).setOrigin(0.5);
-
-    // Tower buttons with WordWyrm 3D styling (no gradients, solid colors with borders)
-    const createTowerButton = (y: number, text: string, subtitle: string, bgColor: string, borderColor: string, iconPath?: string) => {
-      const container = document.createElement('div');
-      container.style.cssText = `
-        background: ${bgColor};
-        color: white;
-        font-family: Quicksand, sans-serif;
-        font-weight: 700;
-        font-size: 15px;
-        padding: 12px;
-        border-radius: 13px;
-        border: 2px solid ${borderColor};
-        cursor: pointer;
-        width: 180px;
-        text-align: center;
-        transition: all 0.2s ease;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-      `;
-
-      // Add icon if provided
-      if (iconPath) {
-        const icon = document.createElement('img');
-        icon.src = iconPath;
-        icon.style.cssText = 'width: 32px; height: 32px; flex-shrink: 0;';
-        container.appendChild(icon);
-      }
-
-      // Text container
-      const textContainer = document.createElement('div');
-      textContainer.style.cssText = 'flex: 1; text-align: left;';
-
-      const title = document.createElement('div');
-      title.textContent = text;
-      title.style.cssText = 'font-size: 16px; font-weight: 700; margin-bottom: 2px;';
-
-      const desc = document.createElement('div');
-      desc.textContent = subtitle;
-      desc.style.cssText = 'font-size: 11px; opacity: 0.9;';
-
-      textContainer.appendChild(title);
-      textContainer.appendChild(desc);
-      container.appendChild(textContainer);
-
-      return this.add.dom(width - sidebarWidth/2, y, container);
-    };
-
-    // Ballista (Purple with dark border)
-    this.basicTowerBtn = createTowerButton(220, 'Ballista', 'Fast Fire • 50g',
-      '#A8277F', '#730f11', '/assets/game/Icon_Ballista.PNG');
-
-    this.basicTowerBtn.addListener('click');
-    this.basicTowerBtn.on('click', () => {
-      this.selectedTowerType = this.selectedTowerType === 'basic' ? null : 'basic';
-      this.updateTowerSelection();
-    });
-
-    this.basicTowerBtn.addListener('mouseenter');
-    this.basicTowerBtn.on('mouseenter', () => {
-      const el = this.basicTowerBtn.node as HTMLElement;
-      el.style.transform = 'scale(0.98)';
-      el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.25)';
-      el.style.background = '#8B1F68';
-    });
-
-    this.basicTowerBtn.addListener('mouseleave');
-    this.basicTowerBtn.on('mouseleave', () => {
-      const el = this.basicTowerBtn.node as HTMLElement;
-      el.style.transform = 'scale(1)';
-      el.style.boxShadow = 'none';
-      el.style.background = '#A8277F';
-    });
-
-    // Trebuchet (Green with dark border)
-    this.sniperTowerBtn = createTowerButton(320, 'Trebuchet', 'Slow Fire • 75g',
-      '#95b607', '#006029', '/assets/game/Icon_Catapult.PNG');
-
-    this.sniperTowerBtn.addListener('click');
-    this.sniperTowerBtn.on('click', () => {
-      this.selectedTowerType = this.selectedTowerType === 'sniper' ? null : 'sniper';
-      this.updateTowerSelection();
-    });
-
-    this.sniperTowerBtn.addListener('mouseenter');
-    this.sniperTowerBtn.on('mouseenter', () => {
-      const el = this.sniperTowerBtn.node as HTMLElement;
-      el.style.transform = 'scale(0.98)';
-      el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.25)';
-      el.style.background = '#7a9700';
-    });
-
-    this.sniperTowerBtn.addListener('mouseleave');
-    this.sniperTowerBtn.on('mouseleave', () => {
-      const el = this.sniperTowerBtn.node as HTMLElement;
-      el.style.transform = 'scale(1)';
-      el.style.boxShadow = 'none';
-      el.style.background = '#95b607';
-    });
-
-    // Knight (Orange with dark border)
-    this.meleeTowerBtn = createTowerButton(420, 'Knight', 'Rapid Fire • 25g',
-      '#fd9227', '#730f11', '/assets/game/Icon_Melee.PNG');
-
-    this.meleeTowerBtn.addListener('click');
-    this.meleeTowerBtn.on('click', () => {
-      this.selectedTowerType = this.selectedTowerType === 'melee' ? null : 'melee';
-      this.updateTowerSelection();
-    });
-
-    this.meleeTowerBtn.addListener('mouseenter');
-    this.meleeTowerBtn.on('mouseenter', () => {
-      const el = this.meleeTowerBtn.node as HTMLElement;
-      el.style.transform = 'scale(0.98)';
-      el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.25)';
-      el.style.background = '#e6832b';
-    });
-
-    this.meleeTowerBtn.addListener('mouseleave');
-    this.meleeTowerBtn.on('mouseleave', () => {
-      const el = this.meleeTowerBtn.node as HTMLElement;
-      el.style.transform = 'scale(1)';
-      el.style.boxShadow = 'none';
-      el.style.background = '#fd9227';
-    });
-
-    // Training Camp (Blue with dark border) - Support tower
-    this.factTowerBtn = createTowerButton(520, 'Training Camp', 'Support • 40g',
-      '#3498db', '#2c3e50');
-
-    this.factTowerBtn.addListener('click');
-    this.factTowerBtn.on('click', () => {
-      this.selectedTowerType = this.selectedTowerType === 'fact' ? null : 'fact';
-      this.updateTowerSelection();
-    });
-
-    this.factTowerBtn.addListener('mouseenter');
-    this.factTowerBtn.on('mouseenter', () => {
-      const el = this.factTowerBtn.node as HTMLElement;
-      el.style.transform = 'scale(0.98)';
-      el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.25)';
-      el.style.background = '#2980b9';
-    });
-
-    this.factTowerBtn.addListener('mouseleave');
-    this.factTowerBtn.on('mouseleave', () => {
-      const el = this.factTowerBtn.node as HTMLElement;
-      el.style.transform = 'scale(1)';
-      el.style.boxShadow = 'none';
-      el.style.background = '#3498db';
-    });
-
-    // Archmage (Purple with dark border) - Spell rotation (requires 5+ correct answers)
-    this.wizardTowerBtn = createTowerButton(620, 'Archmage', 'Spells • 100g',
-      '#9c27b0', '#4a148c', '/assets/game/Icon_Wizard.PNG');
-
-    this.wizardTowerBtn.addListener('click');
-    this.wizardTowerBtn.on('click', () => {
-      // Check if wizard is unlocked (5+ correct answers)
-      if (this.totalCorrectAnswers < 5) {
-        this.showErrorMessage(`Archmage locked! Need 5 correct answers (${this.totalCorrectAnswers}/5)`);
-        return;
-      }
-      this.selectedTowerType = this.selectedTowerType === 'wizard' ? null : 'wizard';
-      this.updateTowerSelection();
-    });
-
-    this.wizardTowerBtn.addListener('mouseenter');
-    this.wizardTowerBtn.on('mouseenter', () => {
-      const el = this.wizardTowerBtn.node as HTMLElement;
-      el.style.transform = 'scale(0.98)';
-      el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.25)';
-      el.style.background = '#7b1fa2';
-    });
-
-    this.wizardTowerBtn.addListener('mouseleave');
-    this.wizardTowerBtn.on('mouseleave', () => {
-      const el = this.wizardTowerBtn.node as HTMLElement;
-      el.style.transform = 'scale(1)';
-      el.style.boxShadow = 'none';
-      el.style.background = '#9c27b0';
-    });
-
-    this.updateTowerSelection();
-    */
-    /* ======================================== END OLD DOM UI ======================================== */
-
-    // OLD: Create ability buttons at bottom center - Now handled by UIScene
-    // this.createAbilityButtons();
-
-    // Create debug stage buttons (bottom left)
-    if (ENABLE_STAGE_DEBUG_BUTTONS) {
-      this.createStageDebugButtons();
-    }
-
     // enable click to place towers
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      // Block input during stage transition
-      if (this.stageTransitionInProgress) return;
 
       // Right-click deselects the selected tower (for upgrade UI)
       if (pointer.rightButtonDown()) {
@@ -752,6 +439,11 @@ export default class TowerDefenseScene extends Phaser.Scene {
     this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
       if (this.placementPreview && this.selectedTowerType) {
         this.placementPreview.setPosition(pointer.x, pointer.y);
+
+        // Move range indicator with cursor
+        if (this.placementRangePreview) {
+          this.placementRangePreview.setPosition(pointer.x, pointer.y);
+        }
 
         // Calculate dynamic game area (excluding sidebar)
         const width = this.scale.width;
@@ -830,6 +522,10 @@ export default class TowerDefenseScene extends Phaser.Scene {
 
   showQuestion() {
     this.waitingForQuestion = true;
+    this.questionPopupActive = true; // Pause game while question popup is active
+
+    // Bring this scene to top so overlay appears above UIScene
+    this.scene.bringToTop();
 
     // check if we have questions left
     if (this.currentQuestionIndex >= this.quizData.questions.length) {
@@ -843,231 +539,42 @@ export default class TowerDefenseScene extends Phaser.Scene {
       }
 
       this.waitingForQuestion = false;
+      this.questionPopupActive = false; // Resume game
       this.gameStarted = true;
 
       return;
     }
 
     const question = this.quizData.questions[this.currentQuestionIndex];
-    this.currentQuizQuestion = question; // Store for keyboard handling
 
-    // Responsive dimensions - center in game area (excluding sidebar)
-    const width = this.scale.width;
-    const height = this.scale.height;
-    const sidebarWidth = Math.min(220, width * 0.15);
-    const gameWidth = width - sidebarWidth;
-    const centerX = gameWidth / 2;
-    const centerY = height / 2;
-    const panelWidth = Math.min(700, gameWidth * 0.85);
-    const panelHeight = Math.min(540, height * 0.75);
-
-    // popup background overlay - simple fade in
-    const overlay = this.add.rectangle(centerX, centerY, gameWidth, height, 0x000000, 0);
-    this.currentQuizOverlay = overlay;
-    this.tweens.add({
-      targets: overlay,
-      alpha: 0.85,
-      duration: 200,
-      ease: 'Power1'
+    this.quizPopupManager.show({
+      question: question.question,
+      options: question.options,
+      correctAnswer: question.answer,
+      headerText: `Question ${this.currentQuestionIndex + 1}/${this.quizData.questions.length}`,
+      explanation: question.explanation,
+      onCorrect: () => {
+        this.gold += 50;
+        this.updateUIDisplays();
+        if (this.selectedTower) this.updateUpgradeColors();
+        this.finishQuestion();
+      },
+      onIncorrect: () => {
+        this.gold += 25;
+        this.updateUIDisplays();
+        if (this.selectedTower) this.updateUpgradeColors();
+        this.finishQuestion();
+      }
     });
-
-    // popup panel with shadow - cream background matching site
-    const shadow = this.add.rectangle(centerX + 4, centerY + 4, panelWidth, panelHeight, 0x000000, 0.3);
-    const panel = this.add.rectangle(centerX, centerY, panelWidth, panelHeight, 0xfffaf2);
-    this.currentQuizPanel = panel;
-    panel.setStrokeStyle(4, 0xc4a46f);
-
-    // Simple scale animation
-    panel.setScale(0.9);
-    shadow.setScale(0.9);
-    this.tweens.add({
-      targets: [panel, shadow],
-      scaleX: 1,
-      scaleY: 1,
-      duration: 200,
-      ease: 'Power2'
-    });
-
-    // Header background - lime green matching site
-    const headerY = centerY - panelHeight/2 + 60;
-    const headerBg = this.add.rectangle(centerX, headerY, panelWidth, 90, 0x96b902);
-    const headerLine = this.add.rectangle(centerX, headerY + 45, panelWidth - 40, 4, 0xc4a46f);
-
-    // Question number indicator
-    const questionNum = this.add.text(centerX, headerY - 20, `Question ${this.currentQuestionIndex + 1}/${this.quizData.questions.length}`, {
-      fontSize: '16px',
-      color: '#ffffff',
-      fontFamily: 'Quicksand, sans-serif',
-      fontStyle: 'bold',
-      resolution: 2
-    }).setOrigin(0.5);
-
-    // question text with better styling - brown text
-    const questionText = this.add.text(centerX, headerY + 15, question.question, {
-      fontSize: '20px',
-      color: '#ffffff',
-      fontFamily: 'Quicksand, sans-serif',
-      fontStyle: 'bold',
-      align: 'center',
-      wordWrap: { width: panelWidth - 60 },
-      resolution: 2
-    }).setOrigin(0.5);
-    this.currentQuizTextObj = questionText;
-
-    const answerButtons: Phaser.GameObjects.Container[] = [];
-    this.currentQuizAnswerButtons = answerButtons;
-
-    // create answer buttons with site styling - cream with borders
-    const buttonWidth = panelWidth - 50;
-    const buttonHeight = 60;
-    const startY = centerY - panelHeight/2 + 170;
-
-    question.options.forEach((option, index) => {
-      const yPos = startY + (index * 68);
-      const isCorrect = option === question.answer;
-
-      // Drop shadow for depth
-      const btnShadow = this.add.rectangle(centerX + 4, yPos + 4, buttonWidth, buttonHeight, 0x000000, 0.15);
-      // Main button background - cream with gold border
-      const btnBg = this.add.rectangle(centerX, yPos, buttonWidth, buttonHeight, 0xfff6e8);
-      btnBg.setInteractive({ useHandCursor: true });
-      btnBg.setStrokeStyle(3, 0xc4a46f);
-
-      const btnText = this.add.text(centerX, yPos, option, {
-        fontSize: '17px',
-        color: '#473025', // Brown text
-        fontFamily: 'Quicksand, sans-serif',
-        fontStyle: 'bold',
-        align: 'center',
-        wordWrap: { width: buttonWidth - 40 },
-        resolution: 2
-      }).setOrigin(0.5);
-
-      const button = this.add.container(0, 0, [btnShadow, btnBg, btnText]);
-      answerButtons.push(button);
-
-      btnBg.on('pointerover', () => {
-        btnBg.setFillStyle(0x96b902);
-        btnBg.setStrokeStyle(4, 0x7a9700);
-        btnText.setColor('#ffffff');
-        btnBg.setScale(1.02);
-        btnText.setScale(1.02);
-      });
-
-      btnBg.on('pointerout', () => {
-        btnBg.setFillStyle(0xfff6e8);
-        btnBg.setStrokeStyle(3, 0xc4a46f);
-        btnText.setColor('#473025');
-        btnBg.setScale(1);
-        btnText.setScale(1);
-      });
-
-      btnBg.on('pointerdown', () => {
-        btnBg.setScale(0.98);
-        btnText.setScale(0.98);
-        this.handleAnswer(isCorrect, overlay, panel, questionText, answerButtons);
-      });
-    });
-
-    this.questionPopup = this.add.container(0, 0, [overlay, shadow, panel, headerBg, headerLine, questionNum, questionText, ...answerButtons]);
-    this.questionPopup.setDepth(1000); // Ensure questions always appear on top
   }
 
-  handleAnswer(isCorrect: boolean, overlay: Phaser.GameObjects.Rectangle, panel: Phaser.GameObjects.Rectangle, questionText: Phaser.GameObjects.Text, answerButtons: Phaser.GameObjects.Container[]) {
-    // disable all buttons
-    answerButtons.forEach(btn => {
-      const bg = btn.list[1] as Phaser.GameObjects.Rectangle; // Index 1 because shadow is 0
-      bg.removeInteractive();
-    });
-
-    // show feedback
-    const goldEarned = isCorrect ? 50 : 25;
-    this.gold += goldEarned;
-    this.updateUIDisplays(); // Update Phaser UI
-
-    // Update upgrade UI colors if tower is selected
-    if (this.selectedTower) {
-      this.updateUpgradeColors();
-    }
-
-    const feedbackText = isCorrect ? 'Correct!' : 'Incorrect';
-
-    // Add feedback animation - inside the quiz panel
-    const width = this.scale.width;
-    const height = this.scale.height;
-    const sidebarWidth = Math.min(220, width * 0.15);
-    const gameWidth = width - sidebarWidth;
-    const centerX = gameWidth / 2;
-    const centerY = height / 2;
-
-    // Calculate position inside the panel - below the answer buttons
-    const panelHeight = Math.min(540, height * 0.75);
-    const panelBottom = centerY + panelHeight / 2;
-    const feedbackY = panelBottom - 80; // Position near bottom of panel, but inside it
-
-    const feedback = this.add.text(centerX, feedbackY, `${feedbackText} +${goldEarned} Gold`, {
-      fontSize: '28px',
-      color: isCorrect ? '#96b902' : '#ef4444',
-      fontFamily: 'Quicksand, sans-serif',
-      fontStyle: 'bold',
-      resolution: 2
-    }).setOrigin(0.5).setAlpha(0);
-
-    // Add explanation text if available
-    const question = this.quizData.questions[this.currentQuestionIndex];
-    let explanation = null;
-    if (question.explanation) {
-      const explanationY = feedbackY + 38;
-      explanation = this.add.text(centerX, explanationY, question.explanation, {
-        fontSize: '15px',
-        color: '#473025',
-        fontFamily: 'Quicksand, sans-serif',
-        fontStyle: '600',
-        resolution: 2,
-        align: 'center',
-        wordWrap: { width: Math.min(550, gameWidth * 0.75) }
-      }).setOrigin(0.5).setAlpha(0);
-    }
-
-    // Simple fade in animation
-    const targets = explanation ? [feedback, explanation] : [feedback];
-    this.tweens.add({
-      targets: targets,
-      alpha: 1,
-      duration: 150,
-      ease: 'Power2'
-    });
-
-    // close popup after delay
-    this.time.delayedCall(2000, () => {
-      // Fade out animation
-      const fadeTargets = explanation
-        ? [overlay, panel, questionText, feedback, explanation, ...answerButtons]
-        : [overlay, panel, questionText, feedback, ...answerButtons];
-      this.tweens.add({
-        targets: fadeTargets,
-        alpha: 0,
-        duration: 150,
-        onComplete: () => {
-          overlay.destroy();
-          panel.destroy();
-          questionText.destroy();
-          answerButtons.forEach(btn => btn.destroy());
-          feedback.destroy();
-          if (explanation) explanation.destroy();
-          this.questionPopup?.destroy();
-          // Clear quiz references
-          this.currentQuizQuestion = undefined;
-          this.currentQuizAnswerButtons = undefined;
-          this.currentQuizOverlay = undefined;
-          this.currentQuizPanel = undefined;
-          this.currentQuizTextObj = undefined;
-          this.waitingForQuestion = false;
-          this.gameStarted = true;
-          this.currentQuestionIndex++;
-        }
-      });
-    });
+  private finishQuestion() {
+    this.waitingForQuestion = false;
+    this.questionPopupActive = false; // Resume game
+    this.gameStarted = true;
+    this.currentQuestionIndex++;
+    // Bring UIScene back to top
+    this.scene.bringToTop('UIScene');
   }
 
   updateTowerSelection() {
@@ -1079,24 +586,27 @@ export default class TowerDefenseScene extends Phaser.Scene {
 
     // Add icon_select (100x100) to the selected tower button
     if (this.selectedTowerType && this.uiScene) {
-      let buttonBg: Phaser.GameObjects.Rectangle | undefined;
+      let buttonBg: Phaser.GameObjects.Image | Phaser.GameObjects.Rectangle | undefined;
 
       // Get the appropriate button background based on selection
       switch (this.selectedTowerType) {
         case 'basic':
-          buttonBg = this.uiScene.ballistaBtnBg;
+          buttonBg = (this.uiScene as any).ballistaBtn;
           break;
         case 'sniper':
-          buttonBg = this.uiScene.trebuchetBtnBg;
+          buttonBg = (this.uiScene as any).trebuchetBtn;
           break;
         case 'melee':
-          buttonBg = this.uiScene.knightBtnBg;
+          buttonBg = (this.uiScene as any).knightBtn;
           break;
         case 'fact':
-          buttonBg = this.uiScene.trainingCampBtnBg;
+          buttonBg = (this.uiScene as any).trainingCampBtn;
           break;
         case 'wizard':
-          buttonBg = this.uiScene.archmageBtnBg;
+          buttonBg = (this.uiScene as any).archmageBtn;
+          break;
+        case 'cannon':
+          buttonBg = (this.uiScene as any).cannonBtn;
           break;
       }
 
@@ -1121,6 +631,11 @@ export default class TowerDefenseScene extends Phaser.Scene {
     if (this.selectedTowerType) {
       const stats = this.towerManager.getTowerStats(this.selectedTowerType);
 
+      // Create range indicator circle
+      this.placementRangePreview = this.add.circle(0, 0, stats.range, 0xffffff, 0.1);
+      this.placementRangePreview.setStrokeStyle(1, 0xffffff, 0.3);
+      this.placementRangePreview.setDepth(90); // Below tower preview but above ground
+
       if (this.selectedTowerType === 'fact') {
         // Training Camp - use rectangle
         this.placementPreview = this.add.rectangle(0, 0, 40, 40, stats.color);
@@ -1138,7 +653,10 @@ export default class TowerDefenseScene extends Phaser.Scene {
         this.placementPreview = container;
       } else {
         // Standard towers - single sprite
-        const spriteKey = this.selectedTowerType === 'basic' ? 'tower_ballista' : 'tower_catapult';
+        let spriteKey = 'tower_ballista';
+        if (this.selectedTowerType === 'sniper') spriteKey = 'tower_catapult';
+        else if (this.selectedTowerType === 'cannon') spriteKey = 'tower_cannon';
+
         this.placementPreview = this.add.image(0, 0, spriteKey);
         this.placementPreview.setScale(stats.spriteScale);
         this.placementPreview.setAlpha(0.7);
@@ -1155,230 +673,93 @@ export default class TowerDefenseScene extends Phaser.Scene {
       this.placementPreview.destroy();
       this.placementPreview = undefined;
     }
-  }
-
-  // Create ability UI buttons at bottom center of game area
-  createAbilityButtons() {
-    const width = this.scale.width;
-    const height = this.scale.height;
-    const sidebarWidth = Math.min(220, width * 0.15);
-    const gameWidth = width - sidebarWidth;
-    const centerX = gameWidth / 2;
-    const bottomY = height - 60; // 60px from bottom
-
-    const iconSpacing = 80;
-    const totalWidth = iconSpacing * 2;
-    const startX = centerX - totalWidth / 2;
-
-    const elements: Phaser.GameObjects.GameObject[] = [];
-
-    // Lightning Strike Icon Button (40g + quiz, 45s cooldown)
-    const lightningX = startX;
-    const lightningIcon = this.add.image(lightningX, bottomY, 'icon_lightning');
-    lightningIcon.setScale(0.1);
-    lightningIcon.setInteractive({ useHandCursor: true });
-
-    lightningIcon.on('pointerover', () => {
-      if (this.abilityManager.getLightningStrikeStatus(this.gold).available) {
-        lightningIcon.setScale(0.12);
-      }
-    });
-
-    lightningIcon.on('pointerout', () => {
-      lightningIcon.setScale(0.1);
-    });
-
-    lightningIcon.on('pointerdown', () => {
-      if (this.abilityManager.getLightningStrikeStatus(this.gold).available && this.gameStarted) {
-        this.lastAbilityButtonClicked = { x: lightningIcon.x, y: lightningIcon.y };
-        this.showAbilityQuestion('lightning');
-      }
-    });
-
-    elements.push(lightningIcon);
-
-    // Freeze Icon Button (60g + quiz, 60s cooldown)
-    const freezeX = startX + iconSpacing;
-    const freezeIcon = this.add.image(freezeX, bottomY, 'icon_freeze');
-    freezeIcon.setScale(0.1);
-    freezeIcon.setInteractive({ useHandCursor: true });
-
-    freezeIcon.on('pointerover', () => {
-      if (this.abilityManager.getFreezeStatus(this.gold).available) {
-        freezeIcon.setScale(0.12);
-      }
-    });
-
-    freezeIcon.on('pointerout', () => {
-      freezeIcon.setScale(0.1);
-    });
-
-    freezeIcon.on('pointerdown', () => {
-      if (this.abilityManager.getFreezeStatus(this.gold).available && this.gameStarted) {
-        this.lastAbilityButtonClicked = { x: freezeIcon.x, y: freezeIcon.y };
-        this.showAbilityQuestion('freeze');
-      }
-    });
-
-    elements.push(freezeIcon);
-
-    // Question Icon Button (unlocked by Training Camp, free, 90s cooldown)
-    const questionX = startX + iconSpacing * 2;
-    const questionIcon = this.add.image(questionX, bottomY, 'icon_powerup');
-    questionIcon.setScale(0.1);
-    questionIcon.setInteractive({ useHandCursor: true });
-
-    questionIcon.on('pointerover', () => {
-      if (this.abilityManager.getQuestionAbilityStatus().available) {
-        questionIcon.setScale(0.12);
-      }
-    });
-
-    questionIcon.on('pointerout', () => {
-      questionIcon.setScale(0.1);
-    });
-
-    questionIcon.on('pointerdown', () => {
-      if (this.abilityManager.getQuestionAbilityStatus().available && this.gameStarted) {
-        this.lastAbilityButtonClicked = { x: questionIcon.x, y: questionIcon.y };
-        this.showAbilityQuestion('question');
-      }
-    });
-
-    elements.push(questionIcon);
-
-    this.abilityButtons = this.add.container(0, 0, elements);
-  }
-
-  // Update ability button states (cooldowns, locked status, affordability)
-  updateAbilityButtons() {
-    if (!this.abilityButtons) return;
-
-    const elements = this.abilityButtons.list;
-
-    // Lightning Strike icon (index 0)
-    const lightningIcon = elements[0] as Phaser.GameObjects.Image;
-    const lightningStatus = this.abilityManager.getLightningStrikeStatus(this.gold);
-
-    if (lightningStatus.available) {
-      lightningIcon.setAlpha(1);
-      lightningIcon.setInteractive({ useHandCursor: true });
-    } else {
-      lightningIcon.setAlpha(0.4);
-      lightningIcon.disableInteractive();
-    }
-
-    // Freeze icon (index 1)
-    const freezeIcon = elements[1] as Phaser.GameObjects.Image;
-    const freezeStatus = this.abilityManager.getFreezeStatus(this.gold);
-
-    if (freezeStatus.available) {
-      freezeIcon.setAlpha(1);
-      freezeIcon.setInteractive({ useHandCursor: true });
-    } else {
-      freezeIcon.setAlpha(0.4);
-      freezeIcon.disableInteractive();
-    }
-
-    // Question icon (index 2)
-    const questionIcon = elements[2] as Phaser.GameObjects.Image;
-    const questionStatus = this.abilityManager.getQuestionAbilityStatus();
-
-    if (questionStatus.available) {
-      questionIcon.setAlpha(1);
-      questionIcon.setInteractive({ useHandCursor: true });
-    } else {
-      questionIcon.setAlpha(0.4);
-      questionIcon.disableInteractive();
+    if (this.placementRangePreview) {
+      this.placementRangePreview.destroy();
+      this.placementRangePreview = undefined;
     }
   }
 
-  // Create debug buttons for manual stage switching (bottom left)
-  createStageDebugButtons() {
-    const width = this.scale.width;
-    const height = this.scale.height;
-    const sidebarWidth = Math.min(220, width * 0.15);
-    const gameWidth = width - sidebarWidth;
 
-    const buttonWidth = 80;
-    const buttonHeight = 30;
-    const buttonSpacing = 10;
-    const startX = 20; // 20px from left edge
-    const startY = height - 50; // 50px from bottom
 
-    // Helper function to create a debug button
-    const createDebugButton = (x: number, y: number, stage: number) => {
-      const button = this.add.rectangle(x, y, buttonWidth, buttonHeight, 0x333333);
-      button.setStrokeStyle(2, 0xffffff);
-      button.setInteractive({ useHandCursor: true });
 
-      const text = this.add.text(x, y, `Stage ${stage}`, {
-        fontSize: '14px',
-        color: '#ffffff',
-        fontFamily: 'Quicksand, sans-serif',
-        fontStyle: 'bold'
-      });
-      text.setOrigin(0.5);
 
-      button.on('pointerover', () => {
-        button.setFillStyle(0x555555);
-      });
 
-      button.on('pointerout', () => {
-        button.setFillStyle(0x333333);
-      });
+  // ===== PUBLIC METHODS CALLED FROM UISCENE =====
 
-      button.on('pointerdown', async () => {
-        if (this.stageTransitionInProgress) return;
+  /**
+   * Start the game - called from UIScene start button
+   */
+  startGame(): void {
+    console.log('[TowerDefenseScene] Start button clicked via UIScene');
 
-        const currentStage = this.stageManager.getStage();
-        if (currentStage === stage) return; // Already on this stage
+    // Give starting gold and start game
+    this.gold = 1000;
+    this.gameStarted = true;
 
-        // Trigger transition
-        this.stageTransitionInProgress = true;
+    // Emit event to UIScene
+    this.events.emit('gameStarted');
+    this.updateUIDisplays(); // Update UI with starting gold and initial state
 
-        const result = await this.stageManager.transitionToStage(
-          stage,
-          gameWidth,
-          height,
-          this.pathGraphicsArray,
-          this.backgroundImage
-        );
-
-        // Update scene references
-        this.allPaths = result.pathPoints;
-        this.pathGraphicsArray = result.pathGraphics;
-        this.backgroundImage = result.background;
-
-        // Update managers with new paths
-        this.enemyManager.updatePath(this.allPaths);
-        this.towerManager.updatePath(this.allPaths);
-
-        // Remove towers within 20px of new path
-        this.removeTowersNearPath(20);
-
-        this.stageTransitionInProgress = false;
-      });
-
-      return { button, text };
-    };
-
-    // Create three stage buttons
-    const stage1 = createDebugButton(startX + (buttonWidth / 2), startY, 1);
-    const stage2 = createDebugButton(startX + buttonWidth + buttonSpacing + (buttonWidth / 2), startY, 2);
-    const stage3 = createDebugButton(startX + (buttonWidth + buttonSpacing) * 2 + (buttonWidth / 2), startY, 3);
-
-    // Optional: Add a label above the buttons
-    this.add.text(startX, startY - 25, 'DEBUG:', {
-      fontSize: '12px',
-      color: '#ffff00',
-      fontFamily: 'Quicksand, sans-serif',
-      fontStyle: 'bold'
-    }).setOrigin(0, 0.5);
+    console.log('[TowerDefenseScene] Game started!');
   }
+
+  /**
+   * Start the next wave - called from UIScene start round button
+   */
+  startNextWave(): void {
+    this.startWave();
+  }
+
+  /**
+   * Select a tower type for placement - called from UIScene tower buttons
+   */
+  selectTowerType(towerType: 'basic' | 'sniper' | 'melee' | 'fact' | 'wizard' | 'cannon'): void {
+    console.log('[TowerDefenseScene] Tower selected:', towerType);
+
+    if (!this.gameStarted) {
+      console.log('[TowerDefenseScene] Game not started yet');
+      return;
+    }
+
+    // Set selected tower type (will enter placement mode)
+    this.selectedTowerType = towerType;
+
+    // Create placement preview
+    this.updatePlacementPreview();
+  }
+
+  /**
+   * Activate a power/ability - called from UIScene power buttons
+   */
+  activatePower(powerType: 'lightning' | 'freeze' | 'question'): void {
+    console.log('[TowerDefenseScene] Power activated:', powerType);
+
+    if (!this.gameStarted) {
+      console.log('[TowerDefenseScene] Game not started yet');
+      return;
+    }
+
+    // Activate the ability
+    this.activateAbility(powerType);
+  }
+
+  /**
+   * Set game speed - called from UIScene speed button
+   */
+  setGameSpeed(speed: number): void {
+    if (speed < 1 || speed > 3) return;
+
+    this.gameSpeed = speed;
+    console.log('[TowerDefenseScene] Game speed set to:', speed);
+
+    // Emit event to UIScene (in case other code changed the speed)
+    this.events.emit('speedChanged', speed);
+  }
+
+  // ===== END PUBLIC METHODS =====
 
   startWave() {
-    if (this.waveActive || this.stageTransitionInProgress) return;
+    if (this.waveActive) return;
     this.waveActive = true;
     this.waveNumber++;
     // INCREASED DIFFICULTY: More enemies per wave (8 + 3 per wave, max 40)
@@ -1429,151 +810,29 @@ export default class TowerDefenseScene extends Phaser.Scene {
   }
   */
 
+  /* OLD UI EVENT HANDLERS - REPLACED BY UIScene.ts
   // Setup UI event handlers for Phaser Editor UI
   setupUIEventHandlers() {
-    if (!this.uiScene) return;
-
-    // Start Game button - starts the game and hides the button
-    this.uiScene.startGameButtonBg.on('pointerdown', () => {
-      console.log('[TowerDefenseScene] Start button clicked');
-      // Hide start button
-      this.uiScene.startGameButtonBg.setVisible(false);
-      this.uiScene.startGameButtonText.setVisible(false);
-
-      // Give starting gold and start game
-      this.gold = 1000;
-      this.updateUIDisplays(); // Update UI with starting gold
-      this.gameStarted = true;
-      console.log('[TowerDefenseScene] Game started!');
-    });
-
-    // Start button hover feedback
-    this.uiScene.startGameButtonBg.on('pointerover', () => {
-      this.uiScene.startGameButtonBg.setScale(1.05);
-    });
-    this.uiScene.startGameButtonBg.on('pointerout', () => {
-      this.uiScene.startGameButtonBg.setScale(1);
-    });
-
-    // Back button
-    this.uiScene.backButtonBg.on('pointerdown', () => {
-      window.location.href = '/teacher/dashboard';
-    });
-
-    // Back button hover feedback
-    this.uiScene.backButtonBg.on('pointerover', () => {
-      this.uiScene.backButtonBg.setScale(1.05);
-    });
-    this.uiScene.backButtonBg.on('pointerout', () => {
-      this.uiScene.backButtonBg.setScale(1);
-    });
-
-    // Wave button - start wave or toggle speed
-    this.uiScene.waveButtonBg.on('pointerdown', () => {
-      if (!this.waveActive && this.gameStarted) {
-        this.startWave();
-      } else if (this.waveActive) {
-        this.toggleGameSpeed();
-      }
-    });
-
-    // Wave button hover feedback
-    this.uiScene.waveButtonBg.on('pointerover', () => {
-      this.uiScene.waveButtonBg.setScale(1.05);
-    });
-    this.uiScene.waveButtonBg.on('pointerout', () => {
-      this.uiScene.waveButtonBg.setScale(1);
-    });
-
-    // Tower selection buttons - capture position for quiz placement
-    // Use helper method to reduce duplication
-    this.setupTowerButton(this.uiScene.ballistaBtnBg, 'basic');
-    this.setupTowerButton(this.uiScene.trebuchetBtnBg, 'sniper');
-    this.setupTowerButton(this.uiScene.knightBtnBg, 'melee');
-    this.setupTowerButton(this.uiScene.trainingCampBtnBg, 'fact');
-    this.setupTowerButton(this.uiScene.archmageBtnBg, 'wizard');
-
-    // Ability button handlers - Lightning Strike, Freeze, Quiz Buff
-    this.uiScene.lightningBtnBg.on('pointerdown', () => {
-      if (this.abilityManager.getLightningStrikeStatus(this.gold).available && this.gameStarted) {
-        this.lastAbilityButtonClicked = { x: this.uiScene.lightningBtnBg.x, y: this.uiScene.lightningBtnBg.y };
-        this.showAbilityQuestion('lightning');
-      }
-    });
-
-    this.uiScene.freezeBtnBg.on('pointerdown', () => {
-      if (this.abilityManager.getFreezeStatus(this.gold).available && this.gameStarted) {
-        this.lastAbilityButtonClicked = { x: this.uiScene.freezeBtnBg.x, y: this.uiScene.freezeBtnBg.y };
-        this.showAbilityQuestion('freeze');
-      }
-    });
-
-    this.uiScene.quizBuffBtnBg.on('pointerdown', () => {
-      if (this.abilityManager.getQuestionAbilityStatus().available && this.gameStarted) {
-        this.lastAbilityButtonClicked = { x: this.uiScene.quizBuffBtnBg.x, y: this.uiScene.quizBuffBtnBg.y };
-        this.showAbilityQuestion('question');
-      }
-    });
-
-    // Ability buttons hover feedback
-    this.uiScene.lightningBtnBg.on('pointerover', () => {
-      this.uiScene.lightningBtnBg.setScale(1.05);
-    });
-    this.uiScene.lightningBtnBg.on('pointerout', () => {
-      this.uiScene.lightningBtnBg.setScale(1);
-    });
-
-    this.uiScene.freezeBtnBg.on('pointerover', () => {
-      this.uiScene.freezeBtnBg.setScale(1.05);
-    });
-    this.uiScene.freezeBtnBg.on('pointerout', () => {
-      this.uiScene.freezeBtnBg.setScale(1);
-    });
-
-    this.uiScene.quizBuffBtnBg.on('pointerover', () => {
-      this.uiScene.quizBuffBtnBg.setScale(1.05);
-    });
-    this.uiScene.quizBuffBtnBg.on('pointerout', () => {
-      this.uiScene.quizBuffBtnBg.setScale(1);
-    });
+    // NOTE: This method is deprecated. UI event handlers are now set up in UIScene.ts
+    // The code has been commented out to prevent errors from old UI property references
+    // See UIScene.ts setupButtonInteractivity() for the new implementation
   }
+  */
 
   // Update UI text displays (called from game logic)
+  // Emits events to UIScene which updates its own displays
   updateUIDisplays() {
-    if (!this.uiScene) return;
+    // Emit events to UIScene to update displays
+    this.events.emit('updateGold', this.gold);
+    this.events.emit('updateLives', this.lives);
+    this.events.emit('updateWave', this.waveNumber);
 
-    // Update gold
-    this.uiScene.goldText.setText(`Gold: ${this.gold}`);
-
-    // Update lives
-    this.uiScene.livesText.setText(`Lives: ${this.lives}`);
-
-    // Update wave counter
-    this.uiScene.waveCounterText.setText(`Round ${this.waveNumber}`);
-
-    // Update wave button text
-    if (this.waveActive) {
-      if (this.gameSpeed === 1) {
-        this.uiScene.waveButtonText.setText('Speed: 1x');
-      } else if (this.gameSpeed === 2) {
-        this.uiScene.waveButtonText.setText('Speed: 2x');
-      } else {
-        this.uiScene.waveButtonText.setText('Speed: 3x');
-      }
-    } else {
-      this.uiScene.waveButtonText.setText(`Start Wave ${this.waveNumber + 1}`);
-    }
-
-    // Update tower button costs
-    this.uiScene.ballistaBtnCost.setText(`${this.towerPurchasePrice.basic}g`);
-    this.uiScene.trebuchetBtnCost.setText(`${this.towerPurchasePrice.sniper}g`);
-    this.uiScene.knightBtnCost.setText(`${this.towerPurchasePrice.melee}g`);
-    this.uiScene.trainingCampBtnCost.setText(`${this.towerPurchasePrice.fact}g`);
-    this.uiScene.archmageBtnCost.setText(`${this.towerPurchasePrice.wizard}g`);
+    // Note: Tower costs and other detailed UI updates can be added as needed
+    // For now, UIScene handles basic displays (gold, lives, wave number)
   }
 
   // Reset tower price to base cost from TowerManager stats
-  resetTowerPrice(towerType: 'basic' | 'sniper' | 'melee' | 'fact' | 'wizard') {
+  resetTowerPrice(towerType: 'basic' | 'sniper' | 'melee' | 'fact' | 'wizard' | 'cannon') {
     const baseCost = this.towerManager.getTowerStats(towerType).cost;
     this.towerPurchasePrice[towerType] = baseCost;
   }
@@ -1585,6 +844,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
     this.towerPurchasePrice.melee = this.towerManager.getTowerStats('melee').cost;
     this.towerPurchasePrice.fact = this.towerManager.getTowerStats('fact').cost;
     this.towerPurchasePrice.wizard = this.towerManager.getTowerStats('wizard').cost;
+    this.towerPurchasePrice.cannon = this.towerManager.getTowerStats('cannon').cost;
   }
 
   // Helper to setup tower button click handlers and hover feedback (reduces duplication)
@@ -1709,7 +969,6 @@ export default class TowerDefenseScene extends Phaser.Scene {
     const currentPrice = this.towerPurchasePrice[towerType];
     this.gold -= currentPrice;
     this.updateUIDisplays(); // Update UI
-    this.updateAbilityButtons();
 
     // Increment purchase count
     this.towerPurchaseCount[towerType]++;
@@ -1720,7 +979,6 @@ export default class TowerDefenseScene extends Phaser.Scene {
     // Unlock Question ability when first Fact tower is placed
     if (towerType === 'fact' && this.towerPurchaseCount.fact === 1) {
       this.abilityManager.unlockQuestionAbility();
-      this.updateAbilityButtons();
     }
 
     // Update upgrade UI colors if tower is selected
@@ -1832,16 +1090,18 @@ export default class TowerDefenseScene extends Phaser.Scene {
   createTowerGraphics(
     x: number,
     y: number,
-    towerType: 'basic' | 'sniper' | 'melee' | 'fact' | 'wizard',
+    towerType: 'basic' | 'sniper' | 'melee' | 'fact' | 'wizard' | 'cannon',
     towerStats: { color: number; spriteScale: number },
     isGhost: boolean = false
   ): Phaser.GameObjects.Rectangle | Phaser.GameObjects.Image | Phaser.GameObjects.Container {
     let towerGraphics: Phaser.GameObjects.Rectangle | Phaser.GameObjects.Image | Phaser.GameObjects.Container;
 
+    const effectiveScale = towerStats.spriteScale * this.globalScale;
+
     if (towerType === 'fact') {
       // Training Camp keeps rectangle style (no sprite asset)
-      const rect = this.add.rectangle(x, y, 40, 40, towerStats.color);
-      rect.setScale(towerStats.spriteScale);
+      const rect = this.add.rectangle(x, y, 40 * this.globalScale, 40 * this.globalScale, towerStats.color);
+      rect.setScale(1); // Already scaled via size
       rect.setStrokeStyle(0);
       if (!isGhost) {
         rect.setInteractive({ useHandCursor: true });
@@ -1861,14 +1121,14 @@ export default class TowerDefenseScene extends Phaser.Scene {
       backSprite.setOrigin(0.5, 0.5);
       frontSprite.setOrigin(0.5, 0.5);
 
-      backSprite.setScale(towerStats.spriteScale);
-      frontSprite.setScale(towerStats.spriteScale);
+      backSprite.setScale(effectiveScale);
+      frontSprite.setScale(effectiveScale);
 
       container.add([backSprite, frontSprite]);
 
       // Calculate hitbox size based on sprite dimensions and scale
       // Assuming sprites are ~800x800, scaled to 0.1/0.11 = ~80-88 pixels
-      const spriteSize = 100; // Generous hitbox for easier clicking
+      const spriteSize = 100 * this.globalScale; // Generous hitbox for easier clicking
       container.setSize(spriteSize, spriteSize);
       if (!isGhost) {
         // Position circle at center of container bounds (spriteSize/2, spriteSize/2)
@@ -1880,9 +1140,13 @@ export default class TowerDefenseScene extends Phaser.Scene {
       towerGraphics = container;
     } else {
       // Standard towers (Ballista, Trebuchet) - single sprite
-      const spriteKey = towerType === 'basic' ? 'tower_ballista' : 'tower_catapult';
+      let spriteKey = 'tower_ballista';
+      if (towerType === 'sniper') spriteKey = 'tower_catapult';
+      else if (towerType === 'cannon') spriteKey = 'tower_cannon';
+
       const sprite = this.add.image(x, y, spriteKey);
-      sprite.setScale(towerStats.spriteScale);
+      sprite.setScale(effectiveScale);
+      
       if (!isGhost) {
         sprite.setInteractive({ useHandCursor: true });
       }
@@ -1901,7 +1165,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
   }
 
   // Complete tower placement after validation/quiz
-  completeTowerPlacement(x: number, y: number, towerType: 'basic' | 'sniper' | 'melee' | 'fact' | 'wizard') {
+  completeTowerPlacement(x: number, y: number, towerType: 'basic' | 'sniper' | 'melee' | 'fact' | 'wizard' | 'cannon') {
     // Get tower stats from centralized source (TowerManager)
     const towerStats = this.towerManager.getTowerStats(towerType);
 
@@ -1909,7 +1173,6 @@ export default class TowerDefenseScene extends Phaser.Scene {
     const currentPrice = this.towerPurchasePrice[towerType];
     this.gold -= currentPrice;
     this.updateUIDisplays(); // Update UI
-    this.updateAbilityButtons(); // Update ability affordability
 
     // Increment purchase count
     this.towerPurchaseCount[towerType]++;
@@ -1920,7 +1183,6 @@ export default class TowerDefenseScene extends Phaser.Scene {
     // Unlock Question ability when first Fact tower is placed
     if (towerType === 'fact' && this.towerPurchaseCount.fact === 1) {
       this.abilityManager.unlockQuestionAbility();
-      this.updateAbilityButtons();
     }
 
     // Update upgrade UI colors if tower is selected
@@ -1944,9 +1206,33 @@ export default class TowerDefenseScene extends Phaser.Scene {
       }
     }
 
+    // Calculate relative position for responsive resizing
+    // Based on current background position and scale
+    let relativeX = 0;
+    let relativeY = 0;
+    
+    if (this.backgroundImage) {
+      // Get current background properties
+      const bgX = this.backgroundImage.x;
+      const bgY = this.backgroundImage.y;
+      const bgScale = this.backgroundImage.scale;
+      const bgWidth = this.backgroundImage.width; // Original width
+      const bgHeight = this.backgroundImage.height; // Original height
+      
+      // Calculate top-left of background in screen space
+      const bgLeft = bgX - (bgWidth * bgScale) / 2;
+      const bgTop = bgY - (bgHeight * bgScale) / 2;
+      
+      // Normalize position (0.0 to 1.0 relative to background dimensions)
+      relativeX = (x - bgLeft) / (bgWidth * bgScale);
+      relativeY = (y - bgTop) / (bgHeight * bgScale);
+    }
+
     const tower: Tower = {
       x: x,
       y: y,
+      relativeX: relativeX,
+      relativeY: relativeY,
       range: towerStats.range,
       fireRate: towerStats.fireRate,
       damage: towerStats.damage,
@@ -2066,16 +1352,20 @@ export default class TowerDefenseScene extends Phaser.Scene {
 
     const unlocked = this.totalCorrectAnswers >= 5;
 
+    // Access the archmage button from UIScene
+    const archmageBtn = (this.uiScene as any).archmageBtn as Phaser.GameObjects.Image | undefined;
+    if (!archmageBtn) return; // Button doesn't exist yet
+
     if (unlocked) {
-      // Unlocked: full opacity, normal colors
-      this.uiScene.archmageBtnBg.setAlpha(1);
-      this.uiScene.archmageBtnName.setAlpha(1);
-      this.uiScene.archmageBtnCost.setAlpha(1);
+      // Unlocked: full opacity, interactive
+      archmageBtn.setAlpha(1);
+      archmageBtn.clearTint();
+      archmageBtn.setInteractive({ useHandCursor: true });
     } else {
-      // Locked: reduced opacity to show it's not available
-      this.uiScene.archmageBtnBg.setAlpha(0.4);
-      this.uiScene.archmageBtnName.setAlpha(0.4);
-      this.uiScene.archmageBtnCost.setAlpha(0.4);
+      // Locked: reduced opacity and greyed out
+      archmageBtn.setAlpha(0.5);
+      archmageBtn.setTint(0x888888); // Grey tint
+      archmageBtn.disableInteractive(); // Make it non-clickable
     }
   }
 
@@ -2085,41 +1375,199 @@ export default class TowerDefenseScene extends Phaser.Scene {
    */
   handleResize(gameSize: Phaser.Structs.Size): void {
     const { width, height } = gameSize;
-    const sidebarWidth = Math.min(220, width * 0.15);
-    const gameWidth = width - sidebarWidth;
+    console.log('[TowerDefenseScene] Resize detected:', width, 'x', height);
 
-    console.log('[TowerDefenseScene] Resize detected:', width, 'x', height, ', Game area:', gameWidth);
+    // Get actual background image dimensions
+    // Default to 1920x1080 if image not loaded yet
+    const bgWidth = this.backgroundImage?.width || 1920;
+    const bgHeight = this.backgroundImage?.height || 1080;
 
-    // Update background if it exists (GrassMap covers full screen)
+    // Calculate "Cover" scale (fill screen, maintain aspect ratio)
+    const scaleX = width / bgWidth;
+    const scaleY = height / bgHeight;
+    const scale = Math.max(scaleX, scaleY);
+
+    // Update global scale for entities (based on smaller dimension to avoid overflow)
+    // This ensures towers/enemies scale with the screen size
+    this.globalScale = Math.min(width / 1920, height / 1080);
+    console.log('[TowerDefenseScene] Global scale updated:', this.globalScale);
+
+    // Update background if it exists
     if (this.backgroundImage) {
-      this.backgroundImage.setDisplaySize(width, height); // Full width including sidebar
-      this.backgroundImage.setPosition(width / 2, height / 2); // Center of full screen
+      this.backgroundImage.setPosition(width / 2, height / 2); // Center of screen
+      this.backgroundImage.setScale(scale);
     }
 
-    // Redraw paths if they exist
-    if (this.allPaths.length > 0 && this.pathGraphicsArray.length > 0) {
-      // Get current stage and recalculate path points for new dimensions
-      const currentStage = this.stageManager.getCurrentStage(this.waveNumber);
+    // New background metrics for reprojection
+    const bgLeft = (width / 2) - (bgWidth * scale) / 2;
+    const bgTop = (height / 2) - (bgHeight * scale) / 2;
 
-      // Clear existing path graphics
-      this.pathGraphicsArray.forEach(graphics => graphics.destroy());
-      this.pathGraphicsArray = [];
-
-      // Get new path points with updated dimensions
-      this.allPaths = this.stageManager.getPathPoints(currentStage, gameWidth, height);
-
-      // Redraw paths using StageManager
-      this.pathGraphicsArray = this.stageManager.drawPaths(this.allPaths, currentStage, 1);
-
-      // Set depth for all path graphics
-      this.pathGraphicsArray.forEach(graphics => {
-        graphics.setDepth(-1);
+    // REPROJECT ENEMIES: Calculate progress on old path before overwriting it
+    // This prevents enemies from drifting off-path during resize
+    if (this.enemyManager && this.path.length > 0) {
+      const enemies = this.enemyManager.getEnemies();
+      
+      enemies.forEach((enemy: any) => {
+        // Store relative progress between waypoints
+        if (enemy.pathIndex > 0 && enemy.pathIndex < this.path.length) {
+          const prevPoint = this.path[enemy.pathIndex - 1];
+          const nextPoint = this.path[enemy.pathIndex];
+          
+          // Calculate total segment length
+          const segmentDx = nextPoint.x - prevPoint.x;
+          const segmentDy = nextPoint.y - prevPoint.y;
+          const segmentLen = Math.sqrt(segmentDx * segmentDx + segmentDy * segmentDy);
+          
+          // Calculate enemy distance from previous point
+          const enemyDx = enemy.x - prevPoint.x;
+          const enemyDy = enemy.y - prevPoint.y;
+          const enemyDist = Math.sqrt(enemyDx * enemyDx + enemyDy * enemyDy);
+          
+          // Store normalized progress t (0.0 to 1.0)
+          enemy._resizeProgressT = segmentLen > 0 ? Math.min(1, Math.max(0, enemyDist / segmentLen)) : 0;
+        } else {
+          enemy._resizeProgressT = 0;
+        }
       });
-
-      // Update managers with new path dimensions
-      this.enemyManager.updatePath(this.allPaths);
-      this.towerManager.updatePath(this.allPaths);
     }
+
+    // Update all existing tower positions and scales
+    if (this.towerManager) {
+      this.towerManager.getTowers().forEach(tower => {
+        // 1. Update Position if relative coordinates exist
+        if (tower.relativeX !== undefined && tower.relativeY !== undefined) {
+          const newX = bgLeft + (tower.relativeX * bgWidth * scale);
+          const newY = bgTop + (tower.relativeY * bgHeight * scale);
+          
+          tower.x = newX;
+          tower.y = newY;
+          
+          if (tower.graphics instanceof Phaser.GameObjects.Container) {
+            tower.graphics.setPosition(newX, newY);
+          } else {
+            tower.graphics.setPosition(newX, newY);
+          }
+          
+          // Update range circle position
+          if (tower.rangeCircle) {
+            tower.rangeCircle.setPosition(newX, newY);
+          }
+          
+          // Update spell glow position
+          if (tower.spellGlow) {
+            tower.spellGlow.setPosition(newX, newY);
+          }
+        }
+
+        // 2. Update Scale
+        const baseScale = this.towerManager.getTowerStats(tower.type).spriteScale;
+        // Apply global scale to base sprite scale
+        const newScale = baseScale * this.globalScale;
+        
+        // Update graphics scale
+        if (tower.graphics instanceof Phaser.GameObjects.Container) {
+          // For container towers (melee/wizard), scale children
+          tower.graphics.list.forEach(child => {
+            if ('setScale' in child) {
+              (child as any).setScale(newScale);
+            }
+          });
+          // Reset container scale to 1 to avoid double scaling
+          tower.graphics.setScale(1);
+        } else {
+          // For single sprite towers
+          tower.graphics.setScale(newScale);
+        }
+        
+        // Update range circle scale (radius isn't scaled directly usually, but setScale works for graphics)
+        if (tower.rangeCircle) {
+          // For circle, we likely want to scale the radius visual or the object itself
+          tower.rangeCircle.setScale(this.globalScale);
+        }
+      });
+    }
+
+    // Path points defined as percentages of the BACKGROUND IMAGE dimensions
+    // This ensures alignment regardless of the image's native resolution
+    const pathY1 = bgHeight * 0.65;
+    const pathY2 = bgHeight * 0.26;
+    const pathY3 = bgHeight * 0.72;
+    
+    const x2 = bgWidth * 0.352;
+    const x4 = bgWidth * 0.66;
+
+    const basePath = [
+      { x: 0, y: pathY1 },
+      { x: x2, y: pathY1 },
+      { x: x2, y: pathY2 },
+      { x: x4, y: pathY2 },
+      { x: x4, y: pathY3 },
+      { x: bgWidth, y: pathY3 }
+    ];
+
+    // Transform base points to screen space using the "Cover" scaling
+    // Formula: (Point - ImageCenter) * Scale + ScreenCenter
+    this.path = basePath.map(p => ({
+      x: (p.x - bgWidth / 2) * scale + width / 2,
+      y: (p.y - bgHeight / 2) * scale + height / 2
+    }));
+
+    // Redraw path
+    if (this.pathGraphics) {
+      this.pathGraphics.clear();
+      this.pathGraphics.lineStyle(70 * scale, 0x5d4037, 1); // Scale path width
+      this.pathGraphics.beginPath();
+      this.pathGraphics.moveTo(this.path[0].x, this.path[0].y);
+      for (let i = 1; i < this.path.length; i++) {
+        this.pathGraphics.lineTo(this.path[i].x, this.path[i].y);
+      }
+      this.pathGraphics.strokePath();
+      this.pathGraphics.setDepth(-1);
+    }
+
+    // Sync updated path with managers
+    if (this.enemyManager) {
+      this.enemyManager.setPath(this.path);
+      
+      // REPROJECT ENEMIES PART 2: Apply new positions based on saved progress t
+      const enemies = this.enemyManager.getEnemies();
+      enemies.forEach((enemy: any) => {
+        if (enemy.pathIndex > 0 && enemy.pathIndex < this.path.length && typeof enemy._resizeProgressT === 'number') {
+          const prevPoint = this.path[enemy.pathIndex - 1];
+          const nextPoint = this.path[enemy.pathIndex];
+          
+          // Interpolate new position
+          const newX = prevPoint.x + (nextPoint.x - prevPoint.x) * enemy._resizeProgressT;
+          const newY = prevPoint.y + (nextPoint.y - prevPoint.y) * enemy._resizeProgressT;
+          
+          enemy.x = newX;
+          enemy.y = newY;
+          
+          // Update visual position immediately
+          if (enemy.graphics) enemy.graphics.setPosition(newX, newY);
+          enemy.sprite.setPosition(newX, newY);
+          if (enemy.healthBarBg) enemy.healthBarBg.setPosition(newX, newY);
+          if (enemy.healthBarFill) enemy.healthBarFill.setPosition(newX, newY);
+        }
+      });
+    }
+    if (this.towerManager) {
+      this.towerManager.setPath(this.path);
+    }
+
+    // Update selection indicator position if active
+    this.updateTowerSelection();
+
+    // === RESIZE POPUPS AND OVERLAYS ===
+    this.quizPopupManager.resize(width, height);
+
+    // Handle error message (re-center horizontally, keep relative Y height)
+    if (this.errorMessage) {
+      this.errorMessage.setPosition(width / 2, height * 0.65);
+    }
+
+    // Update last screen size for next resize event
+    this.lastScreenSize = { width, height };
 
     // Emit resize event for UIScene and other listeners
     GameEvents.emit(GAME_EVENTS.RESIZE, gameSize);
@@ -2131,6 +1579,11 @@ export default class TowerDefenseScene extends Phaser.Scene {
     // Check if paused due to mobile state (orientation/visibility)
     if (this.mobileSupport && this.mobileSupport.isPaused()) {
       return;
+    }
+
+    // Pause game when question popup is active
+    if (this.questionPopupActive) {
+      return; // Skip all game updates while popup is showing
     }
 
     // Handle keyboard shortcuts even when game not started
@@ -2173,8 +1626,12 @@ export default class TowerDefenseScene extends Phaser.Scene {
     // Question ability cooldown is paused between waves
     this.abilityManager.updateCooldowns(delta, cooldownMultiplier, !this.waveActive);
 
-    // Update ability button UI to reflect cooldown changes
-    this.updateAbilityButtons();
+    // Update UI visuals for abilities
+    if (this.uiScene) {
+      this.uiScene.setPowerButtonState('lightning', this.abilityManager.getLightningStrikeStatus(this.gold).available);
+      this.uiScene.setPowerButtonState('freeze', this.abilityManager.getFreezeStatus(this.gold).available);
+      this.uiScene.setPowerButtonState('question', this.abilityManager.getQuestionAbilityStatus().available);
+    }
 
     // Check for Training Camp boost expiration (2 minute duration)
     this.abilityManager.updateTrainingCampBoosts(this.towerManager.getTowers());
@@ -2246,12 +1703,9 @@ export default class TowerDefenseScene extends Phaser.Scene {
         if (this.bossQuestionPopup) {
           this.bossQuestionPopup.destroy();
           this.bossQuestionPopup = undefined;
+          // Bring UIScene back to top
+          this.scene.bringToTop('UIScene');
         }
-      }
-
-      // Check for stage transition (rounds 20, 40, 60)
-      if (this.stageManager.shouldTransition(this.waveNumber)) {
-        this.handleStageTransition();
       }
 
       // Check for challenge round (every 10 waves: 10, 20, 30, etc.)
@@ -2266,18 +1720,15 @@ export default class TowerDefenseScene extends Phaser.Scene {
           this.activeBuff = null; // Buff expired
         }
       }
-
-      // No more between-wave questions - waves can start immediately
     }
 
     // Update enemies (manager handles movement, health bars, cleanup)
-    const { deaths, escapes } = this.enemyManager.updateEnemies(scaledDelta, this.activeBuff === 'gold');
+    const { deaths, escapes } = this.enemyManager.updateEnemies(scaledDelta, this.activeBuff === 'gold', time);
 
     // Handle enemy deaths
     deaths.forEach(({ enemy, goldReward }) => {
       this.gold += goldReward;
       this.updateUIDisplays(); // Update UI
-      this.updateAbilityButtons(); // Update ability affordability
 
       // Clear boss reference if boss died
       if (enemy.type === EnemyType.BOSS && this.bossEnemy === enemy) {
@@ -2375,7 +1826,72 @@ export default class TowerDefenseScene extends Phaser.Scene {
     // Handle projectile hits
     projectileHits.forEach(proj => {
       // Apply direct damage with armor reduction
-      this.combatManager.applyDamage(proj.target, proj.damage);
+      // Cannon deals AoE damage instead of single target direct damage
+      if (proj.sourceTower.type === 'cannon') {
+        const baseRadius = 60;
+        const radius = proj.sourceTower.upgrades.shrapnel ? baseRadius * 1.5 : baseRadius; // 90 or 60
+        
+        // Cannon Splash Damage
+        this.enemyManager.getEnemies().forEach(enemy => {
+          const ex = enemy.x - proj.target.x;
+          const ey = enemy.y - proj.target.y;
+          const enemyDist = Math.sqrt(ex * ex + ey * ey);
+          
+          if (enemyDist < radius) {
+            let dmg = proj.damage;
+            
+            // Heavy Slugs: +100% damage to Armored
+            if (proj.sourceTower.upgrades.heavySlugs && enemy.type === 'ARMORED') {
+              dmg *= 2;
+            }
+
+            // Apply damage (Cannon bypasses some armor? No, usually physical)
+            this.combatManager.applyDamage(enemy, dmg);
+            
+            // Concussive Blast: Stun
+            if (proj.sourceTower.upgrades.concussive) {
+              enemy.stunned = true;
+              enemy.stunnedUntil = time + 500; // 0.5s stun
+              // Visual feedback for stun?
+            }
+          }
+        });
+
+        // Visual explosion for Cannon
+        const explosion = this.add.graphics();
+        explosion.fillStyle(0x333333, 0.6);
+        explosion.fillCircle(proj.target.x, proj.target.y, radius);
+        this.time.delayedCall(150, () => explosion.destroy());
+
+        // Cluster Bomb: Mini explosions
+        if (proj.sourceTower.upgrades.clusterBomb) {
+            for(let k=0; k<3; k++) {
+                const angle = Math.random() * Math.PI * 2;
+                const dist = Math.random() * (radius * 0.8);
+                const mx = proj.target.x + Math.cos(angle) * dist;
+                const my = proj.target.y + Math.sin(angle) * dist;
+                
+                this.time.delayedCall(200 + k*100, () => {
+                    const miniExplosion = this.add.graphics();
+                    miniExplosion.fillStyle(0x550000, 0.6);
+                    miniExplosion.fillCircle(mx, my, radius * 0.4);
+                    this.time.delayedCall(100, () => miniExplosion.destroy());
+
+                    // Apply mini bomb damage
+                    this.enemyManager.getEnemies().forEach(enemy => {
+                         const ex = enemy.x - mx;
+                         const ey = enemy.y - my;
+                         if (Math.sqrt(ex*ex + ey*ey) < radius * 0.4) {
+                             this.combatManager.applyDamage(enemy, proj.damage * 0.25);
+                         }
+                    });
+                });
+            }
+        }
+
+      } else {
+        this.combatManager.applyDamage(proj.target, proj.damage);
+      }
 
       // Apply AoE buff (all tower attacks deal small AoE damage)
       if (this.activeBuff === 'aoe') {
@@ -2428,7 +1944,11 @@ export default class TowerDefenseScene extends Phaser.Scene {
   }
 
   gameOver() {
-    this.scene.pause();
+    // Pause game with popup flag
+    this.questionPopupActive = true;
+
+    // Bring this scene to top so overlay appears above UIScene
+    this.scene.bringToTop();
 
     // Save game session (works in both Phaser Editor and WordWyrm)
     const score = this.calculateScore();
@@ -2445,40 +1965,103 @@ export default class TowerDefenseScene extends Phaser.Scene {
       console.error('[TowerDefenseScene] Error saving game session:', error);
     });
 
-    // Game over overlay and text (responsive to actual game dimensions)
+    // Responsive dimensions - center in game area (excluding sidebar)
     const width = this.scale.width;
     const height = this.scale.height;
-    const centerX = width / 2;
+    const sidebarWidth = Math.min(220, width * 0.15);
+    const gameWidth = width - sidebarWidth;
+    const centerX = gameWidth / 2;
     const centerY = height / 2;
+    const panelWidth = Math.min(700, gameWidth * 0.85);
+    const panelHeight = Math.min(450, height * 0.65);
 
-    // Full-screen semi-transparent overlay
-    this.add.rectangle(centerX, centerY, width, height, 0x000000, 0.7);
+    // Popup background overlay - covers FULL SCREEN including sidebar
+    const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.85);
+    this.activePopupOverlay = overlay;
+    overlay.setDepth(10000);
 
-    // Game Over title (responsive font size)
-    this.add.text(centerX, centerY, 'GAME OVER!', {
-      fontSize: Math.min(64, width / 20) + 'px',
-      color: '#ff0000',
-      fontFamily: 'Quicksand, sans-serif',
-      fontStyle: 'bold',
-      stroke: '#000000',
-      strokeThickness: 8,
-    }).setOrigin(0.5);
+    // Popup panel with shadow - cream background matching question popups
+    const shadow = this.add.rectangle(centerX + 4, centerY + 4, panelWidth, panelHeight, 0x000000, 0.3);
+    shadow.setDepth(10001);
+    const panel = this.add.rectangle(centerX, centerY, panelWidth, panelHeight, 0xfffaf2);
+    panel.setStrokeStyle(4, 0xc4a46f);
+    panel.setDepth(10002);
 
-    // Waves survived text
-    this.add.text(centerX, centerY + 80, `You survived ${this.waveNumber} waves!`, {
-      fontSize: Math.min(32, width / 40) + 'px',
+    // Simple scale animation
+    panel.setScale(0.9);
+    shadow.setScale(0.9);
+    this.tweens.add({
+      targets: [panel, shadow],
+      scaleX: 1,
+      scaleY: 1,
+      duration: 200,
+      ease: 'Power2'
+    });
+
+    // Header background - red for game over
+    const headerY = centerY - panelHeight/2 + 60;
+    const headerBg = this.add.rectangle(centerX, headerY, panelWidth, 90, 0xcc0000);
+    headerBg.setDepth(10003);
+    const headerLine = this.add.rectangle(centerX, headerY + 45, panelWidth - 40, 4, 0xc4a46f);
+    headerLine.setDepth(10004);
+
+    // Game Over title
+    const titleText = this.add.text(centerX, headerY, 'GAME OVER!', {
+      fontSize: '32px',
       color: '#ffffff',
       fontFamily: 'Quicksand, sans-serif',
       fontStyle: 'bold',
+      resolution: 2
     }).setOrigin(0.5);
+    titleText.setDepth(10005);
 
-    // Display score
-    this.add.text(centerX, centerY + 140, `Score: ${score}`, {
-      fontSize: Math.min(28, width / 48) + 'px',
+    // Stats section
+    const statsY = centerY - 20;
+    const statsText = this.add.text(centerX, statsY,
+      `Waves Survived: ${this.waveNumber}\n\nFinal Score: ${score}\n\nGold Earned: ${this.gold}\n\nCorrect Answers: ${this.totalCorrectAnswers}`,
+      {
+        fontSize: '20px',
+        color: '#5c4a2f',
+        fontFamily: 'Quicksand, sans-serif',
+        align: 'center',
+        lineSpacing: 8,
+        resolution: 2
+      }
+    ).setOrigin(0.5);
+    statsText.setDepth(10005);
+
+    // Retry button
+    const buttonY = centerY + panelHeight/2 - 60;
+    const buttonBg = this.add.rectangle(centerX, buttonY, 200, 50, 0x96b902);
+    buttonBg.setStrokeStyle(3, 0xc4a46f);
+    buttonBg.setInteractive({ useHandCursor: true });
+    buttonBg.setDepth(10005);
+
+    const buttonText = this.add.text(centerX, buttonY, 'PLAY AGAIN', {
+      fontSize: '18px',
       color: '#ffffff',
       fontFamily: 'Quicksand, sans-serif',
       fontStyle: 'bold',
+      resolution: 2
     }).setOrigin(0.5);
+    buttonText.setDepth(10006);
+
+    // Button hover effects
+    buttonBg.on('pointerover', () => {
+      buttonBg.setFillStyle(0xaad402);
+      buttonBg.setScale(1.05);
+      buttonText.setScale(1.05);
+    });
+
+    buttonBg.on('pointerout', () => {
+      buttonBg.setFillStyle(0x96b902);
+      buttonBg.setScale(1);
+      buttonText.setScale(1);
+    });
+
+    buttonBg.on('pointerdown', () => {
+      this.scene.restart();
+    });
   }
 
   // Calculate final score based on performance
@@ -2543,6 +2126,81 @@ export default class TowerDefenseScene extends Phaser.Scene {
 
     const elements: Phaser.GameObjects.GameObject[] = [];
     this.upgradeButtons = [];
+
+    // Cannon upgrades: Shrapnel and Cluster Bomb
+    if (this.selectedTower.type === 'cannon') {
+      // Shrapnel upgrade box
+      const shrapnelPurchased = this.selectedTower.upgrades.shrapnel;
+      const shrapnelPrice = this.upgradePrices.shrapnel;
+      const canAffordShrapnel = this.gold >= shrapnelPrice;
+      const shrapnelBox = this.add.rectangle(towerX - 30, upgradeY, 60, 50, shrapnelPurchased ? 0x96b902 : (canAffordShrapnel ? 0xff9f22 : 0xcccccc), 0.95);
+      shrapnelBox.setStrokeStyle(2, shrapnelPurchased ? 0x7a9700 : (canAffordShrapnel ? 0xff8800 : 0x999999));
+      shrapnelBox.setDepth(50);
+      if (!shrapnelPurchased) {
+        shrapnelBox.setInteractive({ useHandCursor: true });
+        shrapnelBox.on('pointerdown', () => {
+          this.lastUpgradeButtonClicked = { x: shrapnelBox.x, y: shrapnelBox.y };
+
+          // Show selection indicator
+          if (this.upgradeSelectionIndicator) {
+            this.upgradeSelectionIndicator.destroy();
+          }
+          this.upgradeSelectionIndicator = this.add.image(shrapnelBox.x, shrapnelBox.y, 'icon_select');
+          this.upgradeSelectionIndicator.setDepth(100);
+          this.upgradeSelectionIndicator.setScale(0.5);
+
+          this.purchaseUpgrade('shrapnel');
+        });
+      }
+      const shrapnelText = this.add.text(towerX - 30, upgradeY - 12, 'Radius', TEXT_STYLES.UPGRADE_TITLE).setOrigin(0.5);
+      shrapnelText.setDepth(51);
+
+      if (shrapnelPurchased) {
+        const checkmark = this.add.image(towerX - 30, upgradeY + 8, 'checkmark').setScale(0.8);
+        elements.push(shrapnelBox, shrapnelText, checkmark);
+      } else {
+        const shrapnelCost = this.add.text(towerX - 30, upgradeY + 8, `${shrapnelPrice}g`, TEXT_STYLES.UPGRADE_COST).setOrigin(0.5);
+        shrapnelCost.setDepth(51);
+        elements.push(shrapnelBox, shrapnelText, shrapnelCost);
+        this.upgradeButtons.push(shrapnelBox);
+      }
+
+      // Cluster Bomb upgrade box
+      const clusterPurchased = this.selectedTower.upgrades.clusterBomb;
+      const clusterPrice = this.upgradePrices.clusterBomb;
+      const canAffordCluster = this.gold >= clusterPrice;
+      const clusterBox = this.add.rectangle(towerX + 30, upgradeY, 60, 50, clusterPurchased ? 0x96b902 : (canAffordCluster ? 0xff9f22 : 0xcccccc), 0.95);
+      clusterBox.setStrokeStyle(2, clusterPurchased ? 0x7a9700 : (canAffordCluster ? 0xff8800 : 0x999999));
+      clusterBox.setDepth(50);
+      if (!clusterPurchased) {
+        clusterBox.setInteractive({ useHandCursor: true });
+        clusterBox.on('pointerdown', () => {
+          this.lastUpgradeButtonClicked = { x: clusterBox.x, y: clusterBox.y };
+
+          // Show selection indicator
+          if (this.upgradeSelectionIndicator) {
+            this.upgradeSelectionIndicator.destroy();
+          }
+          this.upgradeSelectionIndicator = this.add.image(clusterBox.x, clusterBox.y, 'icon_select');
+          this.upgradeSelectionIndicator.setDepth(100);
+          this.upgradeSelectionIndicator.setScale(0.5);
+
+          this.purchaseUpgrade('clusterBomb');
+        });
+      }
+      const clusterText = this.add.text(towerX + 30, upgradeY - 12, 'Cluster', TEXT_STYLES.UPGRADE_TITLE).setOrigin(0.5);
+      clusterText.setDepth(51);
+
+      if (clusterPurchased) {
+        const checkmark = this.add.image(towerX + 30, upgradeY + 8, 'checkmark').setScale(0.8);
+        elements.push(clusterBox, clusterText, checkmark);
+      } else {
+        const clusterCost = this.add.text(towerX + 30, upgradeY + 8, `${clusterPrice}g`, TEXT_STYLES.UPGRADE_COST).setOrigin(0.5);
+        clusterCost.setDepth(51);
+        elements.push(clusterBox, clusterText, clusterCost);
+        this.upgradeButtons.push(clusterBox);
+      }
+    }
 
     // Ballista (basic) upgrades: DOT and Fire Rate
     if (this.selectedTower.type === 'basic') {
@@ -2700,17 +2358,20 @@ export default class TowerDefenseScene extends Phaser.Scene {
     const deleteButtonY = towerY + 60; // Below the tower
     const deleteButton = this.add.rectangle(towerX, deleteButtonY, 50, 50, 0xef4444, 0.95);
     deleteButton.setStrokeStyle(2, 0xdc2626);
-    deleteButton.setDepth(50);
+    deleteButton.setDepth(5000); // Very high depth to ensure it's above UIScene
     deleteButton.setInteractive({ useHandCursor: true });
+    console.log('[TowerDefenseScene] Delete button created at', towerX, deleteButtonY, 'with depth', deleteButton.depth);
 
     // Track confirmation state
     let deleteConfirmed = false;
 
     // Add hover effect
     deleteButton.on('pointerover', () => {
+      console.log('[TowerDefenseScene] Delete button hover');
       deleteButton.setScale(1.05);
     });
     deleteButton.on('pointerout', () => {
+      console.log('[TowerDefenseScene] Delete button unhover');
       deleteButton.setScale(1);
     });
 
@@ -2721,17 +2382,24 @@ export default class TowerDefenseScene extends Phaser.Scene {
       fontFamily: 'Quicksand, sans-serif',
       fontStyle: 'bold'
     }).setOrigin(0.5);
-    deleteText.setDepth(51);
+    deleteText.setDepth(5001); // Above delete button
 
-    deleteButton.on('pointerdown', () => {
+    deleteButton.on('pointerdown', (pointer: Phaser.Input.Pointer, localX: number, localY: number, event: Phaser.Types.Input.EventData) => {
+      console.log('[TowerDefenseScene] Delete button clicked! Confirmed:', deleteConfirmed);
+
+      // CRITICAL: Stop event propagation so tower doesn't get re-selected
+      event.stopPropagation();
+
       if (!deleteConfirmed) {
         // First click: Change to green checkmark
+        console.log('[TowerDefenseScene] First click - showing confirmation');
         deleteButton.setFillStyle(0x96b902, 0.95);
         deleteButton.setStrokeStyle(2, 0x7a9700);
         deleteText.setText('✓');
         deleteConfirmed = true;
       } else {
         // Second click: Actually delete the tower
+        console.log('[TowerDefenseScene] Second click - deleting tower');
         if (this.selectedTower) {
           this.towerManager.removeTower(this.selectedTower);
           this.selectedTower = null;
@@ -2802,7 +2470,8 @@ export default class TowerDefenseScene extends Phaser.Scene {
   // Ballista: DoT arrows, faster fire rate
   // Trebuchet: Explosive projectiles
   // Melee: More damage
-  purchaseUpgrade(upgradeType: 'explosive' | 'dotArrows' | 'fasterFireRate' | 'moreDamage') {
+  // Cannon: Shrapnel, Cluster Bomb, Concussive, Heavy Slugs
+  purchaseUpgrade(upgradeType: 'explosive' | 'dotArrows' | 'fasterFireRate' | 'moreDamage' | 'shrapnel' | 'clusterBomb' | 'concussive' | 'heavySlugs') {
     if (!this.selectedTower) return;
 
     // Use dynamic price
@@ -2855,98 +2524,29 @@ export default class TowerDefenseScene extends Phaser.Scene {
     return allQuestions[Math.floor(Math.random() * allQuestions.length)];
   }
 
-  // Display boss question popup at bottom center
-  // 30 second timer, 2x2 button grid, auto-fails on timeout
+  // Show boss question popup
   showBossQuestion(bossBaseHealth: number) {
     const question = this.selectBossQuestion();
     this.bossQuestion = question;
     this.bossQuestionTimer = 0;
 
-    // Find index for answer tracking
+    // Pause game while question popup is active
+    this.questionPopupActive = true;
+    this.scene.bringToTop();
+
     const questionIndex = this.quizData.questions.findIndex(q => q.question === question.question);
 
-    // Responsive dimensions
-    const width = this.scale.width;
-    const height = this.scale.height;
-    const centerX = width / 2;
-    const panelWidth = Math.min(680, width * 0.7);
-    const panelHeight = Math.min(238, height * 0.35);
-    const panelY = height - panelHeight / 2 - 40; // Position near bottom
-
-    // Semi-transparent overlay
-    const overlay = this.add.rectangle(centerX, height / 2, width, height, 0x000000, 0.3);
-
-    // Panel background
-    const panel = this.add.rectangle(centerX, panelY, panelWidth, panelHeight, 0x2c3e50);
-    panel.setStrokeStyle(4, 0xff6600); // Orange border for warning
-
-    // Warning label
-    const warningText = this.add.text(centerX, panelY - 93, 'ANSWER BUT BEWARE!', {
-      fontSize: '20px',
-      color: '#ff6600',
-      fontFamily: 'Quicksand, sans-serif',
-      fontStyle: 'bold',
-      resolution: 2
-    }).setOrigin(0.5);
-
-    // Timer display
-    const timerText = this.add.text(centerX, panelY - 68, 'Time: 30s', {
-      fontSize: '15px',
-      color: '#ffffff',
-      fontFamily: 'Quicksand, sans-serif',
-      fontStyle: 'bold',
-      resolution: 2
-    }).setOrigin(0.5);
-
-    // Question text
-    const questionText = this.add.text(centerX, panelY - 43, question.question, {
-      fontSize: '15px',
-      color: '#ecf0f1',
-      fontFamily: 'Quicksand, sans-serif',
-      fontStyle: 'bold',
-      align: 'center',
-      wordWrap: { width: panelWidth - 40 },
-      resolution: 2
-    }).setOrigin(0.5);
-
-    const answerButtons: Phaser.GameObjects.Container[] = [];
-
-    // Create answer buttons (2x2 grid)
-    const buttonWidth = (panelWidth - 30) / 2;
-    const buttonHeight = 43;
-
-    question.options.forEach((option, index) => {
-      const col = index % 2;
-      const row = Math.floor(index / 2);
-      const xPos = centerX - panelWidth / 2 + 15 + (col * (buttonWidth + 10));
-      const yPos = panelY + 17 + (row * 51);
-      const isCorrect = option === question.answer;
-
-      const btnBg = this.add.rectangle(xPos + buttonWidth / 2, yPos, buttonWidth, buttonHeight, 0x34495e);
-      btnBg.setInteractive({ useHandCursor: true });
-
-      const btnText = this.add.text(xPos + buttonWidth / 2, yPos, option, {
-        fontSize: '12px',
-        color: '#ffffff',
-        fontFamily: 'Quicksand, sans-serif',
-        align: 'center',
-        wordWrap: { width: buttonWidth - 20 },
-        resolution: 2
-      }).setOrigin(0.5);
-
-      const button = this.add.container(0, 0, [btnBg, btnText]);
-      answerButtons.push(button);
-
-      btnBg.on('pointerover', () => btnBg.setFillStyle(0x475569));
-      btnBg.on('pointerout', () => btnBg.setFillStyle(0x34495e));
-
-      btnBg.on('pointerdown', () => {
-        this.handleBossAnswer(isCorrect, bossBaseHealth, questionIndex);
-      });
+    this.quizPopupManager.show({
+      question: question.question,
+      options: question.options,
+      correctAnswer: question.answer,
+      headerText: 'ANSWER BUT BEWARE!',
+      headerColor: 0xff6600, // Orange warning color
+      timer: 30,
+      onCorrect: () => this.handleBossAnswer(true, bossBaseHealth, questionIndex),
+      onIncorrect: () => this.handleBossAnswer(false, bossBaseHealth, questionIndex),
+      onTimeout: () => this.handleBossAnswer(false, bossBaseHealth, questionIndex)
     });
-
-    this.bossQuestionPopup = this.add.container(0, 0, [overlay, panel, warningText, timerText, questionText, ...answerButtons]);
-    this.bossQuestionPopup.setDepth(1000); // Ensure questions always appear on top
   }
 
   // Handle boss question answer (correct or incorrect)
@@ -2958,10 +2558,13 @@ export default class TowerDefenseScene extends Phaser.Scene {
       this.bossAnsweredCorrectly[questionIndex] = isCorrect;
     }
 
-    // Close question popup
+    // Close question popup and resume game
     if (this.bossQuestionPopup) {
       this.bossQuestionPopup.destroy();
       this.bossQuestionPopup = undefined;
+      // Bring UIScene back to top
+      this.scene.bringToTop('UIScene');
+      this.questionPopupActive = false; // Resume game
     }
 
     if (isCorrect) {
@@ -3032,7 +2635,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
 
     // Header text (small, top of panel)
     const header = this.add.text(0, -panelHeight / 2 + 15, headerText, {
-      fontSize: '11px',
+      fontSize: getResponsiveFontSize(11, this.scale.height),
       color: '#473025',
       fontFamily: 'Quicksand, sans-serif',
       fontStyle: 'bold',
@@ -3044,7 +2647,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
 
     // Question text (compact)
     const questionText = this.add.text(0, -panelHeight / 2 + 45, question.question, {
-      fontSize: '10px',
+      fontSize: getResponsiveFontSize(10, this.scale.height),
       color: '#473025',
       fontFamily: 'Quicksand, sans-serif',
       align: 'center',
@@ -3072,7 +2675,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
 
       // Button text
       const btnText = this.add.text(xPos, yPos, option, {
-        fontSize: '9px',
+        fontSize: getResponsiveFontSize(9, this.scale.height),
         color: '#473025',
         fontFamily: 'Quicksand, sans-serif',
         align: 'center',
@@ -3130,69 +2733,46 @@ export default class TowerDefenseScene extends Phaser.Scene {
     return container;
   }
 
-  // Show tower purchase quiz gate popup (COMPACT VERSION)
-  // Requires answering a question correctly to purchase tower (from 3rd tower onward)
-  // Wrong answer increases tower price by 25% and cancels purchase
-  showTowerPurchaseQuestion(towerType: 'basic' | 'sniper' | 'melee' | 'fact' | 'wizard') {
-    // Pick a random question from quiz pool
+  // Show tower purchase quiz gate popup
+  showTowerPurchaseQuestion(towerType: 'basic' | 'sniper' | 'melee' | 'fact' | 'wizard' | 'cannon') {
+    // Pause game while question popup is active
+    this.questionPopupActive = true;
+    this.scene.bringToTop();
+
     const question = this.quizData.questions[Math.floor(Math.random() * this.quizData.questions.length)];
-
-    // Get current tower price and name
     const currentPrice = this.towerPurchasePrice[towerType];
-    const towerNames = { basic: 'Ballista', sniper: 'Trebuchet', melee: 'Knight', fact: 'Training Camp', wizard: 'Archmage' };
-    const headerText = `${towerNames[towerType]} (${currentPrice}g)`;
+    const towerNames = { basic: 'Ballista', sniper: 'Trebuchet', melee: 'Knight', fact: 'Training Camp', wizard: 'Archmage', cannon: 'Cannon' };
+    const headerText = `Purchase ${towerNames[towerType]} (${currentPrice}g)`;
 
-    // Get button position (fallback to center if not set)
-    const buttonPos = this.lastTowerButtonClicked || { x: this.scale.width / 2, y: this.scale.height - 100 };
+    this.quizPopupManager.show({
+      question: question.question,
+      options: question.options,
+      correctAnswer: question.answer,
+      headerText: headerText,
+      onCorrect: () => {
+        this.totalCorrectAnswers++;
+        this.updateWizardButtonState();
+        this.questionPopupActive = false; // Resume game
+        this.scene.bringToTop('UIScene');
 
-    // Create compact quiz with answer callback
-    this.towerPurchaseQuestionPopup = this.createCompactQuiz(
-      buttonPos,
-      question,
-      headerText,
-      (isCorrect) => {
-        if (isCorrect) {
-          // Correct answer: Convert ghost to real tower
-          console.log('[TowerDefenseScene] Correct answer! Converting ghost tower...');
-
-          // Track correct answer
-          this.totalCorrectAnswers++;
-
-          // Update wizard button state (may unlock at 5 correct answers)
-          this.updateWizardButtonState();
-
-          // Destroy quiz
-          this.towerPurchaseQuestionPopup?.destroy();
-          this.towerPurchaseQuestionPopup = undefined;
-
-          // Convert ghost tower to real tower
-          if (this.ghostTower && this.pendingTowerPlacement) {
-            this.convertGhostToRealTower();
-            this.pendingTowerPlacement = null;
-          }
-        } else {
-          // Incorrect answer: Cancel purchase, destroy ghost, increase price
-          console.log('[TowerDefenseScene] Incorrect answer or cancelled. Destroying ghost tower...');
-
-          // Increase price by quiz penalty multiplier
-          this.towerPurchasePrice[towerType] = Math.round(this.towerPurchasePrice[towerType] * BALANCE_CONSTANTS.QUIZ_PRICE_INCREASE_MULTIPLIER);
-
-          // Destroy quiz
-          this.towerPurchaseQuestionPopup?.destroy();
-          this.towerPurchaseQuestionPopup = undefined;
-
-          // Destroy ghost tower (no gold spent)
-          if (this.ghostTower) {
-            this.ghostTower.graphics.destroy();
-            this.ghostTower = null;
-          }
+        if (this.ghostTower && this.pendingTowerPlacement) {
+          this.convertGhostToRealTower();
           this.pendingTowerPlacement = null;
-
-          // Show feedback message
-          this.showErrorMessage(`Purchase cancelled. Price is now ${this.towerPurchasePrice[towerType]}g`);
         }
+      },
+      onIncorrect: () => {
+        this.towerPurchasePrice[towerType] = Math.round(this.towerPurchasePrice[towerType] * BALANCE_CONSTANTS.QUIZ_PRICE_INCREASE_MULTIPLIER);
+        this.questionPopupActive = false; // Resume game
+        this.scene.bringToTop('UIScene');
+
+        if (this.ghostTower) {
+          this.ghostTower.graphics.destroy();
+          this.ghostTower = null;
+        }
+        this.pendingTowerPlacement = null;
+        this.updateUIDisplays();
       }
-    );
+    });
   }
 
   /* OLD DOM UI - Now handled by updateUIDisplays() which updates Phaser Editor UIScene
@@ -3218,88 +2798,115 @@ export default class TowerDefenseScene extends Phaser.Scene {
   }
   */
 
-  // Show upgrade unlock quiz popup (COMPACT VERSION)
-  // Requires answering a question correctly to unlock upgrade type
-  // Wrong answer refunds gold, increases price by 25%, and cancels purchase
-  showUpgradeQuestion(upgradeType: 'explosive' | 'dotArrows' | 'fasterFireRate' | 'moreDamage') {
-    // Pick a random question from quiz pool
-    const question = this.quizData.questions[Math.floor(Math.random() * this.quizData.questions.length)];
+    // Show upgrade unlock quiz popup
 
-    // Get current upgrade price and name
-    const currentPrice = this.upgradePrices[upgradeType];
-    const upgradeNames = {
-      dotArrows: 'DOT Arrows',
-      fasterFireRate: 'Faster Fire Rate',
-      explosive: 'Explosive',
-      moreDamage: 'More Damage'
-    };
-    const headerText = `${upgradeNames[upgradeType]} (${currentPrice}g)`;
+    showUpgradeQuestion(upgradeType: 'explosive' | 'dotArrows' | 'fasterFireRate' | 'moreDamage' | 'shrapnel' | 'clusterBomb' | 'concussive' | 'heavySlugs') {
 
-    // Get button position (fallback to center if not set)
-    const buttonPos = this.lastUpgradeButtonClicked || { x: this.scale.width / 2, y: this.scale.height / 2 };
+      // Pause game while question popup is active
 
-    // Create compact quiz with answer callback
-    this.upgradeQuestionPopup = this.createCompactQuiz(
-      buttonPos,
-      question,
-      headerText,
-      (isCorrect) => {
-        if (isCorrect) {
-          // Correct answer: Unlock upgrade globally and complete purchase
-          console.log('[TowerDefenseScene] Correct answer! Unlocking upgrade...');
+      this.questionPopupActive = true;
 
-          // Track correct answer
+      this.scene.bringToTop();
+
+  
+
+      const question = this.quizData.questions[Math.floor(Math.random() * this.quizData.questions.length)];
+
+      const currentPrice = this.upgradePrices[upgradeType];
+
+      const upgradeNames = {
+
+        dotArrows: 'DOT Arrows',
+
+        fasterFireRate: 'Faster Fire Rate',
+
+        explosive: 'Explosive',
+
+        moreDamage: 'More Damage',
+
+        shrapnel: 'Shrapnel',
+
+        clusterBomb: 'Cluster Bomb',
+
+        concussive: 'Concussive Blast',
+
+        heavySlugs: 'Heavy Slugs'
+
+      };
+
+      const headerText = `Unlock ${upgradeNames[upgradeType]} (${currentPrice}g)`;
+
+  
+
+      this.quizPopupManager.show({
+
+        question: question.question,
+
+        options: question.options,
+
+        correctAnswer: question.answer,
+
+        headerText: headerText,
+
+        onCorrect: () => {
+
           this.totalCorrectAnswers++;
 
-          // Update wizard button state (may unlock at 5 correct answers)
           this.updateWizardButtonState();
 
-          // Unlock upgrade globally
           this.upgradeUnlocked[upgradeType] = true;
 
-          // Destroy quiz
-          this.upgradeQuestionPopup?.destroy();
-          this.upgradeQuestionPopup = undefined;
+          this.questionPopupActive = false;
 
-          // Complete the upgrade purchase
+          this.scene.bringToTop('UIScene');
+
+  
+
           if (this.pendingUpgrade) {
-            this.completeUpgradePurchase(this.pendingUpgrade.type);
-            this.pendingUpgrade = null;
-          }
-        } else {
-          // Incorrect answer or cancelled: Refund gold, increase price, cancel purchase
-          console.log('[TowerDefenseScene] Incorrect answer or cancelled. Refunding gold...');
 
-          // Refund the gold that was deducted
+            this.completeUpgradePurchase(this.pendingUpgrade.type);
+
+            this.pendingUpgrade = null;
+
+          }
+
+        },
+
+        onIncorrect: () => {
+
           const refundAmount = this.upgradePrices[upgradeType];
+
           this.gold += refundAmount;
+
           this.updateUIDisplays();
 
-          // Increase price by quiz penalty multiplier
           this.upgradePrices[upgradeType] = Math.round(this.upgradePrices[upgradeType] * BALANCE_CONSTANTS.QUIZ_PRICE_INCREASE_MULTIPLIER);
 
-          // Destroy quiz
-          this.upgradeQuestionPopup?.destroy();
-          this.upgradeQuestionPopup = undefined;
+          
 
-          // Cancel pending upgrade
+          this.questionPopupActive = false;
+
           this.pendingUpgrade = null;
 
-          // Refresh upgrade UI to show updated prices
+          this.scene.bringToTop('UIScene');
+
+  
+
           if (this.selectedTower) {
+
             this.showUpgradeUI();
+
           }
 
-          // Show feedback message
-          this.showErrorMessage(`Purchase cancelled. Price is now ${this.upgradePrices[upgradeType]}g`);
         }
-      }
-    );
-  }
+
+      });
+
+    }
 
   // Complete upgrade purchase after quiz success
   // Deducts gold, marks upgrade as purchased on tower, applies stat changes, resets price
-  completeUpgradePurchase(upgradeType: 'explosive' | 'dotArrows' | 'fasterFireRate' | 'moreDamage') {
+  completeUpgradePurchase(upgradeType: 'explosive' | 'dotArrows' | 'fasterFireRate' | 'moreDamage' | 'shrapnel' | 'clusterBomb' | 'concussive' | 'heavySlugs') {
     if (!this.selectedTower) return;
 
     const currentPrice = this.upgradePrices[upgradeType];
@@ -3330,69 +2937,43 @@ export default class TowerDefenseScene extends Phaser.Scene {
     this.showUpgradeUI();
   }
 
-  // Show ability quiz popup (COMPACT VERSION)
-  // lightning: 40g, 45s cooldown, enemy selection after quiz
-  // freeze: 60g, 60s cooldown, freezes all enemies
-  // question: free, 90s cooldown, boost selected Training Camp
+  // Show ability quiz popup
   showAbilityQuestion(abilityType: 'lightning' | 'freeze' | 'question') {
-    // Pick a random question from quiz pool
-    const question = this.quizData.questions[Math.floor(Math.random() * this.quizData.questions.length)];
+    // Pause game while question popup is active
+    this.questionPopupActive = true;
+    this.scene.bringToTop();
 
-    // Get ability info for header
+    const question = this.quizData.questions[Math.floor(Math.random() * this.quizData.questions.length)];
     const abilityInfo = {
       lightning: { name: 'Lightning Strike', cost: 40 },
       freeze: { name: 'Freeze', cost: 60 },
       question: { name: 'Question Ability', cost: 0 }
     };
-
     const info = abilityInfo[abilityType];
     const costText = info.cost > 0 ? ` (${info.cost}g)` : ' (Free)';
-    const headerText = `${info.name}${costText}`;
+    const headerText = `Use ${info.name}${costText}`;
 
-    // Get button position (fallback to center if not set)
-    const buttonPos = this.lastAbilityButtonClicked || { x: this.scale.width / 2, y: this.scale.height / 2 };
-
-    // Create compact quiz with answer callback
-    this.abilityQuestionPopup = this.createCompactQuiz(
-      buttonPos,
-      question,
-      headerText,
-      (isCorrect) => {
-        if (isCorrect) {
-          // Correct answer: Activate ability
-          console.log('[TowerDefenseScene] Correct answer! Activating ability...');
-
-          // Track correct answer
-          this.totalCorrectAnswers++;
-
-          // Update wizard button state (may unlock at 5 correct answers)
-          this.updateWizardButtonState();
-
-          // Destroy quiz
-          this.abilityQuestionPopup?.destroy();
-          this.abilityQuestionPopup = undefined;
-
-          // Activate the ability
-          this.activateAbility(abilityType);
-        } else {
-          // Incorrect answer or cancelled: Don't activate ability, track for spaced repetition
-          console.log('[TowerDefenseScene] Incorrect answer or cancelled. Ability not activated.');
-
-          // Track incorrect question for spaced repetition
-          const questionIndex = this.quizData.questions.findIndex(q => q.question === question.question);
-          if (questionIndex >= 0) {
-            this.incorrectQuestionIndices.add(questionIndex);
-          }
-
-          // Destroy quiz
-          this.abilityQuestionPopup?.destroy();
-          this.abilityQuestionPopup = undefined;
-
-          // Show feedback message
-          this.showErrorMessage('Ability cancelled.');
+    this.quizPopupManager.show({
+      question: question.question,
+      options: question.options,
+      correctAnswer: question.answer,
+      headerText: headerText,
+      onCorrect: () => {
+        this.totalCorrectAnswers++;
+        this.updateWizardButtonState();
+        this.questionPopupActive = false;
+        this.scene.bringToTop('UIScene');
+        this.activateAbility(abilityType);
+      },
+      onIncorrect: () => {
+        const questionIndex = this.quizData.questions.findIndex(q => q.question === question.question);
+        if (questionIndex >= 0) {
+          this.incorrectQuestionIndices.add(questionIndex);
         }
+        this.questionPopupActive = false;
+        this.scene.bringToTop('UIScene');
       }
-    );
+    });
   }
 
   // Activate ability after successful quiz
@@ -3402,7 +2983,6 @@ export default class TowerDefenseScene extends Phaser.Scene {
       this.gold -= 40;
       this.updateUIDisplays(); // Update UI
       this.abilityManager.useLightningStrike();
-      this.updateAbilityButtons();
       this.updateUIDisplays(); // Update Phaser UI
 
       // Enter enemy selection mode
@@ -3412,7 +2992,6 @@ export default class TowerDefenseScene extends Phaser.Scene {
       // Deduct cost and set cooldown
       this.gold -= 60;
       this.updateUIDisplays(); // Update UI
-      this.updateAbilityButtons();
       this.updateUIDisplays(); // Update Phaser UI
 
       // Freeze all enemies
@@ -3420,7 +2999,6 @@ export default class TowerDefenseScene extends Phaser.Scene {
     } else if (abilityType === 'question') {
       // Set cooldown (no cost)
       this.abilityManager.useQuestionAbility();
-      this.updateAbilityButtons();
 
       // Check if there are any Training Camps to boost
       const factTowers = this.towerManager.getTowers().filter(t => t.type === 'fact');
@@ -3428,7 +3006,6 @@ export default class TowerDefenseScene extends Phaser.Scene {
         this.showErrorMessage('No Training Camps to boost!');
         // Refund cooldown since ability can't be used
         this.abilityManager.resetQuestionAbilityCooldown();
-        this.updateAbilityButtons();
       } else {
         // Highlight all Training Camps for selection
         this.highlightFactTowers(true);
@@ -3692,126 +3269,36 @@ export default class TowerDefenseScene extends Phaser.Scene {
   // Show current challenge question (one at a time)
   showChallengeQuestion() {
     if (this.challengeQuestionIndex >= this.challengeQuestions.length) {
-      // All questions answered - show rewards
       this.showChallengeRewards();
       return;
     }
 
+    this.questionPopupActive = true;
+    this.scene.bringToTop();
+
     const question = this.challengeQuestions[this.challengeQuestionIndex];
 
-    // Responsive dimensions - center in game area
-    const width = this.scale.width;
-    const height = this.scale.height;
-    const sidebarWidth = Math.min(220, width * 0.15);
-    const gameWidth = width - sidebarWidth;
-    const centerX = gameWidth / 2;
-    const centerY = height / 2;
-
-    const panelWidth = Math.min(600, gameWidth * 0.8);
-    const panelHeight = Math.min(500, height * 0.8);
-
-    // Overlay
-    const overlay = this.add.rectangle(centerX, centerY, gameWidth, height, 0x000000, 0.85);
-    overlay.setOrigin(0.5);
-    overlay.setDepth(9000);
-
-    // Panel shadow
-    const shadow = this.add.rectangle(centerX + 4, centerY + 4, panelWidth, panelHeight, 0x000000, 0.4);
-    shadow.setOrigin(0.5);
-    shadow.setDepth(9001);
-
-    // Main panel
-    const panel = this.add.rectangle(centerX, centerY, panelWidth, panelHeight, 0xffffff, 1);
-    panel.setOrigin(0.5);
-    panel.setStrokeStyle(3, 0x473025);
-    panel.setDepth(9002);
-
-    // Header background
-    const headerBg = this.add.rectangle(centerX, centerY - panelHeight / 2 + 40, panelWidth, 80, 0xff6b35, 1);
-    headerBg.setOrigin(0.5);
-    headerBg.setDepth(9003);
-
-    // Header line
-    const headerLine = this.add.rectangle(centerX, centerY - panelHeight / 2 + 80, panelWidth, 3, 0x473025, 1);
-    headerLine.setOrigin(0.5);
-    headerLine.setDepth(9004);
-
-    // Challenge info text
-    const challengeInfoText = this.add.text(centerX, centerY - panelHeight / 2 + 40,
-      `Challenge Round ${this.waveNumber}\nQuestion ${this.challengeQuestionIndex + 1} of 3`, {
-      fontSize: Math.min(20, width * 0.025) + 'px',
-      color: '#ffffff',
-      fontFamily: 'Quicksand, sans-serif',
-      fontStyle: '700',
-      align: 'center',
-      resolution: 2
+    this.quizPopupManager.show({
+      question: question.question,
+      options: question.options,
+      correctAnswer: question.answer,
+      headerText: `Challenge Round ${this.waveNumber} - Question ${this.challengeQuestionIndex + 1} of 3`,
+      headerColor: 0xff6b35, // Orange for challenge
+      explanation: question.explanation || `The correct answer is: ${question.answer}`,
+      onCorrect: () => {
+        this.challengeCorrectCount++;
+        this.challengeQuestionIndex++;
+        this.showChallengeQuestion();
+      },
+      onIncorrect: () => {
+        const questionIndex = this.quizData.questions.findIndex(q => q.question === question.question);
+        if (questionIndex >= 0) {
+          this.challengeIncorrectIndices.add(questionIndex);
+        }
+        this.challengeQuestionIndex++;
+        this.showChallengeQuestion();
+      }
     });
-    challengeInfoText.setOrigin(0.5);
-    challengeInfoText.setDepth(9005);
-
-    // Question text
-    const questionText = this.add.text(centerX, centerY - panelHeight / 2 + 140, question.question, {
-      fontSize: Math.min(18, width * 0.022) + 'px',
-      color: '#473025',
-      fontFamily: 'Quicksand, sans-serif',
-      fontStyle: '600',
-      align: 'center',
-      wordWrap: { width: panelWidth - 80 },
-      resolution: 2
-    });
-    questionText.setOrigin(0.5);
-    questionText.setDepth(9005);
-
-    // Answer buttons (4 options)
-    const answerButtons: Phaser.GameObjects.Container[] = [];
-    const buttonWidth = panelWidth - 80;
-    const buttonHeight = 50;
-    const startY = centerY - 20;
-    const buttonSpacing = 65;
-
-    question.options.forEach((option, index) => {
-      const btnY = startY + (index * buttonSpacing);
-      const btnBg = this.add.rectangle(centerX, btnY, buttonWidth, buttonHeight, 0xf4f1de, 1);
-      btnBg.setStrokeStyle(2, 0x473025);
-      btnBg.setInteractive({ useHandCursor: true });
-      btnBg.setDepth(9005);
-
-      const btnText = this.add.text(centerX, btnY, option, {
-        fontSize: Math.min(16, width * 0.02) + 'px',
-        color: '#473025',
-        fontFamily: 'Quicksand, sans-serif',
-        fontStyle: '600',
-        align: 'center',
-        wordWrap: { width: buttonWidth - 40 },
-        resolution: 2
-      });
-      btnText.setOrigin(0.5);
-      btnText.setDepth(9006);
-
-      const btn = this.add.container(0, 0, [btnBg, btnText]);
-
-      btnBg.on('pointerdown', () => {
-        const isCorrect = option === question.answer;
-        this.handleChallengeAnswer(isCorrect, question, overlay, panel, shadow, headerBg, headerLine, challengeInfoText, questionText, answerButtons);
-      });
-
-      btnBg.on('pointerover', () => {
-        btnBg.setFillStyle(0xe3dfc8);
-        btnBg.setScale(0.98);
-        btnText.setScale(0.98);
-      });
-
-      btnBg.on('pointerout', () => {
-        btnBg.setFillStyle(0xf4f1de);
-        btnBg.setScale(1);
-        btnText.setScale(1);
-      });
-
-      answerButtons.push(btn);
-    });
-
-    this.challengeQuestionPopup = this.add.container(0, 0, [overlay, shadow, panel, headerBg, headerLine, challengeInfoText, questionText, ...answerButtons]);
-    this.challengeQuestionPopup.setDepth(1000); // Ensure questions always appear on top
   }
 
   // Handle challenge question answer
@@ -3838,7 +3325,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
 
       // Show "Correct!" feedback
       const feedbackText = this.add.text(panel.x, panel.y + panel.height / 2 - 80, 'Correct!', {
-        fontSize: '24px',
+        fontSize: getResponsiveFontSize(24, this.scale.height),
         color: '#27ae60',
         fontFamily: 'Quicksand, sans-serif',
         fontStyle: '700',
@@ -3855,7 +3342,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
       continueBtnBg.setDepth(9007);
 
       const continueBtnText = this.add.text(panel.x, panel.y + panel.height / 2 - 30, 'Continue', {
-        fontSize: '18px',
+        fontSize: getResponsiveFontSize(18, this.scale.height),
         color: '#ffffff',
         fontFamily: 'Quicksand, sans-serif',
         fontStyle: '700',
@@ -3893,7 +3380,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
 
       // Show "Incorrect!" feedback
       const feedbackText = this.add.text(panel.x, panel.y + panel.height / 2 - 150, 'Incorrect!', {
-        fontSize: '24px',
+        fontSize: getResponsiveFontSize(24, this.scale.height),
         color: '#e74c3c',
         fontFamily: 'Quicksand, sans-serif',
         fontStyle: '700',
@@ -3906,7 +3393,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
       // Show explanation
       const explanation = question.explanation || `The correct answer is: ${question.answer}`;
       const explanationText = this.add.text(panel.x, panel.y + panel.height / 2 - 100, explanation, {
-        fontSize: '16px',
+        fontSize: getResponsiveFontSize(16, this.scale.height),
         color: '#473025',
         fontFamily: 'Quicksand, sans-serif',
         fontStyle: '600',
@@ -3925,7 +3412,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
       continueBtnBg.setDepth(9007);
 
       const continueBtnText = this.add.text(panel.x, panel.y + panel.height / 2 - 30, 'Continue', {
-        fontSize: '18px',
+        fontSize: getResponsiveFontSize(18, this.scale.height),
         color: '#ffffff',
         fontFamily: 'Quicksand, sans-serif',
         fontStyle: '700',
@@ -3993,8 +3480,9 @@ export default class TowerDefenseScene extends Phaser.Scene {
     const panelWidth = Math.min(500, gameWidth * 0.7);
     const panelHeight = Math.min(300, height * 0.5);
 
-    // Overlay
-    const overlay = this.add.rectangle(centerX, centerY, gameWidth, height, 0x000000, 0.85);
+    // Overlay - covers FULL SCREEN including sidebar
+    const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.85);
+    this.activePopupOverlay = overlay;
     overlay.setOrigin(0.5);
     overlay.setDepth(9000);
 
@@ -4052,6 +3540,9 @@ export default class TowerDefenseScene extends Phaser.Scene {
       messageText.destroy();
       btnBg.destroy();
       btnText.destroy();
+      // Bring UIScene back to top
+      this.scene.bringToTop('UIScene');
+      this.questionPopupActive = false; // Resume game after challenge round ends
     });
 
     btnBg.on('pointerover', () => {
@@ -4079,8 +3570,9 @@ export default class TowerDefenseScene extends Phaser.Scene {
     const panelWidth = Math.min(700, gameWidth * 0.9);
     const panelHeight = Math.min(500, height * 0.8);
 
-    // Overlay
-    const overlay = this.add.rectangle(centerX, centerY, gameWidth, height, 0x000000, 0.85);
+    // Overlay - covers FULL SCREEN including sidebar
+    const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.85);
+    this.activePopupOverlay = overlay;
     overlay.setOrigin(0.5);
     overlay.setDepth(9000);
 
@@ -4217,115 +3709,6 @@ export default class TowerDefenseScene extends Phaser.Scene {
     });
   }
 
-  /**
-   * Handle stage transition cutscene (rounds 20, 40, 60)
-   * Blocks input during 3-second fade transition
-   * Removes towers within 20px of new path
-   */
-  async handleStageTransition() {
-    // Block all input during transition
-    this.stageTransitionInProgress = true;
-
-    // Get dimensions
-    const width = this.scale.width;
-    const height = this.scale.height;
-    const sidebarWidth = Math.min(220, width * 0.15);
-    const gameWidth = width - sidebarWidth;
-
-    // Calculate new stage
-    const newStage = this.stageManager.getCurrentStage(this.waveNumber + 1);
-
-    // Show transition message
-    const transitionText = this.add.text(
-      gameWidth / 2,
-      height / 2,
-      `Stage ${newStage} - The Battlefield Changes...`,
-      {
-        fontSize: '48px',
-        color: '#ffffff',
-        fontFamily: 'Quicksand, sans-serif',
-        fontStyle: 'bold',
-        stroke: '#000000',
-        strokeThickness: 6
-      }
-    );
-    transitionText.setOrigin(0.5);
-    transitionText.setDepth(1000);
-
-    // Perform transition (3 seconds total)
-    const result = await this.stageManager.transitionToStage(
-      newStage,
-      gameWidth,
-      height,
-      this.pathGraphicsArray,
-      this.backgroundImage
-    );
-
-    // Update scene references
-    this.allPaths = result.pathPoints;
-    this.pathGraphicsArray = result.pathGraphics;
-    this.backgroundImage = result.background;
-
-    // Update managers with new paths
-    this.enemyManager.updatePath(this.allPaths);
-    this.towerManager.updatePath(this.allPaths);
-
-    // Remove towers within 20px of new path
-    this.removeTowersNearPath(20);
-
-    // Fade out transition message
-    this.tweens.add({
-      targets: transitionText,
-      alpha: 0,
-      duration: 1000,
-      onComplete: () => {
-        transitionText.destroy();
-        // Re-enable input
-        this.stageTransitionInProgress = false;
-      }
-    });
-  }
-
-  /**
-   * Remove towers that are within the specified distance of the path
-   */
-  removeTowersNearPath(minDistance: number) {
-    const towersToRemove: Tower[] = [];
-
-    // Check each tower
-    this.towerManager.getTowers().forEach(tower => {
-      // Check distance to ALL paths
-      for (const pathPoints of this.allPaths) {
-        let tooClose = false;
-        // Check distance to each path segment
-        for (let i = 0; i < pathPoints.length - 1; i++) {
-          const p1 = pathPoints[i];
-          const p2 = pathPoints[i + 1];
-
-          // Calculate distance from tower to line segment
-          const distance = this.distanceToLineSegment(tower.x, tower.y, p1.x, p1.y, p2.x, p2.y);
-
-          if (distance < minDistance) {
-            towersToRemove.push(tower);
-            tooClose = true;
-            break; // No need to check other segments in this path
-          }
-        }
-        if (tooClose) break; // No need to check other paths
-      }
-    });
-
-    // Remove towers and show message if any were removed
-    if (towersToRemove.length > 0) {
-      towersToRemove.forEach(tower => {
-        this.towerManager.removeTower(tower);
-      });
-
-      this.showErrorMessage(
-        `${towersToRemove.length} tower${towersToRemove.length > 1 ? 's' : ''} removed (too close to new path)`
-      );
-    }
-  }
 
   /**
    * Calculate distance from point to line segment

@@ -176,9 +176,9 @@ export class MobileSupport {
             // Portrait mode - show rotate prompt
             this.showOrientationOverlay();
         } else if (wasLandscape === false && this.isLandscape) {
-            // Just rotated to landscape - show countdown
+            // Just rotated to landscape - hide orientation overlay (no countdown)
             this.hideOrientationOverlay();
-            this.showCountdownOverlay();
+            // Countdown removed - was: this.showCountdownOverlay();
         }
     }
 
@@ -346,13 +346,11 @@ export class MobileSupport {
     private setupVisibilityDetection() {
         this.visibilityHandler = () => {
             if (document.hidden) {
+                // Tab is hidden - pause the game
                 this.isPausedForVisibility = true;
             } else {
-                // Check if game has started before showing countdown
-                const gameStarted = this.gameStartedCallback ? this.gameStartedCallback() : true;
-                if (this.isPausedForVisibility && gameStarted) {
-                    this.showCountdownOverlay();
-                }
+                // Tab is visible again - unpause immediately (no countdown)
+                this.isPausedForVisibility = false;
             }
         };
 

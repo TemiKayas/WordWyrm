@@ -137,11 +137,9 @@ export class AbilityManager {
       // Clear frozen flag so commander aura can affect this enemy again
       enemy.frozen = false;
 
-      // Restore goblin animation when unfrozen
-      if (enemy.sprite && enemy.type === EnemyType.RED) {
-        enemy.sprite.setTexture('enemy_goblin_walk', 0); // Reset to spritesheet
-        enemy.sprite.play('goblin_walk'); // Resume walking animation
-      }
+      // Restore goblin animation when unfrozen (all enemies now use goblin sprites)
+      enemy.sprite.setTexture('goblin_frame_1');
+      enemy.sprite.play('goblin_walk'); // Resume walking animation
 
       if (enemy.type === EnemyType.BOSS) {
         // Restore boss speed

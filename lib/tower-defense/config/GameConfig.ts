@@ -12,7 +12,8 @@ export const TOWER_SPRITE_SCALES = {
   trebuchet: 0.25,     // Trebuchet (sniper)
   knight: 0.1,        // Knight (melee)
   archmage: 0.11,     // Archmage (wizard)
-  trainingCamp: 0.1  // Training Camp (fact)
+  trainingCamp: 0.1,  // Training Camp (fact)
+  cannon: 0.2         // Cannon (AoE)
 } as const;
 
 // ============================================
@@ -22,7 +23,8 @@ export const TOWER_SPRITE_SCALES = {
 export const PROJECTILE_SPRITE_SCALES = {
   ballista: 0.125,    // Ballista arrow (75% smaller than original 0.5)
   catapult: 0.25,      // Catapult rock
-  wizard: 0.2         // Wizard spell
+  wizard: 0.2,         // Wizard spell
+  cannon: 0.2         // Cannonball
 } as const;
 
 // ============================================
@@ -44,7 +46,8 @@ export const ENEMY_SPRITE_SCALES = {
 export const PROJECTILE_ROTATION_OFFSETS = {
   ballista: -Math.PI / 2,    // Arrow points UP in sprite, needs -90° rotation
   catapult: 0,               // Rock - no orientation needed
-  wizard: 0                  // Spell - no orientation needed
+  wizard: 0,                  // Spell - no orientation needed
+  cannon: 0                  // Cannonball - no orientation needed
 } as const;
 
 // ============================================
@@ -154,4 +157,27 @@ export function getResponsiveSpriteScale(
   );
 
   return clampedScale;
+}
+
+/**
+ * Calculate responsive font size based on current screen height
+ *
+ * @param baseSize - The base font size (e.g. 18)
+ * @param sceneHeight - Current scene height
+ * @returns CSS font string (e.g. "24px")
+ */
+export function getResponsiveFontSize(
+  baseSize: number,
+  sceneHeight: number
+): string {
+  // Calculate scale factor based on height relative to 1080p
+  const scaleFactor = sceneHeight / SCALE_FACTORS.BASE_HEIGHT;
+  
+  // Calculate new size, clamping to reasonable limits
+  // Don't shrink below 0.8x or grow above 1.5x of base
+  // AND enforce a hard minimum of 14px for readability
+  const calculatedSize = Math.round(baseSize * Math.max(0.8, Math.min(1.5, scaleFactor)));
+  const newSize = Math.max(14, calculatedSize);
+  
+  return `${newSize}px`;
 }
