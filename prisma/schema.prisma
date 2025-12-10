@@ -112,6 +112,9 @@ model Student {
   userId String  @unique
   grade  String?
 
+  coins              Int      @default(0) // Currency for shop
+  unlockedCharacters Json     @default("[1]") // List of character IDs owned
+
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   gameSessions GameSession[]
 
