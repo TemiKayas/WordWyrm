@@ -9,6 +9,43 @@ import { LAYOUT } from '@/lib/tower-defense/config/LayoutConfig';
 
 export default class UIScene extends Phaser.Scene {
 
+  // UI Element Properties
+  heartIcons: Phaser.GameObjects.Image[] = [];
+  startRoundButton?: Phaser.GameObjects.Image;
+  startRoundButtonText?: Phaser.GameObjects.Text;
+  speedButton?: Phaser.GameObjects.Image;
+  speedButtonText?: Phaser.GameObjects.Text;
+  startGameButtonBg?: Phaser.GameObjects.Rectangle;
+  startGameButtonText?: Phaser.GameObjects.Text;
+  cleared_rectangle?: Phaser.GameObjects.Image;
+  backButtonText?: Phaser.GameObjects.Text;
+  goldText?: Phaser.GameObjects.Text;
+  waveNumberText?: Phaser.GameObjects.Text;
+
+  // Tower buttons
+  ballistaBtn?: Phaser.GameObjects.Image;
+  trebuchetBtn?: Phaser.GameObjects.Image;
+  knightBtn?: Phaser.GameObjects.Image;
+  trainingCampBtn?: Phaser.GameObjects.Image;
+  archmageBtn?: Phaser.GameObjects.Image;
+  cannonBtn?: Phaser.GameObjects.Image;
+  towerButtons?: Phaser.GameObjects.Image[];
+
+  // Power buttons
+  freezeBtn?: Phaser.GameObjects.Image;
+  lightningBtn?: Phaser.GameObjects.Image;
+  quizBuffBtn?: Phaser.GameObjects.Image;
+  powerButtons?: Phaser.GameObjects.Image[];
+
+  // Menu state
+  towersMenuOpen: boolean = false;
+  powersMenuOpen: boolean = false;
+  towersOpenedIcon?: Phaser.GameObjects.Image;
+  towersToggleIcon?: Phaser.GameObjects.Image;
+  powersOpenedIcon?: Phaser.GameObjects.Image;
+  powersToggleIcon?: Phaser.GameObjects.Image;
+  currentSpeed: number = 1;
+
   constructor() {
     super("UIScene");
 

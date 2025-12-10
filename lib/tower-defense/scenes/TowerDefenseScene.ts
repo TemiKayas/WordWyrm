@@ -1545,7 +1545,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
           
           // Update visual position immediately
           if (enemy.graphics) enemy.graphics.setPosition(newX, newY);
-          if (enemy.sprite) enemy.sprite.setPosition(newX, newY);
+          enemy.sprite.setPosition(newX, newY);
           if (enemy.healthBarBg) enemy.healthBarBg.setPosition(newX, newY);
           if (enemy.healthBarFill) enemy.healthBarFill.setPosition(newX, newY);
         }
