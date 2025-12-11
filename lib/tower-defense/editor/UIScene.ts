@@ -530,18 +530,36 @@ export default class UIScene extends Phaser.Scene {
     }
 
         // Tower buttons - Map UI buttons to tower types
-        this.setupTowerButton(this.ballistaBtn, 'basic');      // Ballista
-        this.setupTowerButton(this.trebuchetBtn, 'sniper');    // Trebuchet
-        this.setupTowerButton(this.knightBtn, 'melee');        // Knight
-        
+        if (this.ballistaBtn) {
+            this.setupTowerButton(this.ballistaBtn, 'basic');      // Ballista
+        } else {
+            console.warn("[UIScene] ballistaBtn not found during setup");
+        }
+
+        if (this.trebuchetBtn) {
+            this.setupTowerButton(this.trebuchetBtn, 'sniper');    // Trebuchet
+        } else {
+            console.warn("[UIScene] trebuchetBtn not found during setup");
+        }
+
+        if (this.knightBtn) {
+            this.setupTowerButton(this.knightBtn, 'melee');        // Knight
+        } else {
+            console.warn("[UIScene] knightBtn not found during setup");
+        }
+
         // Training Camp (Fact Tower)
         if (this.trainingCampBtn) {
             this.setupTowerButton(this.trainingCampBtn, 'fact');
         } else {
             console.warn("[UIScene] trainingCampBtn not found during setup");
         }
-    
-        this.setupTowerButton(this.archmageBtn, 'wizard');     // Archmage
+
+        if (this.archmageBtn) {
+            this.setupTowerButton(this.archmageBtn, 'wizard');     // Archmage
+        } else {
+            console.warn("[UIScene] archmageBtn not found during setup");
+        }
     
         // Cannon button
         if (this.cannonBtn) {
@@ -550,9 +568,23 @@ export default class UIScene extends Phaser.Scene {
             console.warn("[UIScene] cannonBtn not found during setup");
         }
     // Power buttons
-    this.setupPowerButton(this.lightningBtn, 'lightning');
-    this.setupPowerButton(this.freezeBtn, 'freeze');
-    this.setupPowerButton(this.quizBuffBtn, 'question');
+    if (this.lightningBtn) {
+        this.setupPowerButton(this.lightningBtn, 'lightning');
+    } else {
+        console.warn("[UIScene] lightningBtn not found during setup");
+    }
+
+    if (this.freezeBtn) {
+        this.setupPowerButton(this.freezeBtn, 'freeze');
+    } else {
+        console.warn("[UIScene] freezeBtn not found during setup");
+    }
+
+    if (this.quizBuffBtn) {
+        this.setupPowerButton(this.quizBuffBtn, 'question');
+    } else {
+        console.warn("[UIScene] quizBuffBtn not found during setup");
+    }
 
     // Tower menu toggle
     if (this.towersToggleIcon) {
