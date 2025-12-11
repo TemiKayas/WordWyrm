@@ -69,7 +69,9 @@ const TowerDefenseGame = ({ quiz }: TowerDefenseGameProps) => {
             width: 1920,
             height: 1080,
             expandParent: false,
-            autoRound: true
+            autoRound: true,
+            // High-DPI/Retina support - cap at 2x to balance quality and performance
+            resolution: Math.min(window.devicePixelRatio || 1, 2)
           },
           dom: {
             createContainer: true // Enable DOM element support
@@ -78,9 +80,7 @@ const TowerDefenseGame = ({ quiz }: TowerDefenseGameProps) => {
             antialias: true, // Enable antialiasing for smooth graphics (not pixel art)
             antialiasGL: true,
             roundPixels: false, // Allow sub-pixel rendering for smooth scaling
-            pixelArt: false, // Disable pixel art mode (not a pixel art game)
-            // High-DPI/Retina support - cap at 2x to balance quality and performance
-            resolution: Math.min(window.devicePixelRatio || 1, 2)
+            pixelArt: false // Disable pixel art mode (not a pixel art game)
           },
           physics: {
             default: 'arcade',
