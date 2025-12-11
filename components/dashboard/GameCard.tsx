@@ -3,8 +3,9 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import { GameMode } from '@prisma/client';
+import { getDefaultGameThumbnail } from '@/lib/utils/game';
 
-import { FileText, Gamepad2, BarChart3 } from 'lucide-react';
+import { BarChart3 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 
 interface GameCardProps {
@@ -166,29 +167,12 @@ export default function GameCard({
 
       {/* game image or game mode icon */}
       <div className="flex justify-center mb-4">
-        <div className="relative w-full h-[100px] md:h-[110px] rounded-[15px] overflow-hidden bg-gradient-to-br from-[#fff6e8] to-[#ffe9d0] border-2 border-[#473025]/10">
-          {imageUrl ? (
-            <img
-              src={imageUrl}
-              alt={title}
-              className="w-full h-full object-cover"
-            />
-          ) : gameMode === GameMode.SNAKE ? (
-            <div className="w-full h-full flex items-center justify-center text-[#473025]">
-              <Gamepad2 size={64} strokeWidth={1.5} />
-            </div>
-          ) : gameMode === GameMode.TOWER_DEFENSE ? (
-            <Image
-              src="/assets/dashboard/tower-defense-game-icon.png"
-              alt="Tower Defense Game"
-              fill
-              className="object-contain p-2"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-[#473025]">
-              <FileText size={64} strokeWidth={1.5} />
-            </div>
-          )}
+        <div className="relative w-full h-[160px] md:h-[200px] rounded-[15px] overflow-hidden bg-gradient-to-br from-[#fff6e8] to-[#ffe9d0] border-2 border-[#473025]/10">
+          <img
+            src={imageUrl || getDefaultGameThumbnail(gameMode)}
+            alt={title}
+            className="w-full h-full object-cover"
+          />
         </div>
       </div>
 

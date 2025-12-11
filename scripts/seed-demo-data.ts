@@ -61,6 +61,7 @@ import { PrismaClient, Role, GameMode, Subject } from '@prisma/client';
 import { hash } from 'bcryptjs';
 import { faker } from '@faker-js/faker';
 import { generateGameQRCode } from '@/lib/utils/qr-code';
+import { getDefaultGameThumbnail } from '@/lib/utils/game';
 import { del } from '@vercel/blob';
 
 // ============================================================================
@@ -650,6 +651,7 @@ async function seedDemoData() {
               description: `Demo game in ${gameMode} mode`,
               shareCode,
               qrCodeUrl,
+              imageUrl: getDefaultGameThumbnail(gameMode),
               gameMode,
               isPublic: Math.random() > 0.5, // 50% public
               active: true,
