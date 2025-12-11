@@ -67,6 +67,9 @@ const TowerDefenseGame = ({ quiz }: TowerDefenseGameProps) => {
               debug: false, // true for physics debug visuals
             },
           },
+          audio: {
+            disableWebAudio: true, // Prevent audio context suspend/resume errors on destroy
+          },
           // Don't auto-start scenes - we'll start them manually
           scene: [],
         };

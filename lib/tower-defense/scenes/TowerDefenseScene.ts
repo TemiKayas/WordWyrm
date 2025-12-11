@@ -373,7 +373,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
 
     // Draw path
     this.pathGraphics = this.add.graphics();
-    this.pathGraphics.lineStyle(70, 0x5d4037, 1); // Dark brown path
+    this.pathGraphics.lineStyle(70, 0x5d4037, 0); // Dark brown path (hidden with alpha 0)
     
     // Initial path calculation will happen in handleResize which is called immediately after
     this.handleResize(this.scale.baseSize);
@@ -647,20 +647,24 @@ export default class TowerDefenseScene extends Phaser.Scene {
     // Create new preview if tower type is selected
     if (this.selectedTowerType) {
       const stats = this.towerManager.getTowerStats(this.selectedTowerType);
+      
+      // Get current pointer position to avoid (0,0) spawn
+      const pointerX = this.input.activePointer.x;
+      const pointerY = this.input.activePointer.y;
 
       // Create range indicator circle
-      this.placementRangePreview = this.add.circle(0, 0, stats.range, 0xffffff, 0.1);
+      this.placementRangePreview = this.add.circle(pointerX, pointerY, stats.range, 0xffffff, 0.1);
       this.placementRangePreview.setStrokeStyle(1, 0xffffff, 0.3);
       this.placementRangePreview.setDepth(90); // Below tower preview but above ground
 
       if (this.selectedTowerType === 'fact') {
         // Training Camp - use rectangle
-        this.placementPreview = this.add.rectangle(0, 0, 40, 40, stats.color);
+        this.placementPreview = this.add.rectangle(pointerX, pointerY, 40, 40, stats.color);
         this.placementPreview.setScale(stats.spriteScale);
         this.placementPreview.setAlpha(0.7);
       } else if (this.selectedTowerType === 'melee' || this.selectedTowerType === 'wizard') {
         // Layered towers - use container with both sprites
-        const container = this.add.container(0, 0);
+        const container = this.add.container(pointerX, pointerY);
         const backKey = this.selectedTowerType === 'melee' ? 'tower_melee_back' : 'tower_wizard_back';
         const frontKey = this.selectedTowerType === 'melee' ? 'tower_melee_front' : 'tower_wizard_front';
         const backSprite = this.add.image(0, 0, backKey).setOrigin(0.5, 0.5).setScale(stats.spriteScale);
@@ -674,7 +678,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
         if (this.selectedTowerType === 'sniper') spriteKey = 'tower_catapult';
         else if (this.selectedTowerType === 'cannon') spriteKey = 'tower_cannon';
 
-        this.placementPreview = this.add.image(0, 0, spriteKey);
+        this.placementPreview = this.add.image(pointerX, pointerY, spriteKey);
         this.placementPreview.setScale(stats.spriteScale);
         this.placementPreview.setAlpha(0.7);
       }
@@ -1350,7 +1354,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
       ...TEXT_STYLES.ERROR_MESSAGE,
       color: textColor,
       fontSize: Math.min(24, width / 60) + 'px'
-    }).setOrigin(0.5);
+    }).setOrigin(0.5).setDepth(1000); // Render above towers and other game elements
 
     this.time.delayedCall(2000, () => {
       this.errorMessage?.destroy();
@@ -1534,7 +1538,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
     // Redraw path
     if (this.pathGraphics) {
       this.pathGraphics.clear();
-      this.pathGraphics.lineStyle(70 * scale, 0x5d4037, 1); // Scale path width
+      this.pathGraphics.lineStyle(70 * scale, 0x5d4037, 0); // Scale path width (hidden with alpha 0)
       this.pathGraphics.beginPath();
       this.pathGraphics.moveTo(this.path[0].x, this.path[0].y);
       for (let i = 1; i < this.path.length; i++) {
