@@ -45,7 +45,7 @@ export default function DiscoverPage() {
     fetchGames();
   }, [subject, gameMode, search, sortBy]);
 
-  const hasActiveFilters = subject || gameMode || search || sortBy !== 'newest';
+  const hasActiveFilters = Boolean(subject || gameMode || search || sortBy !== 'newest');
 
   const clearFilters = () => {
     setSubject('');

@@ -34,7 +34,7 @@ export default function ShopkeeperSection() {
           alt="Desk"
           width={1800}
           height={700}
-          className="w-full h-full object-contain"x
+          className="w-full h-full object-contain"
         />
       </div>
 
