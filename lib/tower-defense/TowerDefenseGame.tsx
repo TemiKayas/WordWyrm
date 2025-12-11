@@ -59,7 +59,7 @@ const TowerDefenseGame = ({ quiz }: TowerDefenseGameProps) => {
             roundPixels: true, // Snap to whole pixels to prevent sub-pixel blur
             pixelArt: true, // Enable pixel art mode for sharp edges
           },
-          resolution: window.devicePixelRatio || 1, // Match device pixel ratio for crisp rendering
+          // Note: resolution property removed - not supported in current Phaser version
           physics: {
             default: 'arcade',
             arcade: {

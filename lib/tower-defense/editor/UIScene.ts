@@ -530,19 +530,27 @@ export default class UIScene extends Phaser.Scene {
     }
 
         // Tower buttons - Map UI buttons to tower types
-        this.setupTowerButton(this.ballistaBtn, 'basic');      // Ballista
-        this.setupTowerButton(this.trebuchetBtn, 'sniper');    // Trebuchet
-        this.setupTowerButton(this.knightBtn, 'melee');        // Knight
-        
+        if (this.ballistaBtn) {
+            this.setupTowerButton(this.ballistaBtn, 'basic');      // Ballista
+        }
+        if (this.trebuchetBtn) {
+            this.setupTowerButton(this.trebuchetBtn, 'sniper');    // Trebuchet
+        }
+        if (this.knightBtn) {
+            this.setupTowerButton(this.knightBtn, 'melee');        // Knight
+        }
+
         // Training Camp (Fact Tower)
         if (this.trainingCampBtn) {
             this.setupTowerButton(this.trainingCampBtn, 'fact');
         } else {
             console.warn("[UIScene] trainingCampBtn not found during setup");
         }
-    
-        this.setupTowerButton(this.archmageBtn, 'wizard');     // Archmage
-    
+
+        if (this.archmageBtn) {
+            this.setupTowerButton(this.archmageBtn, 'wizard');     // Archmage
+        }
+
         // Cannon button
         if (this.cannonBtn) {
           this.setupTowerButton(this.cannonBtn, 'cannon');
@@ -550,9 +558,15 @@ export default class UIScene extends Phaser.Scene {
             console.warn("[UIScene] cannonBtn not found during setup");
         }
     // Power buttons
-    this.setupPowerButton(this.lightningBtn, 'lightning');
-    this.setupPowerButton(this.freezeBtn, 'freeze');
-    this.setupPowerButton(this.quizBuffBtn, 'question');
+    if (this.lightningBtn) {
+        this.setupPowerButton(this.lightningBtn, 'lightning');
+    }
+    if (this.freezeBtn) {
+        this.setupPowerButton(this.freezeBtn, 'freeze');
+    }
+    if (this.quizBuffBtn) {
+        this.setupPowerButton(this.quizBuffBtn, 'question');
+    }
 
     // Tower menu toggle
     if (this.towersToggleIcon) {
@@ -690,7 +704,7 @@ export default class UIScene extends Phaser.Scene {
                Math.abs(child.y - 46) < 5
     );
     if (backButtonBg) {
-      backButtonBg.setPosition(padding + 57, padding - 14);
+      (backButtonBg as Phaser.GameObjects.Image).setPosition(padding + 57, padding - 14);
     }
 
     // Back button text
@@ -705,7 +719,7 @@ export default class UIScene extends Phaser.Scene {
                Math.abs(child.y - 137) < 5
     );
     if (goldBackground) {
-      goldBackground.setPosition(padding + 60, 137);
+      (goldBackground as Phaser.GameObjects.Image).setPosition(padding + 60, 137);
     }
     if (this.goldText) {
       this.goldText.setPosition(padding + 63, 138);
@@ -717,7 +731,7 @@ export default class UIScene extends Phaser.Scene {
                (child as Phaser.GameObjects.Image).texture.key === 'coin_icon'
     );
     if (coinIcon) {
-      coinIcon.setPosition(padding + 29, 137);
+      (coinIcon as Phaser.GameObjects.Image).setPosition(padding + 29, 137);
     }
 
     // Lives label and hearts background (originally at y=93)
@@ -727,7 +741,7 @@ export default class UIScene extends Phaser.Scene {
                Math.abs(child.y - 93) < 5
     );
     if (livesBackground) {
-      livesBackground.setPosition(padding + 28, 93);
+      (livesBackground as Phaser.GameObjects.Image).setPosition(padding + 28, 93);
     }
 
     // Lives label (originally at y=83)
@@ -736,7 +750,7 @@ export default class UIScene extends Phaser.Scene {
                (child as Phaser.GameObjects.Text).text.includes('Lives')
     );
     if (livesLabel) {
-      livesLabel.setPosition(padding + 8, 83);
+      (livesLabel as Phaser.GameObjects.Text).setPosition(padding + 8, 83);
     }
 
     // Position hearts horizontally starting from lives label
@@ -757,7 +771,7 @@ export default class UIScene extends Phaser.Scene {
                (child as Phaser.GameObjects.Image).texture.key === 'flag_rectangle1'
     );
     if (flagRect1) {
-      flagRect1.setPosition(topRightX - 90, topRightStartY);
+      (flagRect1 as Phaser.GameObjects.Image).setPosition(topRightX - 90, topRightStartY);
     }
 
     const flagRect2 = allChildren.find(
@@ -765,7 +779,7 @@ export default class UIScene extends Phaser.Scene {
                (child as Phaser.GameObjects.Image).texture.key === 'flag_rectangle2'
     );
     if (flagRect2) {
-      flagRect2.setPosition(topRightX - 9, topRightStartY + 23);
+      (flagRect2 as Phaser.GameObjects.Image).setPosition(topRightX - 9, topRightStartY + 23);
     }
 
     const flagRect3 = allChildren.find(
@@ -773,7 +787,7 @@ export default class UIScene extends Phaser.Scene {
                (child as Phaser.GameObjects.Image).texture.key === 'flag_rectangle3'
     );
     if (flagRect3) {
-      flagRect3.setPosition(topRightX - 90, topRightStartY + 1);
+      (flagRect3 as Phaser.GameObjects.Image).setPosition(topRightX - 90, topRightStartY + 1);
     }
 
     const flagPart = allChildren.find(
@@ -781,7 +795,7 @@ export default class UIScene extends Phaser.Scene {
                (child as Phaser.GameObjects.Image).texture.key === 'flag_part'
     );
     if (flagPart) {
-      flagPart.setPosition(topRightX - 171, topRightStartY);
+      (flagPart as Phaser.GameObjects.Image).setPosition(topRightX - 171, topRightStartY);
     }
 
     // Wave counter text elements
@@ -790,7 +804,7 @@ export default class UIScene extends Phaser.Scene {
                (child as Phaser.GameObjects.Text).text === 'ROUND'
     );
     if (waveCounterLabel) {
-      waveCounterLabel.setPosition(topRightX - 89, topRightStartY + 39);
+      (waveCounterLabel as Phaser.GameObjects.Text).setPosition(topRightX - 89, topRightStartY + 39);
     }
 
     const subtract = allChildren.find(
@@ -798,7 +812,7 @@ export default class UIScene extends Phaser.Scene {
                (child as Phaser.GameObjects.Image).texture.key === 'subtract'
     );
     if (subtract) {
-      subtract.setPosition(topRightX - 90, topRightStartY + 168);
+      (subtract as Phaser.GameObjects.Image).setPosition(topRightX - 90, topRightStartY + 168);
     }
 
     const ellipse63 = allChildren.find(
@@ -806,7 +820,7 @@ export default class UIScene extends Phaser.Scene {
                (child as Phaser.GameObjects.Image).texture.key === 'ellipse_63'
     );
     if (ellipse63) {
-      ellipse63.setPosition(topRightX - 89, topRightStartY + 81);
+      (ellipse63 as Phaser.GameObjects.Image).setPosition(topRightX - 89, topRightStartY + 81);
     }
 
     if (this.waveNumberText) {
@@ -834,7 +848,7 @@ export default class UIScene extends Phaser.Scene {
                (child as Phaser.GameObjects.Text).text === 'SPEED'
     );
     if (speedLabel) {
-      speedLabel.setPosition(topRightX - 123, topRightStartY + 184);
+      (speedLabel as Phaser.GameObjects.Text).setPosition(topRightX - 123, topRightStartY + 184);
     }
 
     // BOTTOM-CENTER ANCHOR: Tower and power buttons
@@ -893,22 +907,26 @@ export default class UIScene extends Phaser.Scene {
     this.towersMenuOpen = !this.towersMenuOpen;
 
     // Toggle icon texture
-    const texture = this.towersMenuOpen ? 'towers_opened_icon' : 'towers_closed_icon';
-    this.towersToggleIcon.setTexture(texture);
+    if (this.towersToggleIcon) {
+      const texture = this.towersMenuOpen ? 'towers_opened_icon' : 'towers_closed_icon';
+      this.towersToggleIcon.setTexture(texture);
+    }
 
     // Show/hide tower buttons
-    this.towerButtons.forEach(btn => btn.setVisible(this.towersMenuOpen));
+    this.towerButtons?.forEach(btn => btn.setVisible(this.towersMenuOpen));
   }
 
   togglePowersMenu(): void {
     this.powersMenuOpen = !this.powersMenuOpen;
 
     // Toggle icon texture
-    const texture = this.powersMenuOpen ? 'powers_opened_icon' : 'powers_closed_icon';
-    this.powersToggleIcon.setTexture(texture);
+    if (this.powersToggleIcon) {
+      const texture = this.powersMenuOpen ? 'powers_opened_icon' : 'powers_closed_icon';
+      this.powersToggleIcon.setTexture(texture);
+    }
 
     // Show/hide power buttons
-    this.powerButtons.forEach(btn => btn.setVisible(this.powersMenuOpen));
+    this.powerButtons?.forEach(btn => btn.setVisible(this.powersMenuOpen));
   }
 
   setPowerButtonState(power: 'lightning' | 'freeze' | 'question', available: boolean) {
@@ -983,7 +1001,7 @@ export default class UIScene extends Phaser.Scene {
 
   onSpeedChanged(speed: number): void {
     this.currentSpeed = speed;
-    this.speedButtonText.setText(`SPEED ${speed}x`);
+    this.speedButtonText?.setText(`SPEED ${speed}x`);
   }
 
 

@@ -385,8 +385,7 @@ export default class SnakeScene extends Phaser.Scene {
       fontSize: '15px',
       color: '#FFF',
       fontFamily: 'Quicksand',
-      fontStyle: 'normal',
-      fontWeight: '900',
+      fontStyle: 'bold',
       align: 'center'
     }).setOrigin(0.5).setDepth(3001);
 
@@ -401,8 +400,7 @@ export default class SnakeScene extends Phaser.Scene {
       fontSize: '15px',
       color: '#FFF',
       fontFamily: 'Quicksand',
-      fontStyle: 'normal',
-      fontWeight: '900',
+      fontStyle: 'bold',
       align: 'center'
     }).setOrigin(0.5).setDepth(3001);
 
@@ -441,48 +439,6 @@ export default class SnakeScene extends Phaser.Scene {
 
     // Draw rectangle around the grid area
     border.strokeRect(offsetX, offsetY, width, height);
-  }
-
-  createQuestionPanel(leftAreaWidth: number, panelWidth: number, height: number) {
-    // Panel starts after the left area
-    const panelStartX = leftAreaWidth;
-
-    // Calculate panel height with vertical gaps
-    const verticalGap = 20; // Gap above and below
-    const panelHeight = height - (verticalGap * 2);
-
-    // Panel background - custom image (centered vertically with gaps)
-    const panel = this.add.image(
-      panelStartX + panelWidth / 2,
-      height / 2,
-      'question-panel'
-    );
-    panel.setDisplaySize(panelWidth, panelHeight);
-
-    // Title
-    this.add.text(panelStartX + panelWidth / 2, 60, 'SNAKE QUIZ', {
-      fontSize: '24px',
-      color: '#473025',
-      fontFamily: 'Quicksand',
-      fontStyle: 'bold',
-      fontWeight: '900',
-      align: 'center'
-    }).setOrigin(0.5);
-
-    // Instructions
-    this.add.text(
-      panelStartX + panelWidth / 2,
-      95,
-      'Eat the fruit matching the correct answer!',
-      {
-        fontSize: '15px',
-        color: '#A8886D',
-        fontFamily: 'Quicksand',
-        fontStyle: 'normal',
-        fontWeight: '700',
-        align: 'center'
-      }
-    ).setOrigin(0.5);
   }
 
   updateCoinPosition() {
@@ -544,8 +500,7 @@ export default class SnakeScene extends Phaser.Scene {
         color: '#FDF0DC',
         fontFamily: 'Quicksand',
         fontStyle: 'bold',
-        fontWeight: '700',
-        align: 'center'
+          align: 'center'
       }
     ).setOrigin(0.5).setDepth(5003);
 
@@ -560,8 +515,7 @@ export default class SnakeScene extends Phaser.Scene {
         color: '#473025',
         fontFamily: 'Quicksand',
         fontStyle: 'bold',
-        fontWeight: '700',
-        align: 'center',
+          align: 'center',
         wordWrap: { width: size * 0.65 }
       }
     ).setOrigin(0.5).setDepth(5002);
@@ -625,8 +579,7 @@ export default class SnakeScene extends Phaser.Scene {
           color: '#473025',
           fontFamily: 'Quicksand',
           fontStyle: 'bold',
-          fontWeight: '700',
-          align: 'center'
+              align: 'center'
         }
       ).setOrigin(0.5).setDepth(5003);
 
@@ -647,28 +600,23 @@ export default class SnakeScene extends Phaser.Scene {
     // First line
     const line1Part1 = this.add.text(0, 0, line1Text, {
       fontSize: '17px', color: '#473025', fontFamily: 'Quicksand',
-      fontStyle: 'bold', fontWeight: '700'
-    }).setDepth(5002);
+      fontStyle: 'bold'    }).setDepth(5002);
 
     const line1Part2 = this.add.text(0, 0, wasdText, {
       fontSize: '17px', color: '#EA1644', fontFamily: 'Quicksand',
-      fontStyle: 'bold', fontWeight: '700'
-    }).setDepth(5002);
+      fontStyle: 'bold'    }).setDepth(5002);
 
     const line1Part3 = this.add.text(0, 0, line1Middle, {
       fontSize: '17px', color: '#473025', fontFamily: 'Quicksand',
-      fontStyle: 'bold', fontWeight: '700'
-    }).setDepth(5002);
+      fontStyle: 'bold'    }).setDepth(5002);
 
     const line1Part4 = this.add.text(0, 0, arrowKeysText, {
       fontSize: '17px', color: '#EA1644', fontFamily: 'Quicksand',
-      fontStyle: 'bold', fontWeight: '700'
-    }).setDepth(5002);
+      fontStyle: 'bold'    }).setDepth(5002);
 
     const line1Part5 = this.add.text(0, 0, line2Text, {
       fontSize: '17px', color: '#473025', fontFamily: 'Quicksand',
-      fontStyle: 'bold', fontWeight: '700'
-    }).setDepth(5002);
+      fontStyle: 'bold'    }).setDepth(5002);
 
     // Second line
     const line2Part1 = this.add.text(
@@ -677,7 +625,7 @@ export default class SnakeScene extends Phaser.Scene {
       line3Text,
       {
         fontSize: '17px', color: '#473025', fontFamily: 'Quicksand',
-        fontStyle: 'bold', fontWeight: '700', align: 'center'
+        fontStyle: 'bold', align: 'center'
       }
     ).setOrigin(0.5, 0).setDepth(5002);
 
@@ -716,8 +664,7 @@ export default class SnakeScene extends Phaser.Scene {
         color: '#FFF',
         fontFamily: 'Quicksand',
         fontStyle: 'bold',
-        fontWeight: '700',
-        align: 'center'
+          align: 'center'
       }
     ).setOrigin(0.5).setDepth(5003).setScale(1.1);
 
@@ -2223,8 +2170,7 @@ export default class SnakeScene extends Phaser.Scene {
           color: '#473025',
           fontFamily: 'Quicksand',
           fontStyle: 'bold',
-          fontWeight: '700',
-          align: 'center'
+              align: 'center'
         }
       ).setOrigin(0.5).setDepth(2002).setAlpha(0);
 
@@ -2297,8 +2243,7 @@ export default class SnakeScene extends Phaser.Scene {
           color: '#473025',
           fontFamily: 'Quicksand',
           fontStyle: 'bold',
-          fontWeight: '700',
-          align: 'center',
+              align: 'center',
           wordWrap: { width: size * 0.65, useAdvancedWrap: true },
           lineSpacing: Math.round(16 * 0.31075)
         }
@@ -2425,7 +2370,8 @@ export default class SnakeScene extends Phaser.Scene {
       ).setOrigin(0.5).setDepth(2002);
 
       backButton.on('pointerdown', () => {
-        explainOverlay.destroy();
+        backgroundOverlay.destroy();
+        popupFrame.destroy();
         loadingText.destroy();
         backButton.destroy();
         backText.destroy();

@@ -164,9 +164,12 @@ export default class TowerDefenseScene extends Phaser.Scene {
   private bossEnemy: Enemy | null = null;
   private bossQuestion: QuizQuestion | null = null;
   private bossQuestionTimer: number = 0; // 30 second timer
+  private bossQuestionPopup?: Phaser.GameObjects.Container;
   private bossAnsweredCorrectly: boolean[] = []; // for spaced repetition
   private towerGlobalBuffActive: boolean = false; // +15% damage/fire rate
   private bossBuffMessage?: Phaser.GameObjects.Text;
+  private activePopupOverlay?: Phaser.GameObjects.Rectangle;
+  private challengeQuestionPopup?: Phaser.GameObjects.Container;
 
   // UI elements - OLD DOM UI (replaced by Phaser Editor UIScene)
   // private waveButtonText!: Phaser.GameObjects.Text;
@@ -183,6 +186,10 @@ export default class TowerDefenseScene extends Phaser.Scene {
   private upgradeContainer?: Phaser.GameObjects.Container;
   private upgradeButtons: Phaser.GameObjects.Rectangle[] = [];
   private startGameButton?: Phaser.GameObjects.Container;
+  private currentQuizQuestion?: any;
+  private currentQuizAnswerButtons?: Phaser.GameObjects.Rectangle[];
+  private currentQuizOverlay?: Phaser.GameObjects.Rectangle;
+  private currentQuizPanel?: Phaser.GameObjects.Rectangle;
   private currentQuizTextObj?: Phaser.GameObjects.Text;
   private errorMessage?: Phaser.GameObjects.Text;
 
@@ -1598,17 +1605,19 @@ export default class TowerDefenseScene extends Phaser.Scene {
       this.startWave();
     }
 
+    // NOTE: Number key quiz handling temporarily disabled - needs proper integration with boss quiz system
     // Handle number keys for quiz answers
-    if (this.currentQuizQuestion && this.currentQuizAnswerButtons && this.currentQuizOverlay && this.currentQuizPanel && this.currentQuizTextObj) {
-      const keys = [key1, key2, key3, key4];
-      for (let i = 0; i < keys.length; i++) {
-        if (Phaser.Input.Keyboard.JustDown(keys[i]) && this.currentQuizQuestion.options.length > i) {
-          const isCorrect = this.currentQuizQuestion.options[i] === this.currentQuizQuestion.answer;
-          this.handleAnswer(isCorrect, this.currentQuizOverlay, this.currentQuizPanel, this.currentQuizTextObj, this.currentQuizAnswerButtons);
-          break;
-        }
-      }
-    }
+    // if (this.currentQuizQuestion && this.currentQuizAnswerButtons && this.currentQuizOverlay && this.currentQuizPanel && this.currentQuizTextObj) {
+    //   const keys = [key1, key2, key3, key4];
+    //   for (let i = 0; i < keys.length; i++) {
+    //     if (Phaser.Input.Keyboard.JustDown(keys[i]) && this.currentQuizQuestion.options.length > i) {
+    //       const isCorrect = this.currentQuizQuestion.options[i] === this.currentQuizQuestion.answer;
+    //       // TODO: Fix parameters - handleBossAnswer expects (isCorrect, bossBaseHealth, questionIndex)
+    //       // this.handleBossAnswer(isCorrect, this.currentQuizOverlay, this.currentQuizPanel, this.currentQuizTextObj, this.currentQuizAnswerButtons);
+    //       break;
+    //     }
+    //   }
+    // }
 
     if (!this.gameStarted) return;
 

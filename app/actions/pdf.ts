@@ -4,7 +4,7 @@ import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { uploadPDF } from '@/lib/blob';
 import { extractTextFromPDF, validatePDF } from '@/lib/processors/pdf-processor';
-import { generateQuiz, Quiz, Subject, QuizQuestion, validateContentForQuiz } from '@/lib/processors/ai-generator';
+import { generateQuiz, Quiz, Subject, QuizQuestion, validateContentForQuiz, Difficulty } from '@/lib/processors/ai-generator';
 
 type ActionResult<T> =
   | { success: true; data: T }
@@ -107,7 +107,7 @@ export async function uploadAndProcessPDF(
     });
 
     // Generate quiz using Gemini
-    const quiz = await generateQuiz(extractedText, numQuestions, subject);
+    const quiz = await generateQuiz(extractedText, numQuestions, Difficulty.HARD);
 
     // save quiz
     const quizRecord = await db.quiz.create({
@@ -267,7 +267,7 @@ export async function uploadAndProcessMultiplePDFs(
 
       // Generate questions for this PDF
       if (numQuestionsForThisPDF > 0) {
-        const quiz = await generateQuiz(extractedText, numQuestionsForThisPDF, subject);
+        const quiz = await generateQuiz(extractedText, numQuestionsForThisPDF, Difficulty.HARD);
         allQuestions.push(...quiz.questions);
       }
     }
@@ -536,7 +536,7 @@ export async function addPDFsToQuiz(params: {
 
       // Generate questions for this PDF
       if (numQuestionsForThisPDF > 0) {
-        const pdfQuiz = await generateQuiz(extractedText, numQuestionsForThisPDF, subject);
+        const pdfQuiz = await generateQuiz(extractedText, numQuestionsForThisPDF, Difficulty.HARD);
         newQuestions.push(...pdfQuiz.questions);
       }
     }
@@ -654,7 +654,7 @@ export async function regenerateQuizQuestions(params: {
       const extractedText = pdf.processedContent.extractedText;
 
       if (numQuestionsForThisPDF > 0) {
-        const pdfQuiz = await generateQuiz(extractedText, numQuestionsForThisPDF, subject);
+        const pdfQuiz = await generateQuiz(extractedText, numQuestionsForThisPDF, Difficulty.HARD);
         allNewQuestions.push(...pdfQuiz.questions);
       }
     }
@@ -830,7 +830,7 @@ export async function processContentForQuiz(
     const combinedContent = contentParts.join('\n\n--- Content Section ---\n\n');
 
     // Validate content quality using AI
-    const validationResult = await validateContentForQuiz(combinedContent, subject);
+    const validationResult = await validateContentForQuiz(combinedContent);
 
     if (!validationResult.valid) {
       return {
@@ -840,7 +840,7 @@ export async function processContentForQuiz(
     }
 
     // Generate quiz from combined content
-    const quiz = await generateQuiz(combinedContent, totalQuestions, subject);
+    const quiz = await generateQuiz(combinedContent, totalQuestions, Difficulty.HARD);
 
     // Create quiz record
     // For text-only content, we need to create a placeholder ProcessedContent
