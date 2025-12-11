@@ -18,7 +18,7 @@ type LeaderboardEntry = {
   totalQuestions: number;
   completedAt: Date;
   isCurrentUser: boolean;
-  metadata: any | null;
+  metadata: unknown;
 };
 
 type GameInfo = {
@@ -42,7 +42,8 @@ export default function TeacherGameResultsPage() {
   const router = useRouter();
   const gameId = params?.gameId as string;
 
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  // On mobile, always start with sidebar closed
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [teacherData, setTeacherData] = useState({
     name: '',
     role: 'INSTRUCTOR' as const,
@@ -119,6 +120,25 @@ export default function TeacherGameResultsPage() {
 
     fetchData();
   }, [gameId]);
+
+  // Ensure sidebar is closed on mobile when window is resized
+  useEffect(() => {
+    const handleResize = () => {
+      // Close sidebar on mobile (below md breakpoint: 768px)
+      if (window.innerWidth < 768 && isSidebarOpen) {
+        setIsSidebarOpen(false);
+      }
+    };
+
+    // Add event listener
+    window.addEventListener('resize', handleResize);
+
+    // Run once on mount to check initial size
+    handleResize();
+
+    // Cleanup
+    return () => window.removeEventListener('resize', handleResize);
+  }, [isSidebarOpen]);
 
   // Fetch analytics when analytics tab is selected
   useEffect(() => {
@@ -377,8 +397,8 @@ export default function TeacherGameResultsPage() {
                     <tbody>
                       {currentLeaderboard.map((entry) => {
                         // Use masteryAccuracy from metadata if available, otherwise calculate
-                        const accuracy = entry.metadata?.masteryAccuracy !== undefined
-                          ? Math.round(entry.metadata.masteryAccuracy)
+                        const accuracy = entry.metadata && typeof entry.metadata === 'object' && 'masteryAccuracy' in entry.metadata
+                          ? Math.round((entry.metadata as { masteryAccuracy: number }).masteryAccuracy)
                           : entry.totalQuestions > 0
                           ? Math.round((entry.correctAnswers / entry.totalQuestions) * 100)
                           : 0;

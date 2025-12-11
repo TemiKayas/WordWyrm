@@ -42,6 +42,10 @@ export class ProjectileManager {
       projKey = 'proj_wizard';
       projScale = PROJECTILE_SPRITE_SCALES.wizard;
       rotationOffset = PROJECTILE_ROTATION_OFFSETS.wizard;
+    } else if (tower.type === 'cannon') {
+      projKey = 'proj_cannon';
+      projScale = PROJECTILE_SPRITE_SCALES.cannon;
+      rotationOffset = PROJECTILE_ROTATION_OFFSETS.cannon;
     } else {
       // Default: ballista (for 'basic' and any other type)
       projKey = 'proj_ballista';

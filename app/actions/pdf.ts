@@ -4,7 +4,7 @@ import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { uploadPDF } from '@/lib/blob';
 import { extractTextFromPDF, validatePDF } from '@/lib/processors/pdf-processor';
-import { generateQuiz, Quiz, Subject, QuizQuestion, validateContentForQuiz } from '@/lib/processors/ai-generator';
+import { generateQuiz, Quiz, Subject, QuizQuestion, validateContentForQuiz, Difficulty } from '@/lib/processors/ai-generator';
 
 type ActionResult<T> =
   | { success: true; data: T }
@@ -247,7 +247,7 @@ export async function uploadAndProcessMultiplePDFs(
       if (!extractedText || extractedText.length < 100) {
         return {
           success: false,
-          error: `Unable to extract readable text from '${file.name}'. This file may be a scanned image or empty. Please try a different PDF.`,
+          error: `Unable to extract readable text from '${file.name}'. This file may be a scanned image or empty. Please try a different PDF.`
         };
       }
 
@@ -521,7 +521,7 @@ export async function addPDFsToQuiz(params: {
       if (!extractedText || extractedText.length < 100) {
         return {
           success: false,
-          error: `Unable to extract text from '${file.name}'. Please ensure this is a text-based PDF, not a scanned image.`,
+          error: `Unable to extract text from '${file.name}'. Please ensure this is a text-based PDF, not a scanned image.`
         };
       }
 
@@ -804,7 +804,7 @@ export async function processContentForQuiz(
         if (!extractedText || extractedText.length < 100) {
           return {
             success: false,
-            error: `Unable to extract readable text from '${file.name}'. This PDF may be scanned or encrypted. Please upload a text-based PDF.`,
+            error: `Unable to extract readable text from '${file.name}'. This PDF may be scanned or encrypted. Please upload a text-based PDF.`
           };
         }
 

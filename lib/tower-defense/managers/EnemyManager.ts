@@ -31,12 +31,11 @@ export interface EnemyEscape {
 export class EnemyManager {
   private scene: Phaser.Scene;
   private enemies: Enemy[] = [];
-  private allPaths: PathPoint[][]; // Array of paths
-  private nextPathIndex: number = 0; // Round-robin path selection for spawning
+  private path: PathPoint[]; // Single path
 
-  constructor(scene: Phaser.Scene, allPaths: PathPoint[][]) {
+  constructor(scene: Phaser.Scene, path: PathPoint[]) {
     this.scene = scene;
-    this.allPaths = allPaths;
+    this.path = path;
   }
 
   /**
@@ -49,11 +48,8 @@ export class EnemyManager {
     onLightningClick: (enemy: Enemy) => void,
     onBossSpawn?: (baseHealth: number) => void
   ): Enemy {
-    // Select path for this enemy (round-robin across all paths)
-    const pathId = this.nextPathIndex;
-    this.nextPathIndex = (this.nextPathIndex + 1) % this.allPaths.length;
-    const selectedPath = this.allPaths[pathId];
-    const startPoint = selectedPath[0];
+    // Get start point from path
+    const startPoint = this.path[0];
     const enemiesSpawned = Math.min(40, Math.floor(8 + (3 * waveNumber))) - enemiesToSpawn;
 
     // Determine if this should be a special spawn
@@ -208,109 +204,79 @@ export class EnemyManager {
       health = baseHealth;
     }
 
-    // Create visual representation
+    // Create visual representation - ALL enemies now use goblin sprites with ColorMatrix hue shifts
     const graphics = this.scene.add.graphics();
-    let sprite: Phaser.GameObjects.Sprite | undefined = undefined;
 
-    // Create sprite for RED enemies (goblins), graphics for others
-    if (type === EnemyType.RED) {
-      // Use first frame as initial texture
-      sprite = this.scene.add.sprite(startPoint.x, startPoint.y, 'goblin_frame_1');
-      sprite.setScale(ENEMY_SPRITE_SCALES.goblin * size);
-      sprite.setRotation(Math.PI); // Flip 180 degrees to face correct direction
-      sprite.setDepth(2); // Same depth as enemies
+    // Create goblin sprite for ALL enemy types
+    const sprite = this.scene.add.sprite(startPoint.x, startPoint.y, 'goblin_frame_1');
+    sprite.setScale(ENEMY_SPRITE_SCALES.goblin * size);
+    sprite.setRotation(Math.PI); // Flip 180 degrees to face correct direction
+    sprite.setDepth(2); // Same depth as enemies
 
-      // Play walking animation
-      if (this.scene.anims.exists('goblin_walk')) {
-        sprite.play('goblin_walk');
-        console.log('[EnemyManager] Playing goblin_walk animation');
-      } else {
-        console.warn('[EnemyManager] goblin_walk animation not found');
-      }
+    // Play walking animation
+    if (this.scene.anims.exists('goblin_walk')) {
+      sprite.play('goblin_walk');
+    } else {
+      console.warn('[EnemyManager] goblin_walk animation not found');
     }
 
-    // Draw different shapes based on enemy type (for non-sprite enemies)
-    if (type === EnemyType.BOSS || type === EnemyType.MINI_BOSS) {
-      // Hexagon shape for bosses
-      graphics.fillStyle(color);
-      graphics.beginPath();
-      const radius = 20;
-      for (let i = 0; i < 6; i++) {
-        const angle = (Math.PI / 3) * i - Math.PI / 2;
-        const x = radius * Math.cos(angle);
-        const y = radius * Math.sin(angle);
-        if (i === 0) graphics.moveTo(x, y);
-        else graphics.lineTo(x, y);
-      }
-      graphics.closePath();
-      graphics.fillPath();
-    } else if (type === EnemyType.HEALER) {
-      // Star shape for healer (5-pointed)
-      graphics.fillStyle(color);
-      graphics.beginPath();
-      const spikes = 5;
-      const outerRadius = 15;
-      const innerRadius = 7;
-      for (let i = 0; i < spikes * 2; i++) {
-        const angle = (Math.PI / spikes) * i - Math.PI / 2;
-        const radius = i % 2 === 0 ? outerRadius : innerRadius;
-        const x = radius * Math.cos(angle);
-        const y = radius * Math.sin(angle);
-        if (i === 0) graphics.moveTo(x, y);
-        else graphics.lineTo(x, y);
-      }
-      graphics.closePath();
-      graphics.fillPath();
-    } else if (type === EnemyType.COMMANDER) {
-      // Diamond shape for commander
-      graphics.fillStyle(color);
-      graphics.beginPath();
-      graphics.moveTo(0, -15);
-      graphics.lineTo(12, 0);
-      graphics.lineTo(0, 15);
-      graphics.lineTo(-12, 0);
-      graphics.closePath();
-      graphics.fillPath();
-    } else if (type === EnemyType.ARMORED) {
-      // Triangle with thick metallic border for armored
-      graphics.fillStyle(color);
-      graphics.beginPath();
-      graphics.moveTo(0, -15);
-      graphics.lineTo(15, 10);
-      graphics.lineTo(-15, 10);
-      graphics.closePath();
-      graphics.fillPath();
+    // Apply ColorMatrix hue rotation to match existing enemy colors
+    const fx = sprite.preFX?.addColorMatrix();
+    if (!fx) {
+      console.warn('[EnemyManager] Failed to add ColorMatrix FX to sprite');
+    }
 
-      // Add thick armored border
-      graphics.lineStyle(4, 0x4a4a4a, 1); // Dark gray metallic border
-      graphics.strokeTriangle(0, -15, 15, 10, -15, 10);
-    } else if (type !== EnemyType.RED) {
-      // Triangle shape for regular enemies (BLUE, YELLOW, SPEEDY) - skip RED (uses sprite)
-      graphics.fillStyle(color);
-      graphics.beginPath();
-      graphics.moveTo(0, -15);
-      graphics.lineTo(15, 10);
-      graphics.lineTo(-15, 10);
-      graphics.closePath();
-      graphics.fillPath();
+    if (fx) {
+      switch (type) {
+        case EnemyType.RED:
+          // Original color - assuming base goblin sprite works for red
+          fx.hue(0);
+          break;
+        case EnemyType.BLUE:
+          // Pure blue (0x0000ff)
+          fx.hue(210);
+          break;
+        case EnemyType.YELLOW:
+          // Pure yellow (0xffff00)
+          fx.hue(50);
+          break;
+        case EnemyType.SPEEDY:
+          // Pure green (0x00ff00)
+          fx.hue(100);
+          break;
+        case EnemyType.ARMORED:
+          // Gray (0x808080) - desaturate completely
+          fx.saturate(-1);
+          break;
+        case EnemyType.HEALER:
+          // Light green (0x90ee90) - cyan/turquoise
+          fx.hue(150);
+          fx.saturate(-0.3); // Slightly desaturate for lighter appearance
+          break;
+        case EnemyType.COMMANDER:
+          // Orange (0xffa500)
+          fx.hue(30);
+          break;
+        case EnemyType.MINI_BOSS:
+          // Maroon (0x800000) - dark red
+          fx.hue(350);
+          fx.brightness(-0.3); // Darken for maroon effect
+          break;
+        case EnemyType.BOSS:
+          // Purple (0x6a0dad)
+          fx.hue(280);
+          break;
+      }
     }
 
     graphics.setPosition(startPoint.x, startPoint.y);
     graphics.setScale(size);
-    graphics.setDepth(1); // Render above background (-2) and paths (-1)
+    graphics.setDepth(1); // Keep for compatibility with existing code
 
-    // Make enemy interactive for Lightning Strike ability
+    // Make sprite interactive for Lightning Strike ability
     const hitRadius = (type === EnemyType.BOSS || type === EnemyType.MINI_BOSS) ? 20 : 15;
-
-    if (sprite) {
-      // Make sprite interactive (for goblin enemies)
-      sprite.setInteractive(new Phaser.Geom.Circle(0, 0, hitRadius), Phaser.Geom.Circle.Contains);
-      sprite.input!.cursor = 'pointer';
-    } else {
-      // Make graphics interactive (for shape-based enemies)
-      graphics.setInteractive(new Phaser.Geom.Circle(0, 0, hitRadius), Phaser.Geom.Circle.Contains);
-      graphics.input!.cursor = 'pointer';
-    }
+    sprite.setInteractive(new Phaser.Geom.Circle(0, 0, hitRadius), Phaser.Geom.Circle.Contains);
+    sprite.input!.cursor = 'pointer';
 
     // Create health bar background
     const healthBarBg = this.scene.add.graphics();
@@ -339,7 +305,6 @@ export class EnemyManager {
       health: health,
       maxHealth: health,
       type: type,
-      pathId: pathId, // Which path this enemy is following
       pathIndex: 1, // Start at second waypoint (first is spawn)
       graphics: graphics,
       sprite: sprite, // Sprite for goblin enemies
@@ -353,18 +318,10 @@ export class EnemyManager {
 
     this.enemies.push(enemy);
 
-    // Add Lightning Strike click handler
-    if (sprite) {
-      // Add click handler to sprite (for goblin enemies)
-      sprite.on('pointerdown', () => {
-        onLightningClick(enemy);
-      });
-    } else {
-      // Add click handler to graphics (for shape-based enemies)
-      graphics.on('pointerdown', () => {
-        onLightningClick(enemy);
-      });
-    }
+    // Add Lightning Strike click handler to sprite (all enemies use sprites now)
+    sprite.on('pointerdown', () => {
+      onLightningClick(enemy);
+    });
 
     return enemy;
   }
@@ -373,29 +330,42 @@ export class EnemyManager {
    * Update all enemies - move along path, update health bars
    * Returns enemies that died or escaped this frame
    */
-  updateEnemies(scaledDelta: number, goldBuff: boolean): { deaths: EnemyDeath[], escapes: EnemyEscape[] } {
+  updateEnemies(scaledDelta: number, goldBuff: boolean, currentTime: number): { deaths: EnemyDeath[], escapes: EnemyEscape[] } {
     const deaths: EnemyDeath[] = [];
     const escapes: EnemyEscape[] = [];
 
     for (let i = this.enemies.length - 1; i >= 0; i--) {
       const enemy = this.enemies[i];
 
-      // Get the specific path this enemy is following
-      const enemyPath = this.allPaths[enemy.pathId];
+      // Handle Stun logic
+      if (enemy.stunned && enemy.stunnedUntil) {
+        if (currentTime < enemy.stunnedUntil) {
+           enemy.speed = 0;
+           // Visual feedback for stun?
+           // Maybe tint?
+           // if (enemy.sprite) enemy.sprite.setTint(0x888888); 
+           // but Graphics? 
+        } else {
+           // Stun expired
+           enemy.stunned = false;
+           enemy.speed = enemy.baseSpeed; // Will be updated by aura logic anyway
+           // Reset visual?
+        }
+      }
 
       // Check if reached end of path
-      if (enemy.pathIndex >= enemyPath.length) {
+      if (enemy.pathIndex >= this.path.length) {
         escapes.push({ enemy });
         enemy.graphics.destroy();
-        enemy.sprite?.destroy();
+        enemy.sprite.destroy();
         enemy.healthBarBg?.destroy();
         enemy.healthBarFill?.destroy();
         this.enemies.splice(i, 1);
         continue;
       }
 
-      // Move towards next waypoint on this enemy's path
-      const target = enemyPath[enemy.pathIndex];
+      // Move towards next waypoint
+      const target = this.path[enemy.pathIndex];
       const dx = target.x - enemy.x;
       const dy = target.y - enemy.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
@@ -411,16 +381,12 @@ export class EnemyManager {
         // Rotate to face direction
         const angle = Math.atan2(dy, dx) + Math.PI / 2;
         enemy.graphics.setRotation(angle);
-        if (enemy.sprite) {
-          // Goblins need 180° base rotation to face correct direction
-          enemy.sprite.setRotation(angle + Math.PI);
-        }
+        // Goblins need 180° base rotation to face correct direction
+        enemy.sprite.setRotation(angle + Math.PI);
       }
 
       enemy.graphics.setPosition(enemy.x, enemy.y);
-      if (enemy.sprite) {
-        enemy.sprite.setPosition(enemy.x, enemy.y);
-      }
+      enemy.sprite.setPosition(enemy.x, enemy.y);
 
       // Update health bars
       if (enemy.healthBarBg && enemy.healthBarFill) {
@@ -460,7 +426,7 @@ export class EnemyManager {
 
         deaths.push({ enemy, goldReward });
         enemy.graphics.destroy();
-        enemy.sprite?.destroy();
+        enemy.sprite.destroy();
         enemy.healthBarBg?.destroy();
         enemy.healthBarFill?.destroy();
         this.enemies.splice(i, 1);
@@ -526,9 +492,9 @@ export class EnemyManager {
    * Update commander auras - apply speed buffs to nearby enemies
    */
   updateCommanderAuras(): void {
-    // First, reset all enemy speeds to base speed (except frozen enemies)
+    // First, reset all enemy speeds to base speed (except frozen or stunned enemies)
     this.enemies.forEach(enemy => {
-      if (!enemy.frozen) {
+      if (!enemy.frozen && !enemy.stunned) {
         enemy.speed = enemy.baseSpeed;
       }
     });
@@ -541,7 +507,7 @@ export class EnemyManager {
       this.enemies.forEach(target => {
         if (target === commander) return; // Don't buff self
         if (target.type === EnemyType.HEALER || target.type === EnemyType.COMMANDER) return; // No aura stacking
-        if (target.frozen) return; // Don't buff frozen enemies
+        if (target.frozen || target.stunned) return; // Don't buff frozen or stunned enemies
 
         const dx = target.x - commander.x;
         const dy = target.y - commander.y;
@@ -563,12 +529,10 @@ export class EnemyManager {
   }
 
   /**
-   * Update path points (used during stage transitions)
+   * Update path reference (called during window resize)
    */
-  updatePath(newAllPaths: PathPoint[][]): void {
-    this.allPaths = newAllPaths;
-    // Reset path index counter for new stage
-    this.nextPathIndex = 0;
+  setPath(path: PathPoint[]): void {
+    this.path = path;
   }
 
   /**
@@ -577,7 +541,7 @@ export class EnemyManager {
   destroy(): void {
     this.enemies.forEach(enemy => {
       enemy.graphics.destroy();
-      enemy.sprite?.destroy();
+      enemy.sprite.destroy();
       enemy.healthBarBg?.destroy();
       enemy.healthBarFill?.destroy();
     });

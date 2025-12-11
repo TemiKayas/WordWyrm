@@ -3,11 +3,12 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getPublicGames, PublicGameFilters } from '@/app/actions/game';
-import PublicGameCard from '@/components/discover/PublicGameCard';
 import { Subject, GameMode } from '@prisma/client';
+import Image from 'next/image';
 import TeacherPageLayout from '@/components/shared/TeacherPageLayout';
-import { Search, BookOpen, Gamepad2, SlidersHorizontal, X } from 'lucide-react';
-import Button from '@/components/ui/Button';
+import SearchBar from '@/components/discover/SearchBar';
+import FilterControls from '@/components/discover/FilterControls';
+import GamesGrid from '@/components/discover/GamesGrid';
 
 export default function DiscoverPage() {
   const [games, setGames] = useState<unknown[]>([]);
@@ -44,7 +45,7 @@ export default function DiscoverPage() {
     fetchGames();
   }, [subject, gameMode, search, sortBy]);
 
-  const hasActiveFilters = subject || gameMode || search || sortBy !== 'newest';
+  const hasActiveFilters = Boolean(subject || gameMode || search || sortBy !== 'newest');
 
   const clearFilters = () => {
     setSubject('');
@@ -57,107 +58,42 @@ export default function DiscoverPage() {
     <TeacherPageLayout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Header */}
-        <div className="mb-6">
+        <div className="mb-6 relative">
           <h1 className="font-quicksand font-bold text-[#473025] text-[28px] md:text-[36px]">
             Discover Public Games
           </h1>
           <p className="font-quicksand text-[#473025]/70 text-[16px] mt-1">
             Explore and play educational games from teachers around the world
           </p>
+
+          {/* Discover Floopa Character - positioned to sit on top */}
+          <div className="absolute -top-4 -right-4 sm:-right-8 w-[100px] h-[100px] sm:w-[120px] sm:h-[120px] md:w-[140px] md:h-[140px] pointer-events-none z-0 drop-shadow-2xl">
+            <Image
+              src="/assets/discover/discover-floopa.svg"
+              alt="Discover Floopa"
+              width={140}
+              height={140}
+              className="w-full h-auto"
+            />
+          </div>
         </div>
 
-        {/* Filters - Horizontal Layout */}
-        <div className="bg-white rounded-[20px] shadow-sm border-[2px] border-[#473025]/10 p-4 md:p-6 mb-6">
-          {/* Search Bar - Full Width */}
-          <div className="mb-4">
-            <div className="relative">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-[#473025]/40" size={20} />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search games by title, teacher, or description..."
-                className="w-full h-[50px] pl-12 pr-4 border-[2px] border-[#473025]/20 rounded-[15px] font-quicksand text-[16px] text-[#473025] placeholder:text-[#473025]/40 focus:outline-none focus:border-[#ff9f22] focus:ring-4 focus:ring-[#ff9f22]/20 transition-all bg-[#fffaf2]"
-              />
-            </div>
-          </div>
+        {/* Filters */}
+        <div className="bg-white border-[3px] border-[#473025] rounded-[20px] p-4 md:p-6 mb-6">
+          {/* Search Bar */}
+          <SearchBar search={search} setSearch={setSearch} />
 
           {/* Filter Controls */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {/* Subject Filter */}
-            <div className="relative">
-              <BookOpen className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#473025]/60 pointer-events-none z-10" size={18} />
-              <select
-                value={subject}
-                onChange={(e) => setSubject(e.target.value as Subject | '')}
-                className="w-full h-[44px] pl-10 pr-10 border-[2px] border-[#473025]/20 rounded-[12px] font-quicksand font-semibold text-[14px] text-[#473025] focus:outline-none focus:border-[#ff9f22] focus:ring-2 focus:ring-[#ff9f22]/20 transition-all bg-[#fffaf2] appearance-none cursor-pointer"
-              >
-                <option value="">All Subjects</option>
-                <option value="ENGLISH">English</option>
-                <option value="MATH">Math</option>
-                <option value="SCIENCE">Science</option>
-                <option value="HISTORY">History</option>
-                <option value="LANGUAGE">Language</option>
-                <option value="GENERAL">General</option>
-              </select>
-              <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                <svg className="w-4 h-4 text-[#473025]/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
-            </div>
-
-            {/* Game Mode Filter */}
-            <div className="relative">
-              <Gamepad2 className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#473025]/60 pointer-events-none z-10" size={18} />
-              <select
-                value={gameMode}
-                onChange={(e) => setGameMode(e.target.value as GameMode | '')}
-                className="w-full h-[44px] pl-10 pr-10 border-[2px] border-[#473025]/20 rounded-[12px] font-quicksand font-semibold text-[14px] text-[#473025] focus:outline-none focus:border-[#ff9f22] focus:ring-2 focus:ring-[#ff9f22]/20 transition-all bg-[#fffaf2] appearance-none cursor-pointer"
-              >
-                <option value="">All Game Modes</option>
-                <option value="TRADITIONAL">Traditional Quiz</option>
-                <option value="TOWER_DEFENSE">Tower Defense</option>
-                <option value="SNAKE">Snake Quiz</option>
-              </select>
-              <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                <svg className="w-4 h-4 text-[#473025]/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
-            </div>
-
-            {/* Sort By */}
-            <div className="relative">
-              <SlidersHorizontal className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#473025]/60 pointer-events-none z-10" size={18} />
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as 'newest' | 'mostPlayed')}
-                className="w-full h-[44px] pl-10 pr-10 border-[2px] border-[#473025]/20 rounded-[12px] font-quicksand font-semibold text-[14px] text-[#473025] focus:outline-none focus:border-[#ff9f22] focus:ring-2 focus:ring-[#ff9f22]/20 transition-all bg-[#fffaf2] appearance-none cursor-pointer"
-              >
-                <option value="newest">Newest First</option>
-                <option value="mostPlayed">Most Played</option>
-              </select>
-              <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                <svg className="w-4 h-4 text-[#473025]/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
-            </div>
-
-            {/* Clear Filters Button */}
-            {hasActiveFilters && (
-              <Button
-                onClick={clearFilters}
-                variant="secondary"
-                size="sm"
-                icon={<X size={18} />}
-                className="h-[44px]"
-              >
-                Clear Filters
-              </Button>
-            )}
-          </div>
+          <FilterControls
+            subject={subject}
+            setSubject={setSubject}
+            gameMode={gameMode}
+            setGameMode={setGameMode}
+            sortBy={sortBy}
+            setSortBy={setSortBy}
+            hasActiveFilters={hasActiveFilters}
+            clearFilters={clearFilters}
+          />
         </div>
 
         {/* Results Count */}
@@ -170,43 +106,13 @@ export default function DiscoverPage() {
         )}
 
         {/* Games Grid */}
-        {loading ? (
-          <div className="flex items-center justify-center h-64 bg-white rounded-[20px] shadow-sm border-[2px] border-[#473025]/10">
-            <div className="text-center">
-              <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-[#473025]/20 border-t-[#ff9f22] mb-4"></div>
-              <div className="text-[#473025] font-quicksand font-bold text-lg">
-                Loading games...
-              </div>
-            </div>
-          </div>
-        ) : error ? (
-          <div className="bg-red-50 border-[2px] border-red-300 rounded-[20px] p-8 text-center">
-            <p className="font-quicksand text-red-700 text-lg font-semibold">{error}</p>
-          </div>
-        ) : games.length === 0 ? (
-          <div className="bg-white rounded-[20px] shadow-sm border-[2px] border-[#473025]/10 p-12 text-center">
-            <div className="flex justify-center mb-4 text-[#473025]/40">
-              <Search size={80} strokeWidth={1.5} />
-            </div>
-            <h3 className="font-quicksand font-bold text-[#473025] text-[24px] mb-2">
-              No Games Found
-            </h3>
-            <p className="font-quicksand text-[#473025]/70 text-[16px] mb-6">
-              Try adjusting your filters to see more games
-            </p>
-            {hasActiveFilters && (
-              <Button onClick={clearFilters} variant="secondary" size="md">
-                Clear All Filters
-              </Button>
-            )}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {(games as Array<{ id: string; [key: string]: unknown }>).map((game) => (
-              <PublicGameCard key={game.id} game={game as never} />
-            ))}
-          </div>
-        )}
+        <GamesGrid
+          loading={loading}
+          error={error}
+          games={games}
+          hasActiveFilters={hasActiveFilters}
+          clearFilters={clearFilters}
+        />
       </div>
     </TeacherPageLayout>
   );

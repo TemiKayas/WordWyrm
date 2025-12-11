@@ -12,17 +12,35 @@ export const authConfig = {
     strategy: 'jwt',
   },
   callbacks: {
-    async jwt({ token, user }) {
+    async signIn({ user, account, profile }) {
+      // For Google OAuth sign-ins, validate bu.edu domain
+      if (account?.provider === 'google') {
+        const email = profile?.email || user?.email;
+        if (!email || !email.endsWith('@bu.edu')) {
+          // Returning false will show an error page
+          return false;
+        }
+      }
+      return true;
+    },
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
         token.role = user.role;
       }
+
+      // If token is being updated (e.g., after role selection), fetch fresh user data
+      if (trigger === 'update' && token.id) {
+        // We can't import db here (edge runtime), so we'll fetch in the session callback
+        // Just pass through for now
+      }
+
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string;
-        session.user.role = token.role as 'TEACHER' | 'STUDENT' | 'ADMIN';
+        session.user.role = token.role as 'TEACHER' | 'STUDENT' | 'ADMIN' | null;
       }
       return session;
     },

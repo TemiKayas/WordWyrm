@@ -14,6 +14,7 @@ if (typeof window !== 'undefined') {
 
 export default function Home() {
   const [visibleSections, setVisibleSections] = useState<Set<number>>(new Set([0]));
+  const [showCorrectFloopa, setShowCorrectFloopa] = useState(true);
   const sectionRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   // GSAP refs
@@ -30,6 +31,10 @@ export default function Home() {
   const mockup1Ref = useRef<HTMLDivElement>(null);
   const mockup2Ref = useRef<HTMLDivElement>(null);
   const mockup3Ref = useRef<HTMLDivElement>(null);
+
+  // Floopa refs for hover animation
+  const correctFloopaRef = useRef<HTMLDivElement>(null);
+  const wrongFloopaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const observers = sectionRefs.current.map((ref, index) => {
@@ -213,6 +218,59 @@ export default function Home() {
           ease: 'power2.out',
         });
       });
+
+      // Floopa auto-cycling animation - seamless loop with 2 second intervals
+      if (correctFloopaRef.current && wrongFloopaRef.current) {
+        const timeline = gsap.timeline({
+          repeat: -1,
+        });
+
+        timeline
+          // Transition to wrong floopa
+          .to(correctFloopaRef.current, {
+            scale: 0.9,
+            opacity: 0,
+            rotation: -15,
+            duration: 0.4,
+            ease: 'power2.in',
+          })
+          .fromTo(wrongFloopaRef.current,
+            { scale: 0.8, opacity: 0, rotation: 15, y: 20 },
+            {
+              scale: 1,
+              opacity: 1,
+              rotation: 0,
+              y: 0,
+              duration: 0.5,
+              ease: 'back.out(1.5)',
+            },
+            '-=0.2'
+          )
+          // Wait 2 seconds
+          .to({}, { duration: 2 })
+          // Transition back to correct floopa
+          .to(wrongFloopaRef.current, {
+            scale: 0.9,
+            opacity: 0,
+            rotation: 15,
+            y: 20,
+            duration: 0.4,
+            ease: 'power2.in',
+          })
+          .fromTo(correctFloopaRef.current,
+            { scale: 0.8, opacity: 0, rotation: -15 },
+            {
+              scale: 1,
+              opacity: 1,
+              rotation: 0,
+              duration: 0.5,
+              ease: 'back.out(1.5)',
+            },
+            '-=0.2'
+          )
+          // Wait 2 seconds before repeating
+          .to({}, { duration: 2 });
+      }
     });
 
     return () => ctx.revert();
@@ -253,6 +311,7 @@ export default function Home() {
       transformPerspective: 800,
     });
   };
+
 
   return (
     <div className="min-h-screen bg-[#fffaf2] overflow-x-hidden">
@@ -345,10 +404,10 @@ export default function Home() {
           </div>
         </div>
 
-        {/* scroll down indicator */}
+        {/* scroll down indicator - hidden on mobile */}
         <div
           ref={scrollIndicatorRef}
-          className="absolute bottom-8 left-1/2 -translate-x-1/2 cursor-pointer opacity-70 hover:opacity-100 transition-opacity"
+          className="hidden sm:flex absolute bottom-8 left-1/2 -translate-x-1/2 cursor-pointer opacity-70 hover:opacity-100 transition-opacity"
           onClick={() => window.scrollTo({ top: window.innerHeight, behavior: 'smooth' })}
         >
           <div className="flex flex-col items-center gap-1">
@@ -411,14 +470,15 @@ export default function Home() {
               </div>
             </div>
 
-            {/* right side - asset image (smaller) */}
+            {/* right side - eating gif */}
             <div className="flex-shrink-0">
-              <Image
-                src="/assets/landing/quiz-game-mockup.png"
-                alt="Quiz game mockup"
+              <img
+                src="/assets/fileupload/eating.gif"
+                alt="Floopa eating animation"
                 width={350}
                 height={350}
                 className="object-contain w-[200px] sm:w-[250px] lg:w-[350px] h-auto drop-shadow-2xl"
+                loading="eager"
               />
             </div>
           </div>
@@ -474,22 +534,30 @@ export default function Home() {
               </div>
             </div>
 
-            {/* left side - asset image (bigger) */}
+            {/* left side - auto-cycling floopa images */}
             <div className="flex-shrink-0 relative">
-              <Image
-                src="/assets/landing/floopa-correct-answer.png"
-                alt="Floopa celebrating"
-                width={700}
-                height={700}
-                className="object-contain w-[280px] sm:w-[400px] lg:w-[550px] h-auto drop-shadow-2xl"
-              />
-              {/* Wrong answer Floopa (bigger) */}
-              <div className="absolute -bottom-8 -left-8 w-[150px] h-[150px] sm:w-[200px] sm:h-[200px] lg:w-[250px] lg:h-[250px] opacity-80">
+              {/* Correct answer Floopa */}
+              <div
+                ref={correctFloopaRef}
+                className="relative w-[280px] sm:w-[400px] lg:w-[550px] h-[280px] sm:h-[400px] lg:h-[550px]"
+              >
+                <Image
+                  src="/assets/landing/floopa-correct-answer.png"
+                  alt="Floopa celebrating"
+                  fill
+                  className="object-contain drop-shadow-2xl"
+                />
+              </div>
+              {/* Wrong answer Floopa - auto-cycles with correct floopa */}
+              <div
+                ref={wrongFloopaRef}
+                className="absolute inset-0 w-[280px] sm:w-[400px] lg:w-[550px] h-[280px] sm:h-[400px] lg:h-[550px] opacity-0"
+              >
                 <Image
                   src="/assets/landing/floopa-wrong-answer.png"
                   alt="Floopa sad"
                   fill
-                  className="object-contain drop-shadow-lg"
+                  className="object-contain drop-shadow-2xl"
                 />
               </div>
             </div>

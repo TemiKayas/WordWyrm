@@ -1,5 +1,7 @@
 import NextAuth from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
+import Google from 'next-auth/providers/google';
+import { PrismaAdapter } from '@auth/prisma-adapter';
 import { compare } from 'bcryptjs';
 import { db } from './db';
 import { authConfig } from './auth.config';
@@ -10,7 +12,13 @@ import { authConfig } from './auth.config';
  */
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
+  adapter: PrismaAdapter(db),
   providers: [
+    Google({
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      allowDangerousEmailAccountLinking: true,
+    }),
     Credentials({
       name: 'credentials',
       credentials: {

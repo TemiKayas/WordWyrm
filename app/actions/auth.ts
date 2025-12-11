@@ -239,3 +239,46 @@ export async function login(
     };
   }
 }
+
+export async function signInWithGoogle() {
+  await signIn('google', { redirectTo: '/' });
+}
+
+export async function setUserRole(role: 'TEACHER' | 'STUDENT') {
+  const { auth: getSession, signOut } = await import('@/lib/auth');
+  const session = await getSession();
+
+  if (!session?.user?.id || !session?.user?.email) {
+    throw new Error('Not authenticated');
+  }
+
+  const userEmail = session.user.email;
+
+  // Update user role in database
+  await db.user.update({
+    where: { id: session.user.id },
+    data: { role },
+  });
+
+  // Create role-specific profile
+  if (role === 'TEACHER') {
+    await db.teacher.upsert({
+      where: { userId: session.user.id },
+      create: { userId: session.user.id },
+      update: {},
+    });
+  } else if (role === 'STUDENT') {
+    await db.student.upsert({
+      where: { userId: session.user.id },
+      create: { userId: session.user.id },
+      update: {},
+    });
+  }
+
+  // Sign out to clear old JWT token
+  await signOut({ redirect: false });
+
+  // Sign back in with Google to get fresh JWT with new role
+  const redirectPath = role === 'TEACHER' ? '/teacher/dashboard' : '/student/dashboard';
+  await signIn('google', { redirectTo: redirectPath });
+}

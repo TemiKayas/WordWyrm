@@ -382,7 +382,7 @@ export default class SnakeScene extends Phaser.Scene {
       fontSize: '15px',
       color: '#FFF',
       fontFamily: 'Quicksand',
-      fontStyle: 'normal',
+      fontStyle: 'bold',
       align: 'center'
     }).setOrigin(0.5).setDepth(3001);
 
@@ -397,7 +397,7 @@ export default class SnakeScene extends Phaser.Scene {
       fontSize: '15px',
       color: '#FFF',
       fontFamily: 'Quicksand',
-      fontStyle: 'normal',
+      fontStyle: 'bold',
       align: 'center'
     }).setOrigin(0.5).setDepth(3001);
 
@@ -437,9 +437,6 @@ export default class SnakeScene extends Phaser.Scene {
     // Draw rectangle around the grid area
     border.strokeRect(offsetX, offsetY, width, height);
   }
-
-  // The 'correct' createQuestionPanel begins here (after the removed duplicate)
-  // No changes needed here, as the content is correct.
 
   updateCoinPosition() {
     // Calculate total width of score text + gap + coin
@@ -500,7 +497,7 @@ export default class SnakeScene extends Phaser.Scene {
         color: '#FDF0DC',
         fontFamily: 'Quicksand',
         fontStyle: 'bold',
-        align: 'center'
+          align: 'center'
       }
     ).setOrigin(0.5).setDepth(5003);
 
@@ -515,7 +512,7 @@ export default class SnakeScene extends Phaser.Scene {
         color: '#473025',
         fontFamily: 'Quicksand',
         fontStyle: 'bold',
-        align: 'center',
+          align: 'center',
         wordWrap: { width: size * 0.65 }
       }
     ).setOrigin(0.5).setDepth(5002);
@@ -579,7 +576,7 @@ export default class SnakeScene extends Phaser.Scene {
           color: '#473025',
           fontFamily: 'Quicksand',
           fontStyle: 'bold',
-          align: 'center'
+              align: 'center'
         }
       ).setOrigin(0.5).setDepth(5003);
 
@@ -600,28 +597,23 @@ export default class SnakeScene extends Phaser.Scene {
     // First line
     const line1Part1 = this.add.text(0, 0, line1Text, {
       fontSize: '17px', color: '#473025', fontFamily: 'Quicksand',
-      fontStyle: 'bold'
-    }).setDepth(5002);
+      fontStyle: 'bold'    }).setDepth(5002);
 
     const line1Part2 = this.add.text(0, 0, wasdText, {
       fontSize: '17px', color: '#EA1644', fontFamily: 'Quicksand',
-      fontStyle: 'bold'
-    }).setDepth(5002);
+      fontStyle: 'bold'    }).setDepth(5002);
 
     const line1Part3 = this.add.text(0, 0, line1Middle, {
       fontSize: '17px', color: '#473025', fontFamily: 'Quicksand',
-      fontStyle: 'bold'
-    }).setDepth(5002);
+      fontStyle: 'bold'    }).setDepth(5002);
 
     const line1Part4 = this.add.text(0, 0, arrowKeysText, {
       fontSize: '17px', color: '#EA1644', fontFamily: 'Quicksand',
-      fontStyle: 'bold'
-    }).setDepth(5002);
+      fontStyle: 'bold'    }).setDepth(5002);
 
     const line1Part5 = this.add.text(0, 0, line2Text, {
       fontSize: '17px', color: '#473025', fontFamily: 'Quicksand',
-      fontStyle: 'bold'
-    }).setDepth(5002);
+      fontStyle: 'bold'    }).setDepth(5002);
 
     // Second line
     const line2Part1 = this.add.text(
@@ -669,7 +661,7 @@ export default class SnakeScene extends Phaser.Scene {
         color: '#FFF',
         fontFamily: 'Quicksand',
         fontStyle: 'bold',
-        align: 'center'
+          align: 'center'
       }
     ).setOrigin(0.5).setDepth(5003).setScale(1.1);
 
@@ -2105,7 +2097,7 @@ export default class SnakeScene extends Phaser.Scene {
           color: '#473025',
           fontFamily: 'Quicksand',
           fontStyle: 'bold',
-          align: 'center'
+              align: 'center'
         }
       ).setOrigin(0.5).setDepth(2002).setAlpha(0);
 
@@ -2178,7 +2170,7 @@ export default class SnakeScene extends Phaser.Scene {
           color: '#473025',
           fontFamily: 'Quicksand',
           fontStyle: 'bold',
-          align: 'center',
+              align: 'center',
           wordWrap: { width: size * 0.65, useAdvancedWrap: true },
           lineSpacing: Math.round(16 * 0.31075)
         }
@@ -2305,7 +2297,8 @@ export default class SnakeScene extends Phaser.Scene {
       ).setOrigin(0.5).setDepth(2002);
 
       backButton.on('pointerdown', () => {
-        backgroundOverlay.destroy(); // Fix: Was explainOverlay.destroy()
+        backgroundOverlay.destroy();
+        popupFrame.destroy();
         loadingText.destroy();
         backButton.destroy();
         backText.destroy();

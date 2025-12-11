@@ -39,6 +39,7 @@ type ClassDetails = {
     id: string;
     title: string;
     shareCode: string;
+    imageUrl: string | null;
     createdAt: Date;
     gameMode: string;
   }>;

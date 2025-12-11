@@ -34,9 +34,12 @@ export class MobileSupport {
     private isPausedForOrientation = false;
     private isPausedForVisibility = false;
     private visibilityHandler?: () => void;
+    private orientationHandler?: () => void;
+    private resizeHandler?: () => void;
     private swipeHandler?: SwipeHandler;
     private gameStartedCallback?: () => boolean;
     private overlaySceneName?: string;
+    private isDestroyed = false;
 
     constructor(scene: Phaser.Scene) {
         this.scene = scene;
@@ -156,18 +159,25 @@ export class MobileSupport {
 
     private setupOrientationDetection() {
         // Listen for orientation changes
-        window.addEventListener('orientationchange', () => {
+        this.orientationHandler = () => {
             setTimeout(() => this.checkOrientation(), 100);
-        });
+        };
+        window.addEventListener('orientationchange', this.orientationHandler);
 
         // Also listen for resize as fallback
-        window.addEventListener('resize', () => {
+        this.resizeHandler = () => {
             setTimeout(() => this.checkOrientation(), 100);
-        });
+        };
+        window.addEventListener('resize', this.resizeHandler);
     }
 
     private checkOrientation() {
-        if (!this.isMobile) return;
+        if (!this.isMobile || this.isDestroyed) return;
+
+        // Check if scene is still valid
+        if (!this.scene || !this.scene.sys || !this.scene.sys.displayList) {
+            return;
+        }
 
         const wasLandscape = this.isLandscape;
         this.isLandscape = window.innerWidth > window.innerHeight;
@@ -176,14 +186,19 @@ export class MobileSupport {
             // Portrait mode - show rotate prompt
             this.showOrientationOverlay();
         } else if (wasLandscape === false && this.isLandscape) {
-            // Just rotated to landscape - show countdown
+            // Just rotated to landscape - hide orientation overlay (no countdown)
             this.hideOrientationOverlay();
-            this.showCountdownOverlay();
+            // Countdown removed - was: this.showCountdownOverlay();
         }
     }
 
     private showOrientationOverlay() {
-        if (this.orientationOverlay) return;
+        if (this.orientationOverlay || this.isDestroyed) return;
+
+        // Check if scene is still valid
+        if (!this.scene || !this.scene.sys || !this.scene.sys.displayList) {
+            return;
+        }
 
         this.isPausedForOrientation = true;
 
@@ -259,7 +274,12 @@ export class MobileSupport {
     }
 
     private showCountdownOverlay() {
-        if (this.countdownOverlay) return;
+        if (this.countdownOverlay || this.isDestroyed) return;
+
+        // Check if scene is still valid
+        if (!this.scene || !this.scene.sys || !this.scene.sys.displayList) {
+            return;
+        }
 
         // Bring this scene to top so overlay appears above all other scenes (e.g., UIScene)
         if (this.scene.scene) {
@@ -346,13 +366,11 @@ export class MobileSupport {
     private setupVisibilityDetection() {
         this.visibilityHandler = () => {
             if (document.hidden) {
+                // Tab is hidden - pause the game
                 this.isPausedForVisibility = true;
             } else {
-                // Check if game has started before showing countdown
-                const gameStarted = this.gameStartedCallback ? this.gameStartedCallback() : true;
-                if (this.isPausedForVisibility && gameStarted) {
-                    this.showCountdownOverlay();
-                }
+                // Tab is visible again - unpause immediately (no countdown)
+                this.isPausedForVisibility = false;
             }
         };
 
@@ -363,8 +381,32 @@ export class MobileSupport {
      * Clean up event listeners - call in scene's shutdown()
      */
     destroy() {
+        this.isDestroyed = true;
+
         if (this.visibilityHandler) {
             document.removeEventListener('visibilitychange', this.visibilityHandler);
+            this.visibilityHandler = undefined;
+        }
+
+        if (this.orientationHandler) {
+            window.removeEventListener('orientationchange', this.orientationHandler);
+            this.orientationHandler = undefined;
+        }
+
+        if (this.resizeHandler) {
+            window.removeEventListener('resize', this.resizeHandler);
+            this.resizeHandler = undefined;
+        }
+
+        // Clean up overlays if they exist
+        if (this.orientationOverlay) {
+            this.orientationOverlay.destroy();
+            this.orientationOverlay = undefined;
+        }
+
+        if (this.countdownOverlay) {
+            this.countdownOverlay.destroy();
+            this.countdownOverlay = undefined;
         }
     }
 }

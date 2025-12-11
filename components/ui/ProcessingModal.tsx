@@ -1,20 +1,76 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { gsap } from 'gsap';
 import Image from 'next/image';
 
 interface ProcessingModalProps {
   isOpen: boolean;
   message?: string;
+  contentType?: 'pdf' | 'text' | 'both';
 }
 
-export default function ProcessingModal({ isOpen, message = "Creating your quiz..." }: ProcessingModalProps) {
+export default function ProcessingModal({
+  isOpen,
+  message,
+  contentType = 'pdf'
+}: ProcessingModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
   const bubbleRef = useRef<HTMLDivElement>(null);
+  const messageRef = useRef<HTMLParagraphElement>(null);
   const dot1Ref = useRef<HTMLDivElement>(null);
   const dot2Ref = useRef<HTMLDivElement>(null);
   const dot3Ref = useRef<HTMLDivElement>(null);
+
+  const [currentMessageIndex, setCurrentMessageIndex] = useState(0);
+
+  // Define message sequences based on content type
+  const getMessages = () => {
+    const firstMessage = contentType === 'text'
+      ? "Processing your words..."
+      : contentType === 'both'
+      ? "Uploading your content..."
+      : "Uploading your PDF";
+
+    return [
+      { text: firstMessage, duration: 6000 },
+      { text: "Processing the material", duration: 7000 },
+      { text: "Oh no Floopa is eating it..", duration: 5000 },
+      { text: "Generating Questions", duration: 8000 },
+      { text: "Finishing up", duration: Infinity } // Stay on this message
+    ];
+  };
+
+  const messages = getMessages();
+
+  // Cycle through messages
+  useEffect(() => {
+    if (!isOpen) {
+      setCurrentMessageIndex(0);
+      return;
+    }
+
+    // If we're at the last message, don't set a timer
+    if (currentMessageIndex >= messages.length - 1) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setCurrentMessageIndex(prev => Math.min(prev + 1, messages.length - 1));
+    }, messages[currentMessageIndex].duration);
+
+    return () => clearTimeout(timer);
+  }, [isOpen, currentMessageIndex, messages]);
+
+  // Animate message changes
+  useEffect(() => {
+    if (!isOpen || !messageRef.current) return;
+
+    gsap.fromTo(messageRef.current,
+      { opacity: 0, y: 10 },
+      { opacity: 1, y: 0, duration: 0.5, ease: 'power2.out' }
+    );
+  }, [currentMessageIndex, isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -48,6 +104,9 @@ export default function ProcessingModal({ isOpen, message = "Creating your quiz.
 
   if (!isOpen) return null;
 
+  // Use custom message if provided, otherwise use cycling messages
+  const displayMessage = message || messages[currentMessageIndex].text;
+
   return (
     <div
       ref={modalRef}
@@ -75,8 +134,11 @@ export default function ProcessingModal({ isOpen, message = "Creating your quiz.
           <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-6 h-6 bg-white border-l-3 border-t-3 border-[#473025] rotate-45"></div>
 
           <div className="flex flex-col items-center gap-3">
-            <p className="font-quicksand font-bold text-[#473025] text-lg text-center">
-              {message}
+            <p
+              ref={messageRef}
+              className="font-quicksand font-bold text-[#473025] text-lg text-center min-h-[28px]"
+            >
+              {displayMessage}
             </p>
 
             {/* Three Dot Animation */}
