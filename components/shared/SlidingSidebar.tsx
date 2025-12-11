@@ -25,34 +25,32 @@ export default function SlidingSidebar({ isOpen, onClose, onHelpClick }: Sliding
 
   const navItems = [
     {
-      label: 'Join Game',
-      icon: '/assets/dashboard/gamepad-icon.svg',
-      inactiveIcon: '/assets/dashboard/gamepad-icon.svg',
-      href: '/join',
-      active: pathname === '/join',
-    },
-    {
       label: 'Dashboard',
       icon: '/assets/dashboard/dashboard-icon.svg',
       inactiveIcon: '/assets/dashboard/tabler_apple-filled.svg',
       href: `${rolePrefix}/dashboard`,
       active: pathname === `${rolePrefix}/dashboard`,
     },
-    ...(isStudent ? [{
-      label: 'History',
-      icon: '/assets/dashboard/dashboard-icon.svg',
-      href: '/student/history',
-      active: pathname === '/student/history' || pathname.startsWith('/student/leaderboard'),
-    }] : []),
+    {
+      label: 'My Games',
+      icon: '/assets/dashboard/history-icon.svg',
+      inactiveIcon: '/assets/dashboard/history-icon.svg',
+      href: isStudent ? '/student/history' : '/teacher/games',
+      active: isStudent
+        ? pathname === '/student/history' || pathname.startsWith('/student/leaderboard')
+        : pathname === '/teacher/games',
+    },
     {
       label: 'Discover',
       icon: '/assets/dashboard/discover-icon.svg',
+      inactiveIcon: '/assets/dashboard/discover-icon.svg',
       href: `${rolePrefix}/discover`,
       active: pathname === `${rolePrefix}/discover`,
     },
     {
       label: 'Shop',
       icon: '/assets/dashboard/shop-icon.svg',
+      inactiveIcon: '/assets/dashboard/shop-icon.svg',
       href: '/shop',
       active: pathname === '/shop',
     },
@@ -60,12 +58,8 @@ export default function SlidingSidebar({ isOpen, onClose, onHelpClick }: Sliding
 
 
   const handlePlayClick = () => {
-    // Students go to /join, teachers go to their games page
-    if (isStudent) {
-      router.push('/join');
-    } else {
-      router.push(`${rolePrefix}/games`);
-    }
+    // Both students and teachers go to /join
+    router.push('/join');
     onClose();
   };
 
