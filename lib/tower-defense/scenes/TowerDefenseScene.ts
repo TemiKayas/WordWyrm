@@ -1683,8 +1683,8 @@ export default class TowerDefenseScene extends Phaser.Scene {
     // FASTER SPAWNING: Decreases with wave number for more challenge
     if (this.waveActive && this.enemiesToSpawn > 0) {
       this.enemySpawnTimer += scaledDelta;
-      // Spawn interval: 700ms base, decreases by 30ms per wave, min 300ms
-      const spawnInterval = Math.max(300, 700 - (this.waveNumber * 30));
+      // Spawn interval: 500ms base, decreases by 30ms per wave, min 300ms
+      const spawnInterval = Math.max(300, 500 - (this.waveNumber * 30));
       if (this.enemySpawnTimer > spawnInterval) {
         const spawnedEnemy = this.enemyManager.spawnEnemy(
           this.waveNumber,

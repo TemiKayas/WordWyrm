@@ -205,21 +205,25 @@ export default class UIScene extends Phaser.Scene {
     text_1.text = "Lives:\n";
     text_1.setStyle({ "fontFamily": "Quicksand", "strokeThickness": 1 });
 
-    // rectangle_118
-    this.add.image(1828, 231, "rectangle_118");
+    // rectangle_118 (Speed button - made bigger)
+    const rectangle_118 = this.add.image(1828, 231, "rectangle_118");
+    rectangle_118.scaleX = 1.5;
+    rectangle_118.scaleY = 1.5;
 
     // text_2
     const text_2 = this.add.text(1797, 222, "", {});
     text_2.text = "SPEED";
-    text_2.setStyle({ "color": "#EA1644", "fontSize": "12px", "stroke": "#EA1644" });
+    text_2.setStyle({ "color": "#EA1644", "fontSize": "16px", "stroke": "#EA1644" });
 
-    // rectangle_118_alt
-    this.add.image(1828, 193, "rectangle_118_alt");
+    // rectangle_118_alt (Start round button - made bigger)
+    const rectangle_118_alt = this.add.image(1828, 193, "rectangle_118_alt");
+    rectangle_118_alt.scaleX = 1.5;
+    rectangle_118_alt.scaleY = 1.5;
 
     // text
     const text = this.add.text(1797, 179, "", {});
     text.text = "START NEXT\nROUND →";
-    text.setStyle({ "color": "#EA1644", "fontFamily": "QUICKSAND", "fontSize": "10px", "stroke": "#EA1644" });
+    text.setStyle({ "color": "#EA1644", "fontFamily": "QUICKSAND", "fontSize": "14px", "stroke": "#EA1644" });
 
     // ellipse_63
     this.add.image(1831, 119, "ellipse_63");
@@ -255,7 +259,7 @@ export default class UIScene extends Phaser.Scene {
     this.load.image('flag_rectangle3', '/assets/game/Rectangle 117.png');
     this.load.image('flag_part', '/assets/game/Ellipse 64.png');
     this.load.image('ellipse_63', '/assets/game/Ellipse 63.png');
-    this.load.image('subtract', '/assets/game/Subtract.png');
+    this.load.image('subtract', '/assets/game/Subtract.PNG');
 
     // Tower icons
     this.load.image('ballista_icon', '/assets/game/Ballista Icon.png');

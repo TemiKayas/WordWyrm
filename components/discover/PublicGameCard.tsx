@@ -3,6 +3,7 @@
 import { useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { GameMode, Subject } from '@prisma/client';
+import { getDefaultGameThumbnail } from '@/lib/utils/game';
 import { gsap } from 'gsap';
 
 interface PublicGameCardProps {
@@ -190,17 +191,11 @@ export default function PublicGameCard({ game }: PublicGameCardProps) {
     >
       {/* Game Image/Icon Area */}
       <div className="w-full h-[181px] bg-gradient-to-b from-white to-[#96b902]/10 border-b-[3px] border-[#473025] flex items-center justify-center overflow-hidden">
-        {game.imageUrl ? (
-          <img
-            src={game.imageUrl}
-            alt={game.title}
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <div className="text-[#473025]/40">
-            <GameControllerIcon />
-          </div>
-        )}
+        <img
+          src={game.imageUrl || getDefaultGameThumbnail(game.gameMode)}
+          alt={game.title}
+          className="w-full h-full object-cover"
+        />
       </div>
 
       {/* Card Content - Beige Section */}
