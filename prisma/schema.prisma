@@ -15,13 +15,15 @@ datasource db {
 // ============================================================================
 
 model User {
-  id                    String   @id @default(cuid())
-  email                 String   @unique
-  passwordHash          String
+  id                    String    @id @default(cuid())
+  email                 String    @unique
+  emailVerified         DateTime? // Required by NextAuth adapter
+  passwordHash          String?   // Optional for OAuth users
   name                  String
-  role                  Role     @default(STUDENT)
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  image                 String?   // Profile picture URL from OAuth
+  role                  Role?     // Nullable - OAuth users select role after first sign-in
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
   // Relations
   teacherProfile   Teacher?

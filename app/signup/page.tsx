@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition, useRef, useEffect } from 'react';
-import { signup } from '@/app/actions/auth';
+import { signup, signInWithGoogle } from '@/app/actions/auth';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { gsap } from 'gsap';
@@ -115,8 +115,13 @@ export default function SignupPage() {
     });
   }
 
-  const handleGoogleSignIn = () => {
-    // Google sign-in not yet implemented
+  const handleGoogleSignIn = async () => {
+    try {
+      await signInWithGoogle();
+    } catch (error) {
+      // Server action will handle redirect, so errors here are unexpected
+      console.error('Google sign-in error:', error);
+    }
   };
 
   return (

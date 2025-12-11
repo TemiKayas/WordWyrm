@@ -13,6 +13,21 @@ export default auth((req) => {
   const isAuthenticated = !!req.auth;
   const userRole = req.auth?.user?.role;
 
+  // Redirect authenticated users without a role to role selection page
+  if (isAuthenticated && !userRole && path !== '/select-role') {
+    return NextResponse.redirect(new URL('/select-role', req.url));
+  }
+
+  // Prevent users with a role from accessing role selection page
+  if (isAuthenticated && userRole && path === '/select-role') {
+    const redirectPath = userRole === 'TEACHER'
+      ? '/teacher/dashboard'
+      : userRole === 'STUDENT'
+      ? '/student/dashboard'
+      : '/';
+    return NextResponse.redirect(new URL(redirectPath, req.url));
+  }
+
   // Redirect authenticated users away from auth pages
   if (isAuthenticated && (path === '/login' || path === '/signup')) {
     const redirectPath = userRole === 'TEACHER'
