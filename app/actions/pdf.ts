@@ -70,6 +70,12 @@ export async function uploadAndProcessPDF(
       ? (subjectValue as Subject)
       : Subject.GENERAL;
 
+    // Get difficulty (default HARD if not provided)
+    const difficultyValue = formData.get('difficulty') as string;
+    const difficulty = difficultyValue && difficultyValue in Difficulty
+      ? (difficultyValue as Difficulty)
+      : Difficulty.HARD;
+
     // Upload to Vercel Blob
     const blobUrl = await uploadPDF(file);
 
@@ -107,7 +113,7 @@ export async function uploadAndProcessPDF(
     });
 
     // Generate quiz using Gemini
-    const quiz = await generateQuiz(extractedText, numQuestions);
+    const quiz = await generateQuiz(extractedText, numQuestions, difficulty);
 
     // save quiz
     const quizRecord = await db.quiz.create({
@@ -209,6 +215,12 @@ export async function uploadAndProcessMultiplePDFs(
       ? (subjectValue as Subject)
       : Subject.GENERAL;
 
+    // Get difficulty (default HARD if not provided)
+    const difficultyValue = formData.get('difficulty') as string;
+    const difficulty = difficultyValue && difficultyValue in Difficulty
+      ? (difficultyValue as Difficulty)
+      : Difficulty.HARD;
+
     // Calculate questions per PDF (distribute evenly)
     const questionsPerPDF = Math.floor(totalQuestions / files.length);
     const remainingQuestions = totalQuestions % files.length;
@@ -267,7 +279,7 @@ export async function uploadAndProcessMultiplePDFs(
 
       // Generate questions for this PDF
       if (numQuestionsForThisPDF > 0) {
-        const quiz = await generateQuiz(extractedText, numQuestionsForThisPDF);
+        const quiz = await generateQuiz(extractedText, numQuestionsForThisPDF, difficulty);
         allQuestions.push(...quiz.questions);
       }
     }
@@ -488,6 +500,12 @@ export async function addPDFsToQuiz(params: {
     const questionsPerPDF = Math.floor(numQuestions / files.length);
     const remainingQuestions = numQuestions % files.length;
 
+    // Get difficulty (default HARD if not provided)
+    const difficultyValue = formData.get('difficulty') as string;
+    const difficulty = difficultyValue && difficultyValue in Difficulty
+      ? (difficultyValue as Difficulty)
+      : Difficulty.HARD;
+
     const newQuestions: QuizQuestion[] = [];
     const pdfRecords: string[] = [];
 
@@ -536,7 +554,7 @@ export async function addPDFsToQuiz(params: {
 
       // Generate questions for this PDF
       if (numQuestionsForThisPDF > 0) {
-        const pdfQuiz = await generateQuiz(extractedText, numQuestionsForThisPDF);
+        const pdfQuiz = await generateQuiz(extractedText, numQuestionsForThisPDF, difficulty);
         newQuestions.push(...pdfQuiz.questions);
       }
     }
@@ -654,7 +672,9 @@ export async function regenerateQuizQuestions(params: {
       const extractedText = pdf.processedContent.extractedText;
 
       if (numQuestionsForThisPDF > 0) {
-        const pdfQuiz = await generateQuiz(extractedText, numQuestionsForThisPDF);
+        // Use default difficulty since we don't have it stored in the quiz record yet
+        // TODO: Add difficulty field to Quiz model in schema.prisma
+        const pdfQuiz = await generateQuiz(extractedText, numQuestionsForThisPDF, Difficulty.HARD);
         allNewQuestions.push(...pdfQuiz.questions);
       }
     }
@@ -746,6 +766,12 @@ export async function processContentForQuiz(
     const subject = subjectValue && subjectValue in Subject
       ? (subjectValue as Subject)
       : Subject.GENERAL;
+
+    // Get difficulty (default HARD if not provided)
+    const difficultyValue = formData.get('difficulty') as string;
+    const difficulty = difficultyValue && difficultyValue in Difficulty
+      ? (difficultyValue as Difficulty)
+      : Difficulty.HARD;
 
     // Validate total file size if PDFs provided
     if (hasPDFs) {
@@ -840,7 +866,7 @@ export async function processContentForQuiz(
     }
 
     // Generate quiz from combined content
-    const quiz = await generateQuiz(combinedContent, totalQuestions);
+    const quiz = await generateQuiz(combinedContent, totalQuestions, difficulty);
 
     // Create quiz record
     // For text-only content, we need to create a placeholder ProcessedContent
