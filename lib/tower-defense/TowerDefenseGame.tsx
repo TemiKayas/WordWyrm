@@ -25,7 +25,7 @@ const TowerDefenseGame = ({ quiz }: TowerDefenseGameProps) => {
     const preventTouchMove = (e: TouchEvent) => {
       // Only prevent default on the game container, not on UI elements
       const target = e.target as HTMLElement;
-      if (target.closest('#phaser-container')) {
+      if (target.closest('#phaser-container') || target.closest('#game-wrapper')) {
         e.preventDefault();
       }
     };
@@ -58,14 +58,12 @@ const TowerDefenseGame = ({ quiz }: TowerDefenseGameProps) => {
           type: Phaser.AUTO, // auto choose WebGL/Canvas
           width: 1920,
           height: 1080,
-          parent: 'phaser-container', // Target specific container div
+          parent: gameRef.current, // CRITICAL: Use ref to actual DOM element
           backgroundColor: '#8bc34a',
-          antialias: false, // Disable antialiasing for crisp UI (not pixel art)
-          pixelArt: false, // Disable pixel art mode (this is NOT a pixel art game)
+          pixelArt: true, // Keep original setting
           scale: {
             mode: Phaser.Scale.FIT, // FIT mode maintains aspect ratio and fits in container
             autoCenter: Phaser.Scale.CENTER_BOTH,
-            parent: 'phaser-container', // Crucial: target specific div for CSS control
             width: 1920,
             height: 1080,
             expandParent: false,
@@ -75,10 +73,10 @@ const TowerDefenseGame = ({ quiz }: TowerDefenseGameProps) => {
             createContainer: true // Enable DOM element support
           },
           render: {
-            antialias: true, // Enable antialiasing for smooth graphics (not pixel art)
-            antialiasGL: true,
-            roundPixels: false, // Allow sub-pixel rendering for smooth scaling
-            pixelArt: false // Disable pixel art mode (not a pixel art game)
+            antialias: false, // Keep original setting
+            antialiasGL: false,
+            roundPixels: true, // Keep original setting
+            pixelArt: true // Keep original setting
           },
           physics: {
             default: 'arcade',
@@ -128,6 +126,7 @@ const TowerDefenseGame = ({ quiz }: TowerDefenseGameProps) => {
   return (
     <div
       ref={gameRef}
+      id="game-wrapper"
       style={{
         width: '100%',
         height: '100%', // Fill parent container
