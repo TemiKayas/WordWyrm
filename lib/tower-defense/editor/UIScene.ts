@@ -720,7 +720,7 @@ export default class UIScene extends Phaser.Scene {
       child => child instanceof Phaser.GameObjects.Image &&
                (child as Phaser.GameObjects.Image).texture.key === 'rectangle_110' &&
                Math.abs(child.y - 46) < 5
-    );
+    ) as Phaser.GameObjects.Image | undefined;
     if (backButtonBg) {
       backButtonBg.setPosition(padding + 57, padding - 14);
     }
@@ -735,7 +735,7 @@ export default class UIScene extends Phaser.Scene {
       child => child instanceof Phaser.GameObjects.Image &&
                (child as Phaser.GameObjects.Image).texture.key === 'rectangle_110' &&
                Math.abs(child.y - 137) < 5
-    );
+    ) as Phaser.GameObjects.Image | undefined;
     if (goldBackground) {
       goldBackground.setPosition(padding + 60, 137);
     }
@@ -747,7 +747,7 @@ export default class UIScene extends Phaser.Scene {
     const coinIcon = allChildren.find(
       child => child instanceof Phaser.GameObjects.Image &&
                (child as Phaser.GameObjects.Image).texture.key === 'coin_icon'
-    );
+    ) as Phaser.GameObjects.Image | undefined;
     if (coinIcon) {
       coinIcon.setPosition(padding + 29, 137);
     }
@@ -757,7 +757,7 @@ export default class UIScene extends Phaser.Scene {
       child => child instanceof Phaser.GameObjects.Image &&
                (child as Phaser.GameObjects.Image).texture.key === 'rectangle_110' &&
                Math.abs(child.y - 93) < 5
-    );
+    ) as Phaser.GameObjects.Image | undefined;
     if (livesBackground) {
       livesBackground.setPosition(padding + 28, 93);
     }
@@ -766,7 +766,7 @@ export default class UIScene extends Phaser.Scene {
     const livesLabel = allChildren.find(
       child => child instanceof Phaser.GameObjects.Text &&
                (child as Phaser.GameObjects.Text).text.includes('Lives')
-    );
+    ) as Phaser.GameObjects.Text | undefined;
     if (livesLabel) {
       livesLabel.setPosition(padding + 8, 83);
     }
@@ -787,7 +787,7 @@ export default class UIScene extends Phaser.Scene {
     const flagRect1 = allChildren.find(
       child => child instanceof Phaser.GameObjects.Image &&
                (child as Phaser.GameObjects.Image).texture.key === 'flag_rectangle1'
-    );
+    ) as Phaser.GameObjects.Image | undefined;
     if (flagRect1) {
       flagRect1.setPosition(topRightX - 90, topRightStartY);
     }
@@ -795,7 +795,7 @@ export default class UIScene extends Phaser.Scene {
     const flagRect2 = allChildren.find(
       child => child instanceof Phaser.GameObjects.Image &&
                (child as Phaser.GameObjects.Image).texture.key === 'flag_rectangle2'
-    );
+    ) as Phaser.GameObjects.Image | undefined;
     if (flagRect2) {
       flagRect2.setPosition(topRightX - 9, topRightStartY + 23);
     }
@@ -803,7 +803,7 @@ export default class UIScene extends Phaser.Scene {
     const flagRect3 = allChildren.find(
       child => child instanceof Phaser.GameObjects.Image &&
                (child as Phaser.GameObjects.Image).texture.key === 'flag_rectangle3'
-    );
+    ) as Phaser.GameObjects.Image | undefined;
     if (flagRect3) {
       flagRect3.setPosition(topRightX - 90, topRightStartY + 1);
     }
@@ -811,7 +811,7 @@ export default class UIScene extends Phaser.Scene {
     const flagPart = allChildren.find(
       child => child instanceof Phaser.GameObjects.Image &&
                (child as Phaser.GameObjects.Image).texture.key === 'flag_part'
-    );
+    ) as Phaser.GameObjects.Image | undefined;
     if (flagPart) {
       flagPart.setPosition(topRightX - 171, topRightStartY);
     }
@@ -820,7 +820,7 @@ export default class UIScene extends Phaser.Scene {
     const waveCounterLabel = allChildren.find(
       child => child instanceof Phaser.GameObjects.Text &&
                (child as Phaser.GameObjects.Text).text === 'ROUND'
-    );
+    ) as Phaser.GameObjects.Text | undefined;
     if (waveCounterLabel) {
       waveCounterLabel.setPosition(topRightX - 89, topRightStartY + 39);
     }
@@ -828,7 +828,7 @@ export default class UIScene extends Phaser.Scene {
     const subtract = allChildren.find(
       child => child instanceof Phaser.GameObjects.Image &&
                (child as Phaser.GameObjects.Image).texture.key === 'subtract'
-    );
+    ) as Phaser.GameObjects.Image | undefined;
     if (subtract) {
       subtract.setPosition(topRightX - 90, topRightStartY + 168);
     }
@@ -836,7 +836,7 @@ export default class UIScene extends Phaser.Scene {
     const ellipse63 = allChildren.find(
       child => child instanceof Phaser.GameObjects.Image &&
                (child as Phaser.GameObjects.Image).texture.key === 'ellipse_63'
-    );
+    ) as Phaser.GameObjects.Image | undefined;
     if (ellipse63) {
       ellipse63.setPosition(topRightX - 89, topRightStartY + 81);
     }
@@ -864,7 +864,7 @@ export default class UIScene extends Phaser.Scene {
     const speedLabel = allChildren.find(
       child => child instanceof Phaser.GameObjects.Text &&
                (child as Phaser.GameObjects.Text).text === 'SPEED'
-    );
+    ) as Phaser.GameObjects.Text | undefined;
     if (speedLabel) {
       speedLabel.setPosition(topRightX - 123, topRightStartY + 184);
     }
@@ -932,22 +932,30 @@ export default class UIScene extends Phaser.Scene {
     this.towersMenuOpen = !this.towersMenuOpen;
 
     // Toggle icon texture
-    const texture = this.towersMenuOpen ? 'towers_opened_icon' : 'towers_closed_icon';
-    this.towersToggleIcon.setTexture(texture);
+    if (this.towersToggleIcon) {
+      const texture = this.towersMenuOpen ? 'towers_opened_icon' : 'towers_closed_icon';
+      this.towersToggleIcon.setTexture(texture);
+    }
 
     // Show/hide tower buttons
-    this.towerButtons.forEach(btn => btn.setVisible(this.towersMenuOpen));
+    if (this.towerButtons) {
+      this.towerButtons.forEach(btn => btn.setVisible(this.towersMenuOpen));
+    }
   }
 
   togglePowersMenu(): void {
     this.powersMenuOpen = !this.powersMenuOpen;
 
     // Toggle icon texture
-    const texture = this.powersMenuOpen ? 'powers_opened_icon' : 'powers_closed_icon';
-    this.powersToggleIcon.setTexture(texture);
+    if (this.powersToggleIcon) {
+      const texture = this.powersMenuOpen ? 'powers_opened_icon' : 'powers_closed_icon';
+      this.powersToggleIcon.setTexture(texture);
+    }
 
     // Show/hide power buttons
-    this.powerButtons.forEach(btn => btn.setVisible(this.powersMenuOpen));
+    if (this.powerButtons) {
+      this.powerButtons.forEach(btn => btn.setVisible(this.powersMenuOpen));
+    }
   }
 
   setPowerButtonState(power: 'lightning' | 'freeze' | 'question', available: boolean) {
@@ -1022,7 +1030,9 @@ export default class UIScene extends Phaser.Scene {
 
   onSpeedChanged(speed: number): void {
     this.currentSpeed = speed;
-    this.speedButtonText.setText(`SPEED ${speed}x`);
+    if (this.speedButtonText) {
+      this.speedButtonText.setText(`SPEED ${speed}x`);
+    }
   }
 
 
