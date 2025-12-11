@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition, useRef, useEffect, Suspense } from 'react';
-import { login } from '@/app/actions/auth';
+import { login, signInWithGoogle } from '@/app/actions/auth';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { gsap } from 'gsap';
@@ -69,8 +69,13 @@ function LoginForm() {
     });
   }
 
-  const handleGoogleSignIn = () => {
-    // Google sign-in not yet implemented
+  const handleGoogleSignIn = async () => {
+    try {
+      await signInWithGoogle();
+    } catch (error) {
+      // Server action will handle redirect, so errors here are unexpected
+      console.error('Google sign-in error:', error);
+    }
   };
 
   return (
@@ -83,27 +88,48 @@ function LoginForm() {
         </div>
       </header>
 
-      <div className="min-h-screen pt-16 flex">
-        <div ref={dragonRef} className="hidden lg:flex w-1/2 items-center justify-center bg-[#fffaf2]">
-          <div className="text-center px-8">
+      <div className="min-h-screen pt-16 flex flex-col lg:flex-row max-w-[1200px] mx-auto">
+        {/* Mobile character - shown above form on small screens */}
+        <div ref={dragonRef} className="lg:hidden flex items-center justify-center bg-[#fffaf2] px-4 py-6">
+          <div className="text-center">
             <Image
               src="/assets/login/welcome-floopa.png"
               alt="WordWyrm mascot"
-              width={320}
-              height={320}
-              className="object-contain mx-auto mb-6"
+              width={160}
+              height={160}
+              className="object-contain mx-auto mb-3"
               priority
             />
-            <h2 className="font-quicksand font-bold text-[#473025] text-[28px] mb-3">
+            <h2 className="font-quicksand font-bold text-[#473025] text-[20px] mb-1">
               Welcome back, learner!
             </h2>
-            <p className="font-quicksand text-[#473025]/70 text-[16px] max-w-sm mx-auto">
+            <p className="font-quicksand text-[#473025]/70 text-[14px] max-w-xs mx-auto">
               Ready to continue your learning adventure? Log in and let&apos;s make learning fun!
             </p>
           </div>
         </div>
 
-        <div className="w-full lg:w-1/2 flex items-center justify-center p-6 lg:p-12">
+        {/* Desktop character - shown on left side on large screens */}
+        <div className="hidden lg:flex lg:w-[45%] items-center justify-center bg-[#fffaf2] px-4">
+          <div className="text-center">
+            <Image
+              src="/assets/login/welcome-floopa.png"
+              alt="WordWyrm mascot"
+              width={280}
+              height={280}
+              className="object-contain mx-auto mb-4"
+              priority
+            />
+            <h2 className="font-quicksand font-bold text-[#473025] text-[24px] mb-2">
+              Welcome back, learner!
+            </h2>
+            <p className="font-quicksand text-[#473025]/70 text-[15px] max-w-xs mx-auto">
+              Ready to continue your learning adventure? Log in and let&apos;s make learning fun!
+            </p>
+          </div>
+        </div>
+
+        <div className="w-full lg:w-[55%] flex items-center justify-center p-6">
           <div ref={cardRef} className="bg-[#fffaf2] border-3 border-[#473025] shadow-lg w-full max-w-[420px] rounded-[20px]">
             <div className="p-6 sm:p-8">
               <h2 className="font-quicksand font-bold text-[#473025] text-[28px] text-center mb-6">

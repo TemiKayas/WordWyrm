@@ -102,6 +102,16 @@ export default function PDFUploadForm({ onFileSelect }: PDFUploadFormProps) {
     onFileSelect?.(file);
   }
 
+  // Determine content type for modal
+  const getContentType = (): 'pdf' | 'text' | 'both' => {
+    const hasText = textContent.trim().length > 0;
+    const hasPDFs = selectedFiles.length > 0;
+
+    if (hasText && hasPDFs) return 'both';
+    if (hasText) return 'text';
+    return 'pdf';
+  };
+
   async function handleSubmit() {
     const hasText = textContent.trim().length > 0;
     const hasPDFs = selectedFiles.length > 0;
@@ -335,7 +345,7 @@ export default function PDFUploadForm({ onFileSelect }: PDFUploadFormProps) {
       {/* Processing Modal */}
       <ProcessingModal
         isOpen={isPending}
-        message="Creating your quiz... This may take a moment."
+        contentType={getContentType()}
       />
     </div>
   );

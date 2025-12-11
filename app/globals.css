@@ -74,6 +74,84 @@ body {
   }
 }
 
+@keyframes bounceSlow {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+}
+
+@keyframes waveSiftBottom {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-20%);
+  }
+}
+
+@keyframes waveSiftTop {
+  0% {
+    transform: translateX(-20%);
+  }
+  100% {
+    transform: translateX(0%);
+  }
+}
+
+@keyframes shipSway {
+  0%, 100% {
+    transform: translateY(0px) translateX(0px) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-3px) translateX(-2px) rotate(-2deg);
+  }
+  50% {
+    transform: translateY(-5px) translateX(0px) rotate(0deg);
+  }
+  75% {
+    transform: translateY(-3px) translateX(2px) rotate(2deg);
+  }
+}
+
+@keyframes characterSway {
+  0%, 100% {
+    transform: translateY(0px) translateX(0px);
+  }
+  33% {
+    transform: translateY(-4px) translateX(-3px);
+  }
+  66% {
+    transform: translateY(-6px) translateX(3px);
+  }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-bounce-slow {
+  animation: bounceSlow 3s ease-in-out infinite;
+}
+
+.animate-wave-sift-bottom {
+  animation: waveSiftBottom 12s linear infinite;
+}
+
+.animate-wave-sift-top {
+  animation: waveSiftTop 10s linear infinite;
+}
+
+.animate-ship-sway {
+  animation: shipSway 5s ease-in-out infinite;
+}
+
+.animate-character-sway {
+  animation: characterSway 4s ease-in-out infinite;
+}
+
 .animate-fade-in {
   animation: fadeIn 0.5s ease-in;
 }

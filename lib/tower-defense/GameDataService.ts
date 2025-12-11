@@ -241,6 +241,12 @@ export class GameDataService {
     lives: number;
     towersPlaced: number;
     correctAnswers: number;
+    questionResponses?: Record<string, {
+      questionText: string;
+      selectedAnswer: string;
+      correctAnswer: string;
+      correct: boolean;
+    }>;
   }): Promise<void> {
     if (this.isPhaserEditor()) {
       console.log('[GameDataService] Saving to localStorage:', data);
@@ -272,13 +278,25 @@ export class GameDataService {
         // Dynamically import the server action to avoid bundling issues
         const { saveGameSession } = await import('@/app/actions/game');
 
+        // Convert questionResponses Record to array format for questionAttempts
+        const questionAttempts = data.questionResponses
+          ? Object.values(data.questionResponses).map((response, index) => ({
+              questionText: response.questionText,
+              selectedAnswer: response.selectedAnswer,
+              correctAnswer: response.correctAnswer,
+              wasCorrect: response.correct,
+              attemptNumber: 1 // Tower Defense only tracks one attempt per question
+            }))
+          : undefined;
+
         // Save game session - analytics will only be tracked for class members
         const result = await saveGameSession({
           gameId,
           score: data.score,
           correctAnswers: data.correctAnswers,
           totalQuestions,
-          metadata
+          metadata,
+          questionAttempts
         });
 
         if (!result.success) {

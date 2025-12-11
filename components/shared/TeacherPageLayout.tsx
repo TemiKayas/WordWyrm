@@ -13,7 +13,8 @@ interface TeacherPageLayoutProps {
 }
 
 export default function TeacherPageLayout({ children, showSignOut = true, defaultSidebarOpen = false }: TeacherPageLayoutProps) {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(defaultSidebarOpen);
+  // On mobile, always start with sidebar closed
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [userName, setUserName] = useState('');
   const [userRole, setUserRole] = useState<'TEACHER' | 'STUDENT'>('TEACHER');
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -40,6 +41,25 @@ export default function TeacherPageLayout({ children, showSignOut = true, defaul
     }
     fetchUser();
   }, [hasCheckedOnboarding]);
+
+  // Ensure sidebar is closed on mobile when window is resized
+  useEffect(() => {
+    const handleResize = () => {
+      // Close sidebar on mobile (below md breakpoint: 768px)
+      if (window.innerWidth < 768 && isSidebarOpen) {
+        setIsSidebarOpen(false);
+      }
+    };
+
+    // Add event listener
+    window.addEventListener('resize', handleResize);
+
+    // Run once on mount to check initial size
+    handleResize();
+
+    // Cleanup
+    return () => window.removeEventListener('resize', handleResize);
+  }, [isSidebarOpen]);
 
   const handleOnboardingClose = async () => {
     await markOnboardingComplete();

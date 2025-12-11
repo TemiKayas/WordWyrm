@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Navbar from '@/components/shared/Navbar';
 import SlidingSidebar from '@/components/shared/SlidingSidebar';
 import Button from '@/components/ui/Button';
+import OnboardingModal from '@/components/shared/OnboardingModal';
 import { getStudentClasses, joinClass } from '@/app/actions/class';
 
 type ClassData = {
@@ -24,12 +25,13 @@ type ClassData = {
 export default function StudentDashboard() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [classes, setClasses] = useState<ClassData[]>([]);
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
   const [inviteCode, setInviteCode] = useState('');
   const [error, setError] = useState('');
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   const [studentData, setStudentData] = useState({
     name: '',
@@ -38,6 +40,18 @@ export default function StudentDashboard() {
   });
 
   useEffect(() => {
+    // Handle sidebar initial state based on screen size
+    const handleResize = () => {
+      if (window.innerWidth >= 768) {
+        setIsSidebarOpen(true);
+      } else {
+        setIsSidebarOpen(false);
+      }
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+
     async function fetchData() {
       try {
         // Fetch user session
@@ -61,6 +75,13 @@ export default function StudentDashboard() {
         }
 
         setIsLoading(false);
+
+        // Check if user has seen onboarding
+        const hasSeenOnboarding = localStorage.getItem('hasSeenOnboarding');
+        if (!hasSeenOnboarding) {
+          setShowOnboarding(true);
+          localStorage.setItem('hasSeenOnboarding', 'true');
+        }
       } catch (error) {
         console.error('Failed to fetch dashboard data:', error);
         setIsLoading(false);
@@ -68,6 +89,8 @@ export default function StudentDashboard() {
     }
 
     fetchData();
+
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   const handleJoinClass = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -117,6 +140,13 @@ export default function StudentDashboard() {
       <SlidingSidebar
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(!isSidebarOpen)}
+        onHelpClick={() => setShowOnboarding(true)}
+      />
+
+      <OnboardingModal
+        isOpen={showOnboarding}
+        onClose={() => setShowOnboarding(false)}
+        userRole="STUDENT"
       />
 
       <div

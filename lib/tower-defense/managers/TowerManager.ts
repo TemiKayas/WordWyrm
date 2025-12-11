@@ -35,10 +35,10 @@ export interface BuffCalculation {
 export class TowerManager {
   private scene: Phaser.Scene;
   private towers: Tower[] = [];
-  private allPaths: PathPoint[][]; // Array of paths
+  private path: PathPoint[]; // Single path
 
   // Tower base stats configuration
-  private static readonly TOWER_STATS: Record<'basic' | 'sniper' | 'melee' | 'fact' | 'wizard', TowerStats> = {
+  private static readonly TOWER_STATS: Record<'basic' | 'sniper' | 'melee' | 'fact' | 'wizard' | 'cannon', TowerStats> = {
     basic: {
       range: 150,
       fireRate: 500,
@@ -83,18 +83,27 @@ export class TowerManager {
       size: 1.0,
       spriteScale: TOWER_SPRITE_SCALES.archmage,
       color: 0x9c27b0
+    },
+    cannon: {
+      range: 180,
+      fireRate: 1500,
+      damage: 35, // Direct damage (plus 15 splash = 50 total)
+      cost: 70,
+      size: 1.1,
+      spriteScale: TOWER_SPRITE_SCALES.cannon,
+      color: 0x2c3e50 // Dark grey/blue
     }
   };
 
-  constructor(scene: Phaser.Scene, allPaths: PathPoint[][]) {
+  constructor(scene: Phaser.Scene, path: PathPoint[]) {
     this.scene = scene;
-    this.allPaths = allPaths;
+    this.path = path;
   }
 
   /**
    * Get base stats for a tower type
    */
-  getTowerStats(type: 'basic' | 'sniper' | 'melee' | 'fact' | 'wizard'): TowerStats {
+  getTowerStats(type: 'basic' | 'sniper' | 'melee' | 'fact' | 'wizard' | 'cannon'): TowerStats {
     return { ...TowerManager.TOWER_STATS[type] };
   }
 
@@ -102,17 +111,13 @@ export class TowerManager {
    * Check if position is too close to path (40px clearance)
    */
   isTooCloseToPath(x: number, y: number): boolean {
-    // Check distance to ALL paths
-    for (const pathPoints of this.allPaths) {
-      const tooClose = pathPoints.some((point, i) => {
-        if (i === 0) return false;
-        const prev = pathPoints[i - 1];
-        const distToSegment = this.pointToSegmentDistance(x, y, prev.x, prev.y, point.x, point.y);
-        return distToSegment < 40;
-      });
-      if (tooClose) return true;
-    }
-    return false;
+    // Check distance to path
+    return this.path.some((point, i) => {
+      if (i === 0) return false;
+      const prev = this.path[i - 1];
+      const distToSegment = this.pointToSegmentDistance(x, y, prev.x, prev.y, point.x, point.y);
+      return distToSegment < 40;
+    });
   }
 
   /**
@@ -139,7 +144,7 @@ export class TowerManager {
   createTowerGraphics(
     x: number,
     y: number,
-    type: 'basic' | 'sniper' | 'melee' | 'fact' | 'wizard',
+    type: 'basic' | 'sniper' | 'melee' | 'fact' | 'wizard' | 'cannon',
     stats: TowerStats
   ): Phaser.GameObjects.Rectangle | Phaser.GameObjects.Image | Phaser.GameObjects.Container {
     if (type === 'fact') {
@@ -169,10 +174,19 @@ export class TowerManager {
 
       return container;
     } else {
-      // Standard towers (Ballista, Trebuchet) - single sprite
-      const spriteKey = type === 'basic' ? 'tower_ballista' : 'tower_catapult';
+      // Standard towers (Ballista, Trebuchet) and Cannon - single sprite
+      let spriteKey = 'tower_ballista';
+      if (type === 'sniper') spriteKey = 'tower_catapult';
+      else if (type === 'cannon') spriteKey = 'tower_catapult'; // Reuse catapult sprite for now
+
       const sprite = this.scene.add.image(x, y, spriteKey);
       sprite.setScale(stats.spriteScale);
+      
+      // Tint Cannon to distinguish it from Trebuchet
+      if (type === 'cannon') {
+        sprite.setTint(0x888888); // Darker/metallic look
+      }
+
       sprite.setInteractive({ useHandCursor: true });
       return sprite;
     }
@@ -241,13 +255,6 @@ export class TowerManager {
   }
 
   /**
-   * Update path points (used during stage transitions)
-   */
-  updatePath(newAllPaths: PathPoint[][]): void {
-    this.allPaths = newAllPaths;
-  }
-
-  /**
    * Remove a specific tower (used during stage transitions)
    */
   removeTower(tower: Tower): void {
@@ -258,6 +265,13 @@ export class TowerManager {
       tower.rangeCircle?.destroy();
       tower.spellGlow?.destroy();
     }
+  }
+
+  /**
+   * Update path reference (called during window resize)
+   */
+  setPath(path: PathPoint[]): void {
+    this.path = path;
   }
 
   /**

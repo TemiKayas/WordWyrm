@@ -10,13 +10,25 @@ export default function StudentLeaderboardPage() {
   const params = useParams();
   const gameId = params?.gameId as string;
 
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [studentData, setStudentData] = useState({
     name: '',
     role: 'STUDENT' as const,
   });
 
   useEffect(() => {
+    // Handle sidebar initial state based on screen size
+    const handleResize = () => {
+      if (window.innerWidth >= 768) {
+        setIsSidebarOpen(true);
+      } else {
+        setIsSidebarOpen(false);
+      }
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+
     async function fetchUserData() {
       try {
         const response = await fetch('/api/auth/session');
@@ -34,6 +46,8 @@ export default function StudentLeaderboardPage() {
     }
 
     fetchUserData();
+
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   return (

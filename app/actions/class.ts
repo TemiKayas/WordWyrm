@@ -235,6 +235,7 @@ export async function getClassDetails(classId: string): Promise<
       id: string;
       title: string;
       shareCode: string;
+      imageUrl: string | null;
       createdAt: Date;
       gameMode: string;
     }>;
@@ -292,6 +293,7 @@ export async function getClassDetails(classId: string): Promise<
             id: true,
             title: true,
             shareCode: true,
+            imageUrl: true,
             createdAt: true,
             gameMode: true,
           },
@@ -691,6 +693,7 @@ export async function getStudentClassDetails(classId: string): Promise<
       id: string;
       title: string;
       shareCode: string;
+      imageUrl: string | null;
       gameMode: string;
       createdAt: Date;
     }>;
@@ -736,6 +739,7 @@ export async function getStudentClassDetails(classId: string): Promise<
             id: true,
             title: true,
             shareCode: true,
+            imageUrl: true,
             gameMode: true,
             createdAt: true,
           },

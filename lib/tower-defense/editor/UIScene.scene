@@ -16,6 +16,28 @@
     },
     "displayList": [
         {
+            "type": "Image",
+            "id": "1f8f7711-e570-476a-bce8-98a8e0e1bdaa",
+            "label": "rectangle",
+            "texture": {
+                "key": "rectangle_110"
+            },
+            "x": 115,
+            "y": 46
+        },
+        {
+            "type": "Image",
+            "id": "d9d8d43f-4ee6-495a-8de8-b2a5d4159440",
+            "label": "cleared_rectangle",
+            "texture": {
+                "key": "cleared_rectangle"
+            },
+            "x": 961,
+            "y": 539,
+            "scaleX": 0.8,
+            "scaleY": 0.55
+        },
+        {
             "type": "Rectangle",
             "id": "startGameButtonBg",
             "label": "startGameButtonBg",
@@ -48,31 +70,6 @@
             "color": "#ffffff"
         },
         {
-            "type": "Rectangle",
-            "id": "sidebar",
-            "label": "sidebar",
-            "x": 1820,
-            "y": 100,
-            "isFilled": true,
-            "fillColor": "#fffaf2",
-            "width": 200,
-            "height": 200
-        },
-        {
-            "type": "Rectangle",
-            "id": "backButtonBg",
-            "label": "backButtonBg",
-            "x": 113,
-            "y": 45,
-            "isFilled": true,
-            "fillColor": "#fffcf8",
-            "strokeColor": "#473025",
-            "lineWidth": 2,
-            "isStroked": true,
-            "width": 150,
-            "height": 60
-        },
-        {
             "type": "Text",
             "id": "backButtonText",
             "label": "backButtonText",
@@ -86,539 +83,401 @@
             "color": "#473025"
         },
         {
-            "type": "Rectangle",
-            "id": "livesBg",
-            "label": "livesBg",
-            "x": 128,
-            "y": 128,
-            "isFilled": true,
-            "fillColor": "#fffaf2",
-            "strokeColor": "#c4a46f",
-            "lineWidth": 2,
-            "isStroked": true,
-            "width": 180,
-            "height": 60
+            "type": "Image",
+            "id": "2fcf1207-147b-4eb8-8fc8-c7dce077fec9",
+            "label": "flag_rectangle1",
+            "texture": {
+                "key": "flag_rectangle1"
+            },
+            "x": 1838,
+            "y": 38,
+            "scaleX": 1.2
         },
         {
-            "type": "Text",
-            "id": "livesText",
-            "label": "livesText",
-            "x": 128,
-            "y": 128,
-            "originX": 0.5,
-            "originY": 0.5,
-            "text": "Lives: 10",
-            "fontFamily": "Quicksand",
-            "fontSize": "27px",
-            "fontStyle": "600",
-            "color": "#e74c3c"
+            "type": "Image",
+            "id": "sidebar",
+            "label": "subtract",
+            "texture": {
+                "key": "subtract"
+            },
+            "x": 1828,
+            "y": 206,
+            "scaleX": 1.5,
+            "scaleY": 1.5
         },
         {
             "type": "Text",
             "id": "waveCounterText",
             "label": "waveCounterText",
-            "x": 1822,
-            "y": 38,
+            "x": 1829,
+            "y": 77,
             "scaleX": 0.8,
             "scaleY": 0.8,
             "originX": 0.5,
             "originY": 0.5,
-            "text": "Round 0",
+            "text": "ROUND",
             "fontFamily": "Quicksand",
             "fontSize": "30px",
             "fontStyle": "600",
-            "color": "#473025"
+            "color": "#ffffffff",
+            "stroke": "#fffa2"
         },
         {
-            "type": "Rectangle",
-            "id": "waveButtonBg",
-            "label": "waveButtonBg",
-            "x": 1821,
-            "y": 76,
-            "isFilled": true,
-            "fillColor": "#95b607",
-            "strokeColor": "#006029",
-            "lineWidth": 3,
-            "isStroked": true,
-            "width": 170,
-            "height": 35
+            "type": "Image",
+            "id": "33c06a02-a360-43ba-90a5-13a4c17710a0",
+            "label": "flag_part",
+            "texture": {
+                "key": "flag_part"
+            },
+            "x": 1747,
+            "y": 38
         },
         {
-            "type": "Text",
-            "id": "waveButtonText",
-            "label": "waveButtonText",
-            "x": 1821,
-            "y": 78,
-            "scaleX": 0.8,
-            "scaleY": 0.8,
-            "originX": 0.5,
-            "originY": 0.5,
-            "text": "Start Wave 1",
-            "fontFamily": "Quicksand",
-            "fontSize": "27px",
-            "fontStyle": "bold",
-            "color": "#ffffff"
+            "type": "Image",
+            "id": "4c82adbf-526d-42f8-9fc3-abacc48574b7",
+            "label": "flag_rectangle2",
+            "texture": {
+                "key": "flag_rectangle2"
+            },
+            "x": 1909,
+            "y": 61
         },
         {
-            "type": "Rectangle",
-            "id": "goldBg",
-            "label": "goldBg",
-            "x": 1821,
-            "y": 143,
-            "isFilled": true,
-            "fillColor": "#ffffff",
-            "fillAlpha": 0.95,
-            "strokeColor": "#c4a46f",
-            "lineWidth": 2,
-            "isStroked": true,
-            "width": 170,
-            "height": 35
+            "type": "Image",
+            "id": "086875b5-1c7e-401b-a27c-282f8a914d1c",
+            "label": "flag_rectangle3",
+            "texture": {
+                "key": "flag_rectangle3"
+            },
+            "x": 1828,
+            "y": 39,
+            "scaleX": 1.5
+        },
+        {
+            "type": "Image",
+            "id": "b616b751-a4f7-409e-8338-480fc9788374",
+            "label": "rectangle_110",
+            "texture": {
+                "key": "rectangle_110"
+            },
+            "x": 118,
+            "y": 137
         },
         {
             "type": "Text",
             "id": "goldText",
             "label": "goldText",
-            "x": 1821,
-            "y": 143,
+            "x": 121,
+            "y": 138,
             "originX": 0.5,
             "originY": 0.5,
-            "text": "Gold: 100",
+            "text": "100",
             "fontFamily": "Quicksand",
-            "fontSize": "27px",
+            "fontSize": "22px",
             "fontStyle": "600",
-            "color": "#ff9f22"
-        },
-        {
-            "type": "Rectangle",
-            "id": "ballistaBtnBg",
-            "label": "ballistaBtnBg",
-            "x": 548,
-            "y": 980,
-            "isFilled": true,
-            "fillColor": "#fffcf8",
-            "strokeColor": "#c4a46f",
-            "lineWidth": 3,
-            "isStroked": true,
-            "width": 100,
-            "height": 100
-        },
-        {
-            "type": "Image",
-            "id": "ballistaBtnIcon",
-            "label": "ballistaBtnIcon",
-            "texture": {
-                "key": "icon_ballista"
-            },
-            "x": 548,
-            "y": 980,
-            "scaleX": 0.08,
-            "scaleY": 0.08
-        },
-        {
-            "type": "Text",
-            "id": "ballistaBtnName",
-            "label": "ballistaBtnName",
-            "x": 548,
-            "y": 940,
-            "originX": 0.5,
-            "originY": 0.5,
-            "text": "Ballista",
-            "fontFamily": "Quicksand",
-            "fontSize": "18px",
-            "fontStyle": "600",
-            "color": "#473025"
-        },
-        {
-            "type": "Text",
-            "id": "ballistaBtnCost",
-            "label": "ballistaBtnCost",
-            "x": 548,
-            "y": 1018,
-            "originX": 0.5,
-            "originY": 0.5,
-            "text": "50g",
-            "fontFamily": "Quicksand",
-            "fontSize": "17px",
-            "fontStyle": "bold",
-            "color": "#ff9f22"
-        },
-        {
-            "type": "Rectangle",
-            "id": "trebuchetBtnBg",
-            "label": "trebuchetBtnBg",
-            "x": 663,
-            "y": 980,
-            "isFilled": true,
-            "fillColor": "#fffcf8",
-            "strokeColor": "#c4a46f",
-            "lineWidth": 3,
-            "isStroked": true,
-            "width": 100,
-            "height": 100
-        },
-        {
-            "type": "Image",
-            "id": "trebuchetBtnIcon",
-            "label": "trebuchetBtnIcon",
-            "texture": {
-                "key": "icon_catapult"
-            },
-            "x": 663,
-            "y": 980,
-            "scaleX": 0.08,
-            "scaleY": 0.08
-        },
-        {
-            "type": "Text",
-            "id": "trebuchetBtnName",
-            "label": "trebuchetBtnName",
-            "x": 663,
-            "y": 940,
-            "originX": 0.5,
-            "originY": 0.5,
-            "text": "Trebuchet",
-            "fontFamily": "Quicksand",
-            "fontSize": "18px",
-            "fontStyle": "600",
-            "color": "#473025"
-        },
-        {
-            "type": "Text",
-            "id": "trebuchetBtnCost",
-            "label": "trebuchetBtnCost",
-            "x": 663,
-            "y": 1018,
-            "originX": 0.5,
-            "originY": 0.5,
-            "text": "100g",
-            "fontFamily": "Quicksand",
-            "fontSize": "17px",
-            "fontStyle": "bold",
-            "color": "#ff9f22"
-        },
-        {
-            "type": "Rectangle",
-            "id": "knightBtnBg",
-            "label": "knightBtnBg",
-            "x": 778,
-            "y": 980,
-            "isFilled": true,
-            "fillColor": "#fffcf8",
-            "strokeColor": "#c4a46f",
-            "lineWidth": 3,
-            "isStroked": true,
-            "width": 100,
-            "height": 100
-        },
-        {
-            "type": "Image",
-            "id": "knightBtnIcon",
-            "label": "knightBtnIcon",
-            "texture": {
-                "key": "icon_melee"
-            },
-            "x": 778,
-            "y": 980,
-            "scaleX": 0.08,
-            "scaleY": 0.08
-        },
-        {
-            "type": "Text",
-            "id": "knightBtnName",
-            "label": "knightBtnName",
-            "x": 778,
-            "y": 940,
-            "originX": 0.5,
-            "originY": 0.5,
-            "text": "Knight",
-            "fontFamily": "Quicksand",
-            "fontSize": "18px",
-            "fontStyle": "600",
-            "color": "#473025"
-        },
-        {
-            "type": "Text",
-            "id": "knightBtnCost",
-            "label": "knightBtnCost",
-            "x": 778,
-            "y": 1018,
-            "originX": 0.5,
-            "originY": 0.5,
-            "text": "75g",
-            "fontFamily": "Quicksand",
-            "fontSize": "17px",
-            "fontStyle": "bold",
-            "color": "#ff9f22"
-        },
-        {
-            "type": "Rectangle",
-            "id": "trainingCampBtnBg",
-            "label": "trainingCampBtnBg",
-            "x": 893,
-            "y": 980,
-            "isFilled": true,
-            "fillColor": "#fffcf8",
-            "strokeColor": "#c4a46f",
-            "lineWidth": 3,
-            "isStroked": true,
-            "width": 100,
-            "height": 100
-        },
-        {
-            "type": "Text",
-            "id": "trainingCampBtnName",
-            "label": "trainingCampBtnName",
-            "x": 893,
-            "y": 940,
-            "originX": 0.5,
-            "originY": 0.5,
-            "text": "Training",
-            "fontFamily": "Quicksand",
-            "fontSize": "18px",
-            "fontStyle": "600",
-            "color": "#473025"
-        },
-        {
-            "type": "Text",
-            "id": "trainingCampBtnCost",
-            "label": "trainingCampBtnCost",
-            "x": 893,
-            "y": 1018,
-            "originX": 0.5,
-            "originY": 0.5,
-            "text": "60g",
-            "fontFamily": "Quicksand",
-            "fontSize": "17px",
-            "fontStyle": "bold",
-            "color": "#ff9f22"
-        },
-        {
-            "type": "Rectangle",
-            "id": "archmageBtnBg",
-            "label": "archmageBtnBg",
-            "x": 1008,
-            "y": 980,
-            "isFilled": true,
-            "fillColor": "#fffcf8",
-            "strokeColor": "#c4a46f",
-            "lineWidth": 3,
-            "isStroked": true,
-            "width": 100,
-            "height": 100
-        },
-        {
-            "type": "Text",
-            "id": "archmageBtnName",
-            "label": "archmageBtnName",
-            "x": 1008,
-            "y": 940,
-            "originX": 0.5,
-            "originY": 0.5,
-            "text": "Archmage",
-            "fontFamily": "Quicksand",
-            "fontSize": "18px",
-            "fontStyle": "600",
-            "color": "#473025"
-        },
-        {
-            "type": "Text",
-            "id": "archmageBtnCost",
-            "label": "archmageBtnCost",
-            "x": 1008,
-            "y": 1018,
-            "originX": 0.5,
-            "originY": 0.5,
-            "text": "100g",
-            "fontFamily": "Quicksand",
-            "fontSize": "17px",
-            "fontStyle": "bold",
             "color": "#ff9f22"
         },
         {
             "type": "Image",
-            "id": "baac4d39-5709-4ceb-af99-8e896bad86ac",
-            "label": "icon_wizard",
+            "id": "7c9fc55e-e9e4-462f-8987-6d8c9b1a8fc5",
+            "label": "coin_icon",
             "texture": {
-                "key": "icon_wizard"
+                "key": "coin_icon"
             },
-            "x": 1008,
-            "y": 980,
-            "scaleX": 0.08,
-            "scaleY": 0.08
-        },
-        {
-            "type": "Rectangle",
-            "id": "759ffd5b-d02d-48ab-8056-68c96219797f",
-            "label": "lightningBtnBg",
-            "x": 1137,
-            "y": 980,
-            "isFilled": true,
-            "fillColor": "#fffcf8",
-            "strokeColor": "#c4a46f",
-            "lineWidth": 3,
-            "isStroked": true,
-            "width": 100,
-            "height": 100
-        },
-        {
-            "type": "Text",
-            "id": "db14a741-d862-4f3b-835c-99152afbc5d0",
-            "label": "lightningBtnName",
-            "x": 1137,
-            "y": 1000,
-            "originX": 0.5,
-            "originY": 0.5,
-            "text": "Lightning",
-            "fontFamily": "Quicksand",
-            "fontSize": "18px",
-            "fontStyle": "600",
-            "color": "#473025"
-        },
-        {
-            "type": "Text",
-            "id": "81400633-c910-494b-a05a-d45c7e94d993",
-            "label": "lightningBtnCost",
-            "x": 1137,
-            "y": 1017,
-            "originX": 0.5,
-            "originY": 0.5,
-            "text": "75g",
-            "fontFamily": "Quicksand",
-            "fontSize": "17px",
-            "fontStyle": "bold",
-            "color": "#ff9f22"
+            "x": 87,
+            "y": 137
         },
         {
             "type": "Image",
-            "id": "5d2354af-e68d-4def-86de-1f7d319df5e5",
-            "label": "icon_lightning",
+            "id": "0a4c08bb-ffac-4af2-90db-bcc35230bfc9",
+            "label": "ballistaBtn",
             "texture": {
-                "key": "icon_lightning"
+                "key": "ballista_icon"
             },
-            "x": 1137,
-            "y": 964,
-            "scaleX": 0.08,
-            "scaleY": 0.08
-        },
-        {
-            "type": "Rectangle",
-            "id": "76491b4f-985c-4cb2-85ed-3a54e2c9ba5c",
-            "label": "freezeBtnBg",
-            "x": 1251,
-            "y": 980,
-            "isFilled": true,
-            "fillColor": "#fffcf8",
-            "strokeColor": "#c4a46f",
-            "lineWidth": 3,
-            "isStroked": true,
-            "width": 100,
-            "height": 100
-        },
-        {
-            "type": "Text",
-            "id": "fcf8ef50-9a83-4dfb-8a60-f13dc84e6d84",
-            "label": "freezeBtnName",
-            "x": 1251,
-            "y": 1000,
-            "originX": 0.5,
-            "originY": 0.5,
-            "text": "Freeze",
-            "fontFamily": "Quicksand",
-            "fontSize": "18px",
-            "fontStyle": "600",
-            "color": "#473025"
-        },
-        {
-            "type": "Text",
-            "id": "3e01887e-d677-4ef9-99fb-83042b5d93ff",
-            "label": "freezeBtnCost",
-            "x": 1251,
-            "y": 1017,
-            "originX": 0.5,
-            "originY": 0.5,
-            "text": "100g",
-            "fontFamily": "Quicksand",
-            "fontSize": "17px",
-            "fontStyle": "bold",
-            "color": "#ff9f22"
+            "x": 597,
+            "y": 972,
+            "scaleX": 1.15,
+            "scaleY": 1.15
         },
         {
             "type": "Image",
-            "id": "23e0a1fc-a86a-43be-9384-4917c4b6881e",
-            "label": "icon_freeze",
+            "id": "c9b51ce4-fb45-47dd-a445-7922084786ed",
+            "label": "trainingCampBtn",
             "texture": {
-                "key": "icon_freeze"
+                "key": "cannon_icon"
             },
-            "x": 1251,
-            "y": 964,
-            "scaleX": 0.08,
-            "scaleY": 0.08
-        },
-        {
-            "type": "Rectangle",
-            "id": "655bce0c-ada8-494d-8180-8294e8ccc0b2",
-            "label": "quizBuffBtnBg",
-            "x": 1368,
-            "y": 980,
-            "isFilled": true,
-            "fillColor": "#fffcf8",
-            "strokeColor": "#c4a46f",
-            "lineWidth": 3,
-            "isStroked": true,
-            "width": 100,
-            "height": 100
-        },
-        {
-            "type": "Text",
-            "id": "485edbb0-5800-4890-a745-dba596ae6cca",
-            "label": "quizBuffBtnName",
-            "x": 1369,
-            "y": 1000,
-            "originX": 0.5,
-            "originY": 0.5,
-            "text": "Quiz Buff",
-            "fontFamily": "Quicksand",
-            "fontSize": "18px",
-            "fontStyle": "600",
-            "color": "#473025"
-        },
-        {
-            "type": "Text",
-            "id": "87968b2c-3872-4b09-bd91-554c7015a9c6",
-            "label": "quizBuffBtnCost",
-            "x": 1369,
-            "y": 1017,
-            "originX": 0.5,
-            "originY": 0.5,
-            "text": "25g",
-            "fontFamily": "Quicksand",
-            "fontSize": "17px",
-            "fontStyle": "bold",
-            "color": "#ff9f22"
+            "x": 882,
+            "y": 972,
+            "scaleX": 1.15,
+            "scaleY": 1.15
         },
         {
             "type": "Image",
-            "id": "a33aaea1-cf07-4da5-9d38-19f0e2a809bc",
-            "label": "icon_powerup_quizbuff",
+            "id": "e44466c3-7c5d-484b-a0db-04c2968af1d8",
+            "label": "archmageBtn",
             "texture": {
-                "key": "icon_powerup"
+                "key": "archmage_icon"
             },
-            "x": 1368,
-            "y": 964,
-            "scaleX": 0.08,
-            "scaleY": 0.08
+            "x": 977,
+            "y": 972,
+            "scaleX": 1.15,
+            "scaleY": 1.15
         },
         {
             "type": "Image",
-            "id": "cf2c9b99-ebdd-4e24-bcd5-db9335a2b37d",
-            "label": "icon_powerup_quizbuff_1",
+            "id": "a59438af-8edb-4dbd-85cb-a4f3bdd5d892",
+            "label": "freezeBtn",
             "texture": {
-                "key": "icon_powerup"
+                "key": "freeze_icon"
             },
-            "x": 893,
-            "y": 979,
-            "scaleX": 0.08,
-            "scaleY": 0.08
+            "x": 1197,
+            "y": 972,
+            "scaleX": 1.15,
+            "scaleY": 1.15
+        },
+        {
+            "type": "Image",
+            "id": "1ef9f556-bd37-4782-8f94-b49455f11235",
+            "label": "trebuchetBtn",
+            "texture": {
+                "key": "trebuchet_icon"
+            },
+            "x": 692,
+            "y": 972,
+            "scaleX": 1.15,
+            "scaleY": 1.15
+        },
+        {
+            "type": "Image",
+            "id": "fdc0db66-338f-4296-918f-0bb05983aa16",
+            "label": "lightningBtn",
+            "texture": {
+                "key": "lightning"
+            },
+            "x": 1102,
+            "y": 972,
+            "scaleX": 1.15,
+            "scaleY": 1.15
+        },
+        {
+            "type": "Image",
+            "id": "fef91111-7f0a-4b9f-981b-411874c602e7",
+            "label": "knightBtn",
+            "texture": {
+                "key": "knight_icon"
+            },
+            "x": 787,
+            "y": 972,
+            "scaleX": 1.15,
+            "scaleY": 1.15
+        },
+        {
+            "type": "Image",
+            "id": "63d542f5-dfc6-48b6-89ec-92fa65cf0318",
+            "label": "quizBuffBtn",
+            "texture": {
+                "key": "quiz_buff_icon"
+            },
+            "x": 1292,
+            "y": 972,
+            "scaleX": 1.15,
+            "scaleY": 1.15
+        },
+        {
+            "type": "Image",
+            "id": "f3a29920-5717-42b8-896f-9b548ca9462a",
+            "label": "towers_opened_icon",
+            "texture": {
+                "key": "towers_opened_icon"
+            },
+            "x": 790,
+            "y": 880
+        },
+        {
+            "type": "Image",
+            "id": "aafa62cf-48e3-404e-9d71-1f7109e31832",
+            "label": "heart_icon",
+            "texture": {
+                "key": "heart_icon"
+            },
+            "x": 120,
+            "y": 100
+        },
+        {
+            "type": "Image",
+            "id": "5a201ef5-3af2-4c38-8e32-82df7c90700e",
+            "label": "heart_icon_1",
+            "texture": {
+                "key": "heart_icon"
+            },
+            "x": 145,
+            "y": 100
+        },
+        {
+            "type": "Image",
+            "id": "724bcab4-a7b3-4686-8af4-81341e3c5f78",
+            "label": "heart_icon_2",
+            "texture": {
+                "key": "heart_icon"
+            },
+            "x": 170,
+            "y": 100
+        },
+        {
+            "type": "Image",
+            "id": "e187758b-5a17-48da-80ca-21c664c2d432",
+            "label": "heart_icon_3",
+            "texture": {
+                "key": "heart_icon"
+            },
+            "x": 195,
+            "y": 100
+        },
+        {
+            "type": "Image",
+            "id": "803c4dc2-0765-48d7-bc7b-c64c3523edf2",
+            "label": "heart_icon_4",
+            "texture": {
+                "key": "heart_icon"
+            },
+            "x": 220,
+            "y": 100
+        },
+        {
+            "type": "Image",
+            "id": "fbfc9be2-a9d7-498d-916f-7810a453c7a8",
+            "label": "heart_icon_5",
+            "texture": {
+                "key": "heart_icon"
+            },
+            "x": 245,
+            "y": 100
+        },
+        {
+            "type": "Image",
+            "id": "607d3a32-9230-47d6-8347-28d2df19e46e",
+            "label": "heart_icon_6",
+            "texture": {
+                "key": "heart_icon"
+            },
+            "x": 270,
+            "y": 100
+        },
+        {
+            "type": "Image",
+            "id": "8f63d3a7-3e0f-4793-b80a-b728a0b5adad",
+            "label": "heart_icon_7",
+            "texture": {
+                "key": "heart_icon"
+            },
+            "x": 295,
+            "y": 100
+        },
+        {
+            "type": "Image",
+            "id": "b751ace6-91de-4483-97a6-7644c41b5de9",
+            "label": "heart_icon_8",
+            "texture": {
+                "key": "heart_icon"
+            },
+            "x": 320,
+            "y": 100
+        },
+        {
+            "type": "Image",
+            "id": "6880de88-0a35-41b2-8e83-10b026216146",
+            "label": "heart_icon_9",
+            "texture": {
+                "key": "heart_icon"
+            },
+            "x": 345,
+            "y": 100
+        },
+        {
+            "type": "Text",
+            "id": "5f43515e-8daf-442b-b7ad-687c946891d9",
+            "label": "text_1",
+            "x": 58,
+            "y": 90,
+            "text": "Lives:\n",
+            "fontFamily": "Quicksand",
+            "strokeThickness": 1
+        },
+        {
+            "type": "Image",
+            "id": "28bb955a-b1d0-4c36-998c-95ab14793ff4",
+            "label": "rectangle_118",
+            "texture": {
+                "key": "rectangle_118"
+            },
+            "x": 1828,
+            "y": 231
+        },
+        {
+            "type": "Text",
+            "id": "9f228fed-1d49-451d-83b0-31ecd74c1cba",
+            "label": "text_2",
+            "x": 1797,
+            "y": 222,
+            "text": "SPEED",
+            "fontSize": "12px",
+            "color": "#EA1644",
+            "stroke": "#EA1644"
+        },
+        {
+            "type": "Image",
+            "id": "79c61f8a-c706-442c-ab74-ed082e390ceb",
+            "label": "rectangle_118_alt",
+            "texture": {
+                "key": "rectangle_118_alt"
+            },
+            "x": 1828,
+            "y": 193
+        },
+        {
+            "type": "Text",
+            "id": "9c1b4aab-7170-444e-98f5-72fb8fc5c647",
+            "label": "text",
+            "x": 1797,
+            "y": 179,
+            "text": "START NEXT\nROUND →",
+            "fontFamily": "QUICKSAND",
+            "fontSize": "10px",
+            "color": "#EA1644",
+            "stroke": "#EA1644"
+        },
+        {
+            "type": "Image",
+            "id": "52f6fd5b-a763-4ba8-92fb-c9cbcd737232",
+            "label": "ellipse_63",
+            "texture": {
+                "key": "ellipse_63"
+            },
+            "x": 1831,
+            "y": 119
+        },
+        {
+            "type": "Text",
+            "id": "6095a2c2-fb7e-4a15-9dd2-9eb88b208659",
+            "label": "text_3",
+            "x": 1827,
+            "y": 110,
+            "text": "1",
+            "fontFamily": "QUICKSAND",
+            "fontSize": "14px",
+            "color": "#EA1644",
+            "stroke": "#EA1644",
+            "strokeThickness": 1
+        },
+        {
+            "type": "Image",
+            "id": "2c82fb10-2db7-444b-988c-f0a316c0692e",
+            "label": "powers_opened_icon",
+            "texture": {
+                "key": "powers_opened_icon"
+            },
+            "x": 1196,
+            "y": 884
         }
     ],
     "plainObjects": [],

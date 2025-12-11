@@ -135,7 +135,7 @@ export class StageManager {
         });
       }
 
-      // Keep background visible - no fade out for GrassMap
+      // Keep background visible - no fade out for UpdatedSizeMap
 
       // Wait for fade out to complete, then fade in new stage
       this.scene.time.delayedCall(FADE_DURATION, () => {
@@ -143,7 +143,7 @@ export class StageManager {
         for (const oldPathGraphics of oldPathGraphicsArray) {
           oldPathGraphics.destroy();
         }
-        // Keep existing background (GrassMap) - don't destroy or replace it
+        // Keep existing background (UpdatedSizeMap) - don't destroy or replace it
         // The background remains persistent across all stages
 
         // Create new paths (full alpha, will use object alpha for fading)
@@ -154,7 +154,7 @@ export class StageManager {
         }
 
         // Phase 2: Fade in new paths only (background stays the same)
-        // No background fade needed - GrassMap persists
+        // No background fade needed - UpdatedSizeMap persists
 
         this.scene.tweens.add({
           targets: newPathGraphicsArray,
@@ -167,7 +167,7 @@ export class StageManager {
             resolve({
               pathPoints: newPathPoints,
               pathGraphics: newPathGraphicsArray,
-              background: oldBackground! // Keep the same GrassMap background
+              background: oldBackground! // Keep the same UpdatedSizeMap background
             });
           }
         });
