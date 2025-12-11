@@ -9,43 +9,6 @@ import { LAYOUT } from '@/lib/tower-defense/config/LayoutConfig';
 
 export default class UIScene extends Phaser.Scene {
 
-  // UI Element Properties
-  heartIcons: Phaser.GameObjects.Image[] = [];
-  startRoundButton?: Phaser.GameObjects.Image;
-  startRoundButtonText?: Phaser.GameObjects.Text;
-  speedButton?: Phaser.GameObjects.Image;
-  speedButtonText?: Phaser.GameObjects.Text;
-  startGameButtonBg?: Phaser.GameObjects.Rectangle;
-  startGameButtonText?: Phaser.GameObjects.Text;
-  cleared_rectangle?: Phaser.GameObjects.Image;
-  backButtonText?: Phaser.GameObjects.Text;
-  goldText?: Phaser.GameObjects.Text;
-  waveNumberText?: Phaser.GameObjects.Text;
-
-  // Tower buttons
-  ballistaBtn?: Phaser.GameObjects.Image;
-  trebuchetBtn?: Phaser.GameObjects.Image;
-  knightBtn?: Phaser.GameObjects.Image;
-  trainingCampBtn?: Phaser.GameObjects.Image;
-  archmageBtn?: Phaser.GameObjects.Image;
-  cannonBtn?: Phaser.GameObjects.Image;
-  towerButtons?: Phaser.GameObjects.Image[];
-
-  // Power buttons
-  freezeBtn?: Phaser.GameObjects.Image;
-  lightningBtn?: Phaser.GameObjects.Image;
-  quizBuffBtn?: Phaser.GameObjects.Image;
-  powerButtons?: Phaser.GameObjects.Image[];
-
-  // Menu state
-  towersMenuOpen: boolean = false;
-  powersMenuOpen: boolean = false;
-  towersOpenedIcon?: Phaser.GameObjects.Image;
-  towersToggleIcon?: Phaser.GameObjects.Image;
-  powersOpenedIcon?: Phaser.GameObjects.Image;
-  powersToggleIcon?: Phaser.GameObjects.Image;
-  currentSpeed: number = 1;
-
   constructor() {
     super("UIScene");
 
@@ -128,17 +91,17 @@ export default class UIScene extends Phaser.Scene {
     this.add.image(87, 137, "coin_icon");
 
     // ballistaBtn
-    const ballistaBtn = this.add.image(504, 972, "ballista_icon");
+    const ballistaBtn = this.add.image(597, 972, "ballista_icon");
     ballistaBtn.scaleX = 1.15;
     ballistaBtn.scaleY = 1.15;
 
     // trainingCampBtn
-    const trainingCampBtn = this.add.image(979, 972, "cannon_icon");
+    const trainingCampBtn = this.add.image(882, 972, "cannon_icon");
     trainingCampBtn.scaleX = 1.15;
     trainingCampBtn.scaleY = 1.15;
 
     // archmageBtn
-    const archmageBtn = this.add.image(884, 972, "archmage_icon");
+    const archmageBtn = this.add.image(977, 972, "archmage_icon");
     archmageBtn.scaleX = 1.15;
     archmageBtn.scaleY = 1.15;
 
@@ -148,7 +111,7 @@ export default class UIScene extends Phaser.Scene {
     freezeBtn.scaleY = 1.15;
 
     // trebuchetBtn
-    const trebuchetBtn = this.add.image(789, 972, "trebuchet_icon");
+    const trebuchetBtn = this.add.image(692, 972, "trebuchet_icon");
     trebuchetBtn.scaleX = 1.15;
     trebuchetBtn.scaleY = 1.15;
 
@@ -158,7 +121,7 @@ export default class UIScene extends Phaser.Scene {
     lightningBtn.scaleY = 1.15;
 
     // knightBtn
-    const knightBtn = this.add.image(599, 972, "knight_icon");
+    const knightBtn = this.add.image(787, 972, "knight_icon");
     knightBtn.scaleX = 1.15;
     knightBtn.scaleY = 1.15;
 
@@ -168,7 +131,7 @@ export default class UIScene extends Phaser.Scene {
     quizBuffBtn.scaleY = 1.15;
 
     // towers_opened_icon
-    this.add.image(740, 880, "towers_opened_icon");
+    this.add.image(790, 880, "towers_opened_icon");
 
     // heart_icon
     this.add.image(120, 100, "heart_icon");
@@ -231,11 +194,6 @@ export default class UIScene extends Phaser.Scene {
 
     // powers_opened_icon
     this.add.image(1196, 884, "powers_opened_icon");
-
-    // cannonBtn
-    const cannonBtn = this.add.image(694, 972, "cannon_icon");
-    cannonBtn.scaleX = 1.15;
-    cannonBtn.scaleY = 1.15;
 
     this.events.emit("scene-awake");
   }
@@ -394,14 +352,14 @@ export default class UIScene extends Phaser.Scene {
     this.trainingCampBtn = allChildren.find(
       child => child instanceof Phaser.GameObjects.Image &&
                (child as Phaser.GameObjects.Image).texture.key === 'cannon_icon' &&
-               Math.abs(child.x - 979) < 5 // Position from editorCreate
+               Math.abs(child.x - 882) < 5 // Updated to match editorCreate (882)
     ) as Phaser.GameObjects.Image;
 
-    // Find new Cannon button (added in Editor at x=694)
+    // Find new Cannon button (if it exists)
     this.cannonBtn = allChildren.find(
       child => child instanceof Phaser.GameObjects.Image &&
                (child as Phaser.GameObjects.Image).texture.key === 'cannon_icon' &&
-               Math.abs(child.x - 694) < 5 // Position from editorCreate
+               Math.abs(child.x - 694) < 5
     ) as Phaser.GameObjects.Image;
 
     this.archmageBtn = allChildren.find(
@@ -488,7 +446,7 @@ export default class UIScene extends Phaser.Scene {
     console.log('  startGameButtonBg:', !!this.startGameButtonBg);
     console.log('  startGameButtonText:', !!this.startGameButtonText);
     console.log('  cleared_rectangle:', !!this.cleared_rectangle);
-    console.log('  Tower buttons:', this.towerButtons.length, '/ 5');
+    console.log('  Tower buttons:', this.towerButtons.length);
     console.log('  Power buttons:', this.powerButtons.length, '/ 3');
     console.log('  startRoundButton:', !!this.startRoundButton);
     console.log('  speedButton:', !!this.speedButton);
@@ -533,16 +491,16 @@ export default class UIScene extends Phaser.Scene {
         this.setupTowerButton(this.ballistaBtn, 'basic');      // Ballista
         this.setupTowerButton(this.trebuchetBtn, 'sniper');    // Trebuchet
         this.setupTowerButton(this.knightBtn, 'melee');        // Knight
-        
+
         // Training Camp (Fact Tower)
         if (this.trainingCampBtn) {
             this.setupTowerButton(this.trainingCampBtn, 'fact');
         } else {
             console.warn("[UIScene] trainingCampBtn not found during setup");
         }
-    
+
         this.setupTowerButton(this.archmageBtn, 'wizard');     // Archmage
-    
+
         // Cannon button
         if (this.cannonBtn) {
           this.setupTowerButton(this.cannonBtn, 'cannon');
@@ -841,51 +799,87 @@ export default class UIScene extends Phaser.Scene {
     const bottomCenterY = worldHeight - padding;
     const towerMenuY = bottomCenterY - 108; // Towers are 108px from bottom
 
-    // Tower buttons (centered horizontally) - Layout for 6 buttons
-    // Spacing: 95px between centers
-    // Total width: 5 * 95 = 475px
-    // Start X: Center - 475/2 = Center - 237.5
-    const startX = worldWidth / 2 - 237.5;
+    // Layout Constants
     const spacing = 95;
+    const gapBetweenGroups = 125;
 
-    // Order based on Editor positions: Ballista, Knight, Cannon, Trebuchet, Archmage, Training Camp
-    if (this.ballistaBtn) this.ballistaBtn.setPosition(startX, towerMenuY);
-    if (this.knightBtn) this.knightBtn.setPosition(startX + spacing, towerMenuY);
-    if (this.cannonBtn) this.cannonBtn.setPosition(startX + spacing * 2, towerMenuY);
-    if (this.trebuchetBtn) this.trebuchetBtn.setPosition(startX + spacing * 3, towerMenuY);
-    if (this.archmageBtn) this.archmageBtn.setPosition(startX + spacing * 4, towerMenuY);
-    if (this.trainingCampBtn) this.trainingCampBtn.setPosition(startX + spacing * 5, towerMenuY);
+    // Active Buttons
+    // Preferred Order: Ballista, Knight, Cannon, Trebuchet, Archmage, Training Camp
+    const activeTowerButtons = [
+      this.ballistaBtn, 
+      this.knightBtn, 
+      this.cannonBtn, 
+      this.trebuchetBtn, 
+      this.archmageBtn, 
+      this.trainingCampBtn
+    ].filter(btn => btn && btn.active); 
 
-    // Tower toggle icon
-    if (this.towersToggleIcon) {
-         this.towersToggleIcon.setPosition(worldWidth / 2, towerMenuY + 92);
+    const activePowerButtons = [
+      this.lightningBtn, 
+      this.freezeBtn, 
+      this.quizBuffBtn
+    ].filter(btn => btn && btn.active);
+
+    // Calculate Total Width of the Assembly
+    const towerGroupWidth = Math.max(0, (activeTowerButtons.length - 1) * spacing);
+    const powerGroupWidth = Math.max(0, (activePowerButtons.length - 1) * spacing);
+    
+    // Only include gap if both groups exist
+    const totalAssemblyWidth = towerGroupWidth + (activePowerButtons.length > 0 && activeTowerButtons.length > 0 ? gapBetweenGroups : 0) + powerGroupWidth;
+
+    // Calculate Start X to center everything
+    const startX = (worldWidth / 2) - (totalAssemblyWidth / 2);
+
+    // Position Tower Buttons
+    let currentX = startX;
+    activeTowerButtons.forEach((btn, index) => {
+      btn.setPosition(currentX, towerMenuY);
+      if (index < activeTowerButtons.length - 1) {
+        currentX += spacing;
+      }
+    });
+
+    // Add Gap (if towers exist)
+    if (activeTowerButtons.length > 0 && activePowerButtons.length > 0) {
+      currentX += gapBetweenGroups;
+    } else if (activeTowerButtons.length === 0) {
+        // If no towers, powers start at startX (already handled by currentX = startX)
     }
 
-    // Tower menu background (Opened icon)
-    if (this.towersOpenedIcon) {
-         this.towersOpenedIcon.setPosition(worldWidth / 2, towerMenuY - 92);
+    // Position Power Buttons
+    activePowerButtons.forEach((btn, index) => {
+      btn.setPosition(currentX, towerMenuY);
+      if (index < activePowerButtons.length - 1) {
+        currentX += spacing;
+      }
+    });
+
+    // Tower toggle icon (Centered below Tower Group)
+    if (this.towersToggleIcon && activeTowerButtons.length > 0) {
+         // Center relative to tower group
+         const towerCenter = startX + (towerGroupWidth / 2);
+         this.towersToggleIcon.setPosition(towerCenter, towerMenuY + 92);
     }
 
-    // Power buttons (centered horizontally)
-    if (this.lightningBtn) {
-      this.lightningBtn.setPosition(worldWidth / 2 + 142, towerMenuY);
-    }
-    if (this.freezeBtn) {
-      this.freezeBtn.setPosition(worldWidth / 2 + 237, towerMenuY);
-    }
-    if (this.quizBuffBtn) {
-      this.quizBuffBtn.setPosition(worldWidth / 2 + 332, towerMenuY);
+    // Tower menu background (Centered relative to tower group)
+    if (this.towersOpenedIcon && activeTowerButtons.length > 0) {
+         const towerCenter = startX + (towerGroupWidth / 2);
+         this.towersOpenedIcon.setPosition(towerCenter, towerMenuY - 92);
     }
 
-    // Power toggle icon
-    if (this.powersToggleIcon) {
-      this.powersToggleIcon.setPosition(worldWidth / 2 + 236, towerMenuY + 96);
+    // Power toggle icon (Centered relative to power group)
+    if (this.powersToggleIcon && activePowerButtons.length > 0) {
+        // Calculate power start X
+        const powerStartX = startX + (activeTowerButtons.length > 0 ? towerGroupWidth + gapBetweenGroups : 0);
+        const powerCenter = powerStartX + (powerGroupWidth / 2);
+        this.powersToggleIcon.setPosition(powerCenter, towerMenuY + 96);
     }
 
-    // Power menu background (Opened icon)
-    if (this.powersOpenedIcon) {
-      this.powersOpenedIcon.setPosition(worldWidth / 2 + 236, towerMenuY - 88);
-      // Note: Original Y 884 vs Btn 972 = -88 offset
+    // Power menu background (Centered relative to power group)
+    if (this.powersOpenedIcon && activePowerButtons.length > 0) {
+        const powerStartX = startX + (activeTowerButtons.length > 0 ? towerGroupWidth + gapBetweenGroups : 0);
+        const powerCenter = powerStartX + (powerGroupWidth / 2);
+        this.powersOpenedIcon.setPosition(powerCenter, towerMenuY - 88);
     }
   }
 
