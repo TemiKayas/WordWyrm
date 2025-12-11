@@ -244,41 +244,64 @@ export async function signInWithGoogle() {
   await signIn('google', { redirectTo: '/' });
 }
 
-export async function setUserRole(role: 'TEACHER' | 'STUDENT') {
-  const { auth: getSession, signOut } = await import('@/lib/auth');
-  const session = await getSession();
+export async function setUserRole(role: 'TEACHER' | 'STUDENT'): Promise<ActionResult<{ message: string; role: string }>> {
+  try {
+    const { auth: getSession, signOut } = await import('@/lib/auth');
+    const session = await getSession();
 
-  if (!session?.user?.id || !session?.user?.email) {
-    throw new Error('Not authenticated');
-  }
+    if (!session?.user?.id || !session?.user?.email) {
+      return {
+        success: false,
+        error: 'Not authenticated',
+      };
+    }
 
-  const userEmail = session.user.email;
+    const userEmail = session.user.email;
 
-  // Update user role in database
-  await db.user.update({
-    where: { id: session.user.id },
-    data: { role },
-  });
-
-  // Create role-specific profile
-  if (role === 'TEACHER') {
-    await db.teacher.upsert({
-      where: { userId: session.user.id },
-      create: { userId: session.user.id },
-      update: {},
+    // Update user role in database
+    await db.user.update({
+      where: { id: session.user.id },
+      data: { role },
     });
-  } else if (role === 'STUDENT') {
-    await db.student.upsert({
-      where: { userId: session.user.id },
-      create: { userId: session.user.id },
-      update: {},
-    });
+
+    // Create role-specific profile
+    if (role === 'TEACHER') {
+      await db.teacher.upsert({
+        where: { userId: session.user.id },
+        create: { userId: session.user.id },
+        update: {},
+      });
+    } else if (role === 'STUDENT') {
+      await db.student.upsert({
+        where: { userId: session.user.id },
+        create: { userId: session.user.id },
+        update: {},
+      });
+    }
+
+    // Sign out to clear old JWT token
+    await signOut({ redirect: false });
+
+    // Sign back in with Google to get fresh JWT with new role
+    const redirectPath = role === 'TEACHER' ? '/teacher/dashboard' : '/student/dashboard';
+    await signIn('google', { redirectTo: redirectPath });
+
+    // This line will never be reached because signIn will redirect
+    // But we need it for TypeScript
+    return {
+      success: true,
+      data: { message: 'Role updated successfully', role },
+    };
+  } catch (error) {
+    // Re-throw redirect errors (this is how Next.js handles redirects)
+    if (isRedirectError(error)) {
+      throw error;
+    }
+
+    console.error('Set user role error:', error);
+    return {
+      success: false,
+      error: 'Failed to update role. Please try again.',
+    };
   }
-
-  // Sign out to clear old JWT token
-  await signOut({ redirect: false });
-
-  // Sign back in with Google to get fresh JWT with new role
-  const redirectPath = role === 'TEACHER' ? '/teacher/dashboard' : '/student/dashboard';
-  await signIn('google', { redirectTo: redirectPath });
 }
