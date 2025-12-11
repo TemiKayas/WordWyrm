@@ -69,9 +69,7 @@ const TowerDefenseGame = ({ quiz }: TowerDefenseGameProps) => {
             width: 1920,
             height: 1080,
             expandParent: false,
-            autoRound: true,
-            // High-DPI/Retina support - cap at 2x to balance quality and performance
-            resolution: Math.min(window.devicePixelRatio || 1, 2)
+            autoRound: true
           },
           dom: {
             createContainer: true // Enable DOM element support
