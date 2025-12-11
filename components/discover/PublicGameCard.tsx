@@ -184,17 +184,17 @@ export default function PublicGameCard({ game }: PublicGameCardProps) {
   return (
     <div
       ref={cardRef}
-      className="bg-[#fffaf2] rounded-[25px] border-[3px] border-[#e7d6c4] p-[19px] transition-colors hover:border-[#473025]/30"
+      className="bg-white rounded-[20px] border-[3px] border-[#473025] overflow-hidden transition-all duration-300 hover:shadow-xl hover:scale-[1.02]"
       onMouseEnter={handleCardMouseEnter}
       onMouseLeave={handleCardMouseLeave}
     >
       {/* Game Image/Icon Area */}
-      <div className="w-full h-[181px] bg-gradient-to-t from-[#f4e3cf] to-[#f8ecdd] rounded-[12px] border-[3px] border-[#473025] mb-4 flex items-center justify-center overflow-hidden">
+      <div className="w-full h-[181px] bg-gradient-to-b from-white to-[#96b902]/10 border-b-[3px] border-[#473025] flex items-center justify-center overflow-hidden">
         {game.imageUrl ? (
           <img
             src={game.imageUrl}
             alt={game.title}
-            className="w-full h-full object-cover rounded-[9px]"
+            className="w-full h-full object-cover"
           />
         ) : (
           <div className="text-[#473025]/40">
@@ -203,46 +203,48 @@ export default function PublicGameCard({ game }: PublicGameCardProps) {
         )}
       </div>
 
+      {/* Card Content - Beige Section */}
+      <div className="bg-[#f8ecdd] p-[19px]">
       {/* Tags Row */}
       <div className="flex items-center gap-2 mb-3">
         {/* Game Mode Badge */}
-        <span className="bg-[#c8a787] rounded-[4px] px-3 py-1 flex items-center gap-1.5 h-[27px]">
+        <span className="bg-[#473025] rounded-full px-3 py-1.5 flex items-center gap-1.5 shadow-sm border-2 border-[#96b902]/20">
           <GameModeIcon mode={gameModeInfo.icon} />
-          <span className="font-quicksand font-bold text-[#fffaf2] text-[15px]">
+          <span className="font-quicksand font-bold text-white text-[14px]">
             {gameModeInfo.label}
           </span>
         </span>
 
         {/* Subject Badge */}
-        <span className={`${subjectColors.bg} rounded-[100px] px-3 py-1 h-[27px] flex items-center`}>
-          <span className={`font-quicksand font-bold ${subjectColors.text} text-[15px] uppercase`}>
+        <span className="bg-[#96b902] rounded-full px-3 py-1.5 shadow-sm border-2 border-[#006029]/30">
+          <span className="font-quicksand font-bold text-white text-[14px] uppercase">
             {game.quiz.subject}
           </span>
         </span>
       </div>
 
       {/* Game Title */}
-      <h3 className="font-quicksand font-bold text-[#473025] text-[20px] leading-tight mb-2 line-clamp-1">
+      <h3 className="font-quicksand font-bold text-[#473025] text-[22px] leading-tight mb-2 line-clamp-1">
         {game.title}
       </h3>
 
       {/* Description */}
-      <p className="font-quicksand font-bold text-[#bfa183] text-[15px] leading-relaxed mb-4 line-clamp-2 min-h-[45px]">
-        {game.description || 'Game description goes here, what it says is up to you.'}
+      <p className="font-quicksand font-semibold text-[#473025]/70 text-[14px] leading-relaxed mb-4 line-clamp-2 min-h-[42px]">
+        {game.description || 'Join this game to test your knowledge and have fun!'}
       </p>
 
       {/* Stats Row */}
-      <div className="flex items-center gap-4 mb-4">
-        <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="flex items-center gap-2 bg-white/50 rounded-full px-3 py-1.5 border-2 border-[#473025]/10">
           <QuestionIcon />
-          <span className="font-quicksand font-bold text-[#473025] text-[15px]">
-            {game.quiz.numQuestions} Questions
+          <span className="font-quicksand font-bold text-[#473025] text-[14px]">
+            {game.quiz.numQuestions}
           </span>
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2 bg-white/50 rounded-full px-3 py-1.5 border-2 border-[#473025]/10">
           <UsersIcon />
-          <span className="font-quicksand font-bold text-[#473025] text-[15px]">
-            {game._count.gameSessions} Students
+          <span className="font-quicksand font-bold text-[#473025] text-[14px]">
+            {game._count.gameSessions}
           </span>
         </div>
       </div>
@@ -255,10 +257,10 @@ export default function PublicGameCard({ game }: PublicGameCardProps) {
           onClick={handlePlay}
           onMouseEnter={() => handleButtonMouseEnter(playButtonRef)}
           onMouseLeave={() => handleButtonMouseLeave(playButtonRef)}
-          className="bg-[#95b607] border-[2.368px] border-[#006029] rounded-[11.842px] h-[42px] w-[107px] flex items-center justify-center gap-2"
+          className="bg-[#96b902] border-[3px] border-[#006029] rounded-[12px] h-[42px] w-[107px] flex items-center justify-center gap-2 shadow-[0_3px_0_0_rgba(0,96,41,0.5),0_3px_6px_rgba(0,0,0,0.2)] hover:shadow-[0_2px_0_0_rgba(0,96,41,0.5),0_2px_4px_rgba(0,0,0,0.2)] hover:translate-y-[1px] active:shadow-[0_1px_0_0_rgba(0,96,41,0.5),0_1px_3px_rgba(0,0,0,0.2)] active:translate-y-[2px] transition-all duration-100 ease-out"
         >
           <PlayIcon />
-          <span className="font-quicksand font-bold text-[#fffaf2] text-[20px]">
+          <span className="font-quicksand font-bold text-white text-[20px]">
             Play
           </span>
         </button>
@@ -269,13 +271,14 @@ export default function PublicGameCard({ game }: PublicGameCardProps) {
           onClick={handleFavorite}
           onMouseEnter={() => handleButtonMouseEnter(favoriteButtonRef)}
           onMouseLeave={() => handleButtonMouseLeave(favoriteButtonRef)}
-          className="bg-[#fd9227] border-[2.368px] border-[#730f11] rounded-[11.842px] h-[42px] flex-1 flex items-center justify-center gap-2"
+          className="bg-[#ff8c42] border-[3px] border-[#cc5921] rounded-[12px] h-[42px] flex-1 flex items-center justify-center gap-2 shadow-[0_3px_0_0_rgba(204,89,33,0.5),0_3px_6px_rgba(0,0,0,0.2)] hover:shadow-[0_2px_0_0_rgba(204,89,33,0.5),0_2px_4px_rgba(0,0,0,0.2)] hover:translate-y-[1px] active:shadow-[0_1px_0_0_rgba(204,89,33,0.5),0_1px_3px_rgba(0,0,0,0.2)] active:translate-y-[2px] transition-all duration-100 ease-out"
         >
           <StarIcon />
-          <span className="font-quicksand font-bold text-[#fffaf2] text-[20px]">
+          <span className="font-quicksand font-bold text-white text-[20px]">
             Favorite
           </span>
         </button>
+      </div>
       </div>
     </div>
   );

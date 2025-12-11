@@ -104,12 +104,18 @@ export default function OnboardingModal({ isOpen, onClose, userRole }: Onboardin
   useEffect(() => {
     if (isOpen) {
       setCurrentStep(0);
-      // Animate modal entrance
+      // Animate modal entrance with smoother, more fluid animation
       if (modalRef.current) {
         gsap.fromTo(
           modalRef.current,
-          { opacity: 0, scale: 0.9 },
-          { opacity: 1, scale: 1, duration: 0.4, ease: 'back.out(1.7)' }
+          { opacity: 0, scale: 0.85, y: 50 },
+          {
+            opacity: 1,
+            scale: 1,
+            y: 0,
+            duration: 0.6,
+            ease: 'power3.out'
+          }
         );
       }
     }
@@ -119,13 +125,13 @@ export default function OnboardingModal({ isOpen, onClose, userRole }: Onboardin
     const nextStep = currentStep + 1;
 
     if (nextStep < cards.length) {
-      // Flip out current card
+      // Smooth slide and fade out current card
       if (cardRefs.current[currentStep]) {
         gsap.to(cardRefs.current[currentStep], {
-          rotateY: 90,
-          x: -100,
+          x: -50,
           opacity: 0,
-          duration: 0.4,
+          scale: 0.95,
+          duration: 0.3,
           ease: 'power2.in',
           onComplete: () => {
             setCurrentStep(nextStep);
@@ -142,8 +148,9 @@ export default function OnboardingModal({ isOpen, onClose, userRole }: Onboardin
     if (modalRef.current) {
       gsap.to(modalRef.current, {
         opacity: 0,
-        scale: 0.9,
-        duration: 0.3,
+        scale: 0.95,
+        y: 30,
+        duration: 0.4,
         ease: 'power2.in',
         onComplete: () => {
           onClose();
@@ -153,12 +160,18 @@ export default function OnboardingModal({ isOpen, onClose, userRole }: Onboardin
   };
 
   useEffect(() => {
-    // Animate card entrance when step changes
+    // Animate card entrance when step changes with smooth slide and fade
     if (cardRefs.current[currentStep] && currentStep > 0) {
       gsap.fromTo(
         cardRefs.current[currentStep],
-        { rotateY: -90, x: 100, opacity: 0 },
-        { rotateY: 0, x: 0, opacity: 1, duration: 0.5, ease: 'back.out(1.2)' }
+        { x: 50, opacity: 0, scale: 0.95 },
+        {
+          x: 0,
+          opacity: 1,
+          scale: 1,
+          duration: 0.5,
+          ease: 'power3.out',
+        }
       );
     }
   }, [currentStep]);

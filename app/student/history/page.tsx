@@ -24,7 +24,7 @@ type GameSession = {
 export default function GameHistoryPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [sessions, setSessions] = useState<GameSession[]>([]);
   const [error, setError] = useState('');
 
@@ -34,6 +34,18 @@ export default function GameHistoryPage() {
   });
 
   useEffect(() => {
+    // Handle sidebar initial state based on screen size
+    const handleResize = () => {
+      if (window.innerWidth >= 768) {
+        setIsSidebarOpen(true);
+      } else {
+        setIsSidebarOpen(false);
+      }
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+
     async function fetchData() {
       try {
         // Fetch user session
@@ -64,6 +76,8 @@ export default function GameHistoryPage() {
     }
 
     fetchData();
+
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   const getGameModeDisplay = (mode: string) => {

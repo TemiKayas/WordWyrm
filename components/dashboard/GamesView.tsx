@@ -181,11 +181,6 @@ export default function GamesView({ onCreateGame, classId, hideTitle = false }: 
             <h3 className="font-quicksand font-bold text-[#473025] text-[22px] md:text-[26px]">
               Recently Played
             </h3>
-            {recentGames.length > 4 && (
-              <button className="font-quicksand font-bold text-[#473025] text-[14px] md:text-[16px] underline hover:text-[#ff9f22] transition-colors cursor-pointer">
-                View more
-              </button>
-            )}
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 md:gap-6">

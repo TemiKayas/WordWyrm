@@ -42,7 +42,8 @@ export default function TeacherGameResultsPage() {
   const router = useRouter();
   const gameId = params?.gameId as string;
 
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  // On mobile, always start with sidebar closed
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [teacherData, setTeacherData] = useState({
     name: '',
     role: 'INSTRUCTOR' as const,
@@ -119,6 +120,25 @@ export default function TeacherGameResultsPage() {
 
     fetchData();
   }, [gameId]);
+
+  // Ensure sidebar is closed on mobile when window is resized
+  useEffect(() => {
+    const handleResize = () => {
+      // Close sidebar on mobile (below md breakpoint: 768px)
+      if (window.innerWidth < 768 && isSidebarOpen) {
+        setIsSidebarOpen(false);
+      }
+    };
+
+    // Add event listener
+    window.addEventListener('resize', handleResize);
+
+    // Run once on mount to check initial size
+    handleResize();
+
+    // Cleanup
+    return () => window.removeEventListener('resize', handleResize);
+  }, [isSidebarOpen]);
 
   // Fetch analytics when analytics tab is selected
   useEffect(() => {
