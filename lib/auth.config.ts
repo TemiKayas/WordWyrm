@@ -40,7 +40,7 @@ export const authConfig = {
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string;
-        session.user.role = token.role as 'TEACHER' | 'STUDENT' | 'ADMIN' | null;
+        session.user.role = (token.role as 'TEACHER' | 'STUDENT' | 'ADMIN') || null;
       }
       return session;
     },
