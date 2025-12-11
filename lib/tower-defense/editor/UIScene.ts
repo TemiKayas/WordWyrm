@@ -843,10 +843,13 @@ export default class UIScene extends Phaser.Scene {
 
     // Tower buttons (centered horizontally) - Layout for 6 buttons
     // Spacing: 95px between centers
-    // Total width: 5 * 95 = 475px
-    // Start X: Center - 475/2 = Center - 237.5
-    const startX = worldWidth / 2 - 237.5;
     const spacing = 95;
+    
+    // The user wants the Archmage button (index 4) to be centered
+    // Archmage position = startX + spacing * 4
+    // startX + spacing * 4 = worldWidth / 2
+    // startX = worldWidth / 2 - (spacing * 4)
+    const startX = worldWidth / 2 - (spacing * 4);
 
     // Order based on Editor positions: Ballista, Knight, Cannon, Trebuchet, Archmage, Training Camp
     if (this.ballistaBtn) this.ballistaBtn.setPosition(startX, towerMenuY);
@@ -856,35 +859,39 @@ export default class UIScene extends Phaser.Scene {
     if (this.archmageBtn) this.archmageBtn.setPosition(startX + spacing * 4, towerMenuY);
     if (this.trainingCampBtn) this.trainingCampBtn.setPosition(startX + spacing * 5, towerMenuY);
 
-    // Tower toggle icon
+    // Tower toggle icon (centered between Cannon and Trebuchet)
+    const towersToggleIconX = startX + spacing * 2.5;
     if (this.towersToggleIcon) {
-         this.towersToggleIcon.setPosition(worldWidth / 2, towerMenuY + 92);
+         this.towersToggleIcon.setPosition(towersToggleIconX, towerMenuY + 92);
     }
 
     // Tower menu background (Opened icon)
     if (this.towersOpenedIcon) {
-         this.towersOpenedIcon.setPosition(worldWidth / 2, towerMenuY - 92);
+         this.towersOpenedIcon.setPosition(towersToggleIconX, towerMenuY - 92);
     }
 
     // Power buttons (centered horizontally)
+    const lastTowerX = startX + spacing * 5;
+    const powerStartX = lastTowerX + 125; // 125px margin from last tower button
+
     if (this.lightningBtn) {
-      this.lightningBtn.setPosition(worldWidth / 2 + 142, towerMenuY);
+      this.lightningBtn.setPosition(powerStartX, towerMenuY);
     }
     if (this.freezeBtn) {
-      this.freezeBtn.setPosition(worldWidth / 2 + 237, towerMenuY);
+      this.freezeBtn.setPosition(powerStartX + spacing, towerMenuY);
     }
     if (this.quizBuffBtn) {
-      this.quizBuffBtn.setPosition(worldWidth / 2 + 332, towerMenuY);
+      this.quizBuffBtn.setPosition(powerStartX + spacing * 2, towerMenuY);
     }
 
     // Power toggle icon
     if (this.powersToggleIcon) {
-      this.powersToggleIcon.setPosition(worldWidth / 2 + 236, towerMenuY + 96);
+      this.powersToggleIcon.setPosition(powerStartX + spacing, towerMenuY + 96);
     }
 
     // Power menu background (Opened icon)
     if (this.powersOpenedIcon) {
-      this.powersOpenedIcon.setPosition(worldWidth / 2 + 236, towerMenuY - 88);
+      this.powersOpenedIcon.setPosition(powerStartX + spacing, towerMenuY - 88);
       // Note: Original Y 884 vs Btn 972 = -88 offset
     }
   }
