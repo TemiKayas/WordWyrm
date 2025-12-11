@@ -6,6 +6,7 @@ import Navbar from '@/components/shared/Navbar';
 import SlidingSidebar from '@/components/shared/SlidingSidebar';
 import Button from '@/components/ui/Button';
 import { getStudentGameHistory } from '@/app/actions/game';
+import type { Prisma } from '@prisma/client';
 
 type GameSession = {
   id: string;
@@ -18,7 +19,7 @@ type GameSession = {
   completedAt: Date;
   className: string;
   teacherName: string;
-  metadata: any | null;
+  metadata: Prisma.JsonValue;
 };
 
 export default function GameHistoryPage() {
@@ -95,8 +96,9 @@ export default function GameHistoryPage() {
 
   const getPercentage = (session: GameSession) => {
     // Use masteryAccuracy from metadata if available (for Snake game with mastery mode)
-    if (session.metadata?.masteryAccuracy !== undefined) {
-      return Math.round(session.metadata.masteryAccuracy);
+    if (session.metadata && typeof session.metadata === 'object' && 'masteryAccuracy' in session.metadata) {
+      const masteryAccuracy = (session.metadata as { masteryAccuracy: number }).masteryAccuracy;
+      return Math.round(masteryAccuracy);
     }
 
     // Fall back to traditional calculation

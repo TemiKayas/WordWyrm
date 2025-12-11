@@ -4,6 +4,7 @@ import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { generateUniqueShareCode } from '@/lib/utils/share-code';
 import { generateGameQRCode } from '@/lib/utils/qr-code';
+import { getDefaultGameThumbnail } from '@/lib/utils/game';
 import type { Game, Quiz, ProcessedContent, PDF, Subject } from '@prisma/client';
 import { GameMode, Prisma } from '@prisma/client';
 import { uploadGameImage, deleteGameImage } from '@/lib/blob';
@@ -107,6 +108,10 @@ export async function createGame(params: {
     // generate QR code and upload to Vercel Blob (always uses production URL)
     const qrCodeUrl = await generateGameQRCode(shareCode);
 
+    // get default thumbnail based on game mode
+    const selectedGameMode = gameMode || GameMode.TRADITIONAL;
+    const imageUrl = getDefaultGameThumbnail(selectedGameMode);
+
     // create the new game record in the db
     const game = await db.game.create({
       data: {
@@ -117,7 +122,8 @@ export async function createGame(params: {
         description,
         shareCode,
         qrCodeUrl,
-        gameMode: gameMode || GameMode.TRADITIONAL,
+        imageUrl,
+        gameMode: selectedGameMode,
         isPublic: isPublic ?? false, // Default to private if not specified
         wasEverPublic: isPublic ?? false, // Set wasEverPublic if game is public
       },
@@ -181,6 +187,9 @@ export async function createGameFromQuiz(
     // generate QR code and upload to Vercel Blob (always uses production URL)
     const qrCodeUrl = await generateGameQRCode(shareCode);
 
+    // get default thumbnail for traditional mode (this function defaults to TRADITIONAL)
+    const imageUrl = getDefaultGameThumbnail(GameMode.TRADITIONAL);
+
     // create the new game record in the db linking it to the quiz and teacher
     const game = await db.game.create({
       data: {
@@ -190,6 +199,7 @@ export async function createGameFromQuiz(
         title,
         shareCode,
         qrCodeUrl,
+        imageUrl,
       },
     });
 
@@ -553,6 +563,7 @@ export async function getPublicGames(
       id: string;
       title: string;
       description: string | null;
+      imageUrl: string | null;
       gameMode: GameMode;
       shareCode: string;
       createdAt: Date;
@@ -634,6 +645,7 @@ export async function getPublicGames(
       id: game.id,
       title: game.title,
       description: game.description,
+      imageUrl: game.imageUrl,
       gameMode: game.gameMode,
       shareCode: game.shareCode,
       createdAt: game.createdAt,
@@ -876,7 +888,7 @@ export async function getStudentGameHistory(): Promise<
       completedAt: Date;
       className: string;
       teacherName: string;
-      metadata: any | null;
+      metadata: Prisma.JsonValue;
     }>;
   }>
 > {
@@ -967,7 +979,7 @@ export async function getGameLeaderboard(
       totalQuestions: number;
       completedAt: Date;
       isCurrentUser: boolean;
-      metadata: any | null;
+      metadata: Prisma.JsonValue;
     }>;
     publicLeaderboard: Array<{
       rank: number;
@@ -978,7 +990,7 @@ export async function getGameLeaderboard(
       totalQuestions: number;
       completedAt: Date;
       isCurrentUser: boolean;
-      metadata: any | null;
+      metadata: Prisma.JsonValue;
     }> | null;
   }>
 > {

@@ -15,6 +15,16 @@ import { MobileSupport } from '@/lib/phaser/MobileSupport';
 import { GameEvents, GAME_EVENTS } from '@/lib/tower-defense/events/GameEvents';
 import type UIScene from '@/lib/tower-defense/editor/UIScene';
 
+// Type extension for UIScene with button properties
+type UISceneWithButtons = UIScene & {
+  ballistaBtn?: Phaser.GameObjects.Image;
+  trebuchetBtn?: Phaser.GameObjects.Image;
+  knightBtn?: Phaser.GameObjects.Image;
+  trainingCampBtn?: Phaser.GameObjects.Image;
+  archmageBtn?: Phaser.GameObjects.Image;
+  cannonBtn?: Phaser.GameObjects.Image;
+};
+
 // Main tower defense scene with quiz integration
 // Wave formula: 5 + (1.25 * waveNumber) enemies per wave
 // Boss spawns every 5 waves (5, 10, 15, etc.) as the 5th enemy
@@ -30,7 +40,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
   private path: PathPoint[] = []; // Single enemy movement path
   private pathGraphics?: Phaser.GameObjects.Graphics; // Path graphics
   private backgroundImage?: Phaser.GameObjects.Image; // current background image
-  private uiScene!: UIScene; // Reference to UIScene for updating displays and handling events
+  private uiScene!: UISceneWithButtons; // Reference to UIScene for updating displays and handling events
   private globalScale: number = 1; // Global scale factor for resolution-independent rendering
   private lastScreenSize: { width: number; height: number } = { width: 1920, height: 1080 }; // Track size changes
 
@@ -186,7 +196,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
   private upgradeContainer?: Phaser.GameObjects.Container;
   private upgradeButtons: Phaser.GameObjects.Rectangle[] = [];
   private startGameButton?: Phaser.GameObjects.Container;
-  private currentQuizQuestion?: any;
+  private currentQuizQuestion?: QuizQuestion;
   private currentQuizAnswerButtons?: Phaser.GameObjects.Rectangle[];
   private currentQuizOverlay?: Phaser.GameObjects.Rectangle;
   private currentQuizPanel?: Phaser.GameObjects.Rectangle;
@@ -598,22 +608,22 @@ export default class TowerDefenseScene extends Phaser.Scene {
       // Get the appropriate button background based on selection
       switch (this.selectedTowerType) {
         case 'basic':
-          buttonBg = (this.uiScene as any).ballistaBtn;
+          buttonBg = this.uiScene?.ballistaBtn;
           break;
         case 'sniper':
-          buttonBg = (this.uiScene as any).trebuchetBtn;
+          buttonBg = this.uiScene?.trebuchetBtn;
           break;
         case 'melee':
-          buttonBg = (this.uiScene as any).knightBtn;
+          buttonBg = this.uiScene?.knightBtn;
           break;
         case 'fact':
-          buttonBg = (this.uiScene as any).trainingCampBtn;
+          buttonBg = this.uiScene?.trainingCampBtn;
           break;
         case 'wizard':
-          buttonBg = (this.uiScene as any).archmageBtn;
+          buttonBg = this.uiScene?.archmageBtn;
           break;
         case 'cannon':
-          buttonBg = (this.uiScene as any).cannonBtn;
+          buttonBg = this.uiScene?.cannonBtn;
           break;
       }
 
@@ -1360,7 +1370,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
     const unlocked = this.totalCorrectAnswers >= 5;
 
     // Access the archmage button from UIScene
-    const archmageBtn = (this.uiScene as any).archmageBtn as Phaser.GameObjects.Image | undefined;
+    const archmageBtn = this.uiScene?.archmageBtn;
     if (!archmageBtn) return; // Button doesn't exist yet
 
     if (unlocked) {
@@ -1413,8 +1423,8 @@ export default class TowerDefenseScene extends Phaser.Scene {
     // This prevents enemies from drifting off-path during resize
     if (this.enemyManager && this.path.length > 0) {
       const enemies = this.enemyManager.getEnemies();
-      
-      enemies.forEach((enemy: any) => {
+
+      enemies.forEach((enemy: Enemy) => {
         // Store relative progress between waypoints
         if (enemy.pathIndex > 0 && enemy.pathIndex < this.path.length) {
           const prevPoint = this.path[enemy.pathIndex - 1];
@@ -1476,7 +1486,9 @@ export default class TowerDefenseScene extends Phaser.Scene {
           // For container towers (melee/wizard), scale children
           tower.graphics.list.forEach(child => {
             if ('setScale' in child) {
-              (child as any).setScale(newScale);
+              if ('setScale' in child && typeof child.setScale === 'function') {
+                child.setScale(newScale);
+              }
             }
           });
           // Reset container scale to 1 to avoid double scaling
@@ -1538,7 +1550,7 @@ export default class TowerDefenseScene extends Phaser.Scene {
       
       // REPROJECT ENEMIES PART 2: Apply new positions based on saved progress t
       const enemies = this.enemyManager.getEnemies();
-      enemies.forEach((enemy: any) => {
+      enemies.forEach((enemy: Enemy) => {
         if (enemy.pathIndex > 0 && enemy.pathIndex < this.path.length && typeof enemy._resizeProgressT === 'number') {
           const prevPoint = this.path[enemy.pathIndex - 1];
           const nextPoint = this.path[enemy.pathIndex];

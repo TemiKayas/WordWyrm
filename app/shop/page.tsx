@@ -103,72 +103,44 @@ export default function ShopPage() {
 
   return (
     <TeacherPageLayout>
-      <div className="relative w-full min-h-screen bg-[#fffaf2] overflow-hidden">
+      <div className="relative w-full h-[calc(100vh-64px)] bg-[#fffaf2] overflow-hidden">
         {/* Sign - Hanging off top */}
-        <div className="absolute left-1/2 -translate-x-1/2 -top-[60px] w-[600px] h-[400px] z-10 hidden lg:block">
+        <div className="absolute left-1/4 -translate-x-1/2 -top-[60px] w-[325px] h-[225px] z-[100] hidden lg:block transition-all duration-300">
           <Image
-            src="/assets/shop/b31aaf527a14a2fef384b77067a49df3831c6f78.png"
+            src="/assets/shop/Sign.svg"
             alt="Shop Sign"
             fill
             className="object-contain"
           />
         </div>
 
-        <div className="flex flex-col lg:flex-row max-w-[1600px] mx-auto pt-8 lg:pt-0">
-          {/* Left Side - Shopkeeper Character */}
-          <div className="relative w-full lg:w-[50%] flex items-center justify-center min-h-[400px] lg:min-h-screen">
-            <div className="relative w-full h-full flex items-center justify-center">
-              {/* Floopa Shopkeeper */}
-              <div className="relative w-[300px] h-[350px] md:w-[400px] md:h-[450px] lg:w-[500px] lg:h-[550px]">
-                <Image
-                  src="/assets/shop/c0084cbf40b8d2493ca3160e501bd20e1d232e1c.png"
-                  alt="Floopa Shopkeeper"
-                  fill
-                  className="object-contain"
-                  priority
-                />
-              </div>
+        {/* Shopa.gif Background - LHS, full height, hidden on mobile */}
+        <div className="hidden lg:block absolute left-0 bottom-0 w-[78%] h-full z-0 transition-all duration-300">
+          <Image
+            src="/assets/shop/Shopa.gif"
+            alt="Shop Background"
+            fill
+            className="object-contain object-left-bottom"
+            priority
+            unoptimized
+          />
+        </div>
 
-              {/* Speech Bubble - positioned above character */}
-              <div className="absolute top-[20px] lg:top-[40px] right-[10%] w-[200px] h-[120px] md:w-[250px] md:h-[140px] lg:w-[300px] lg:h-[160px]">
-                <Image
-                  src="/assets/shop/9e9547a7b4ac5f79b6950fe99772ede693273db5.svg"
-                  alt="Speech bubble"
-                  fill
-                  className="object-contain"
-                />
-              </div>
+        {/* Speech Bubble - positioned in upper area */}
+        <div className="hidden lg:block absolute top-[120px] left-[25%] w-[330px] h-[220px] z-[50] transition-all duration-300">
+          <Image
+            src="/assets/shop/chat.svg"
+            alt="Speech bubble"
+            fill
+            className="object-contain"
+          />
+        </div>
 
-              {/* Buy Box Button - positioned below character */}
-              <div className="absolute bottom-[20px] lg:bottom-[60px] left-1/2 -translate-x-1/2">
-                <button
-                  onClick={openBox}
-                  disabled={coins < 100 || openingBox}
-                  className={`bg-[#95b607] border-[#006029] border-[3px] rounded-[14px] w-[180px] h-[90px] md:w-[200px] md:h-[100px] lg:w-[210px] lg:h-[104px] flex flex-col items-center justify-center shadow-[0px_0px_22px_0px_rgba(0,0,0,0.53),0px_4px_0px_0px_#006029] hover:shadow-[0px_0px_15px_0px_rgba(0,0,0,0.4),0px_2px_0px_0px_#006029] hover:translate-y-[2px] active:shadow-[0px_0px_10px_0px_rgba(0,0,0,0.3),0px_1px_0px_0px_#006029] active:translate-y-[3px] transition-all ${
-                    coins < 100 || openingBox ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
-                  }`}
-                >
-                  <p className="font-quicksand font-bold text-white text-[24px] md:text-[26px] lg:text-[28px] text-center mb-2">
-                    {openingBox ? 'OPENING...' : 'BUY BOX'}
-                  </p>
-                  <div className="bg-[rgba(0,96,41,0.26)] rounded-full h-[30px] w-[140px] md:h-[32px] md:w-[150px] lg:h-[32px] lg:w-[157px] flex items-center justify-center gap-1">
-                    <span className="font-quicksand font-bold text-white text-[13px]">x</span>
-                    <Image
-                      src="/assets/shop/b5537993144d95b93a959b526aa2e8089401a375.png"
-                      alt="Coin"
-                      width={25}
-                      height={25}
-                      className="w-[25px] h-[25px]"
-                    />
-                    <span className="font-quicksand font-bold text-white text-[18px]">100</span>
-                  </div>
-                </button>
-              </div>
-            </div>
-          </div>
 
-          {/* Right Side - Shop/Collection */}
-          <div className="relative w-full lg:w-[50%] flex flex-col p-6 lg:p-8">
+        {/* Content Container */}
+        <div className="relative flex flex-col lg:flex-row justify-center lg:justify-end mx-auto pt-8 lg:pt-0 h-full lg:pr-8">
+          {/* Collection - Right Side */}
+          <div className="relative w-full max-w-[550px] flex flex-col p-6 lg:p-8 bg-[#fffaf2] z-10">
             {/* Header with Collection and Coins */}
             <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
               <div className="flex items-center gap-4">
@@ -198,7 +170,7 @@ export default function ShopPage() {
             </div>
 
             {/* Character Grid - Simplified */}
-            <div className="grid grid-cols-4 gap-4 md:gap-5 mb-6 max-w-[550px]">
+            <div className="grid grid-cols-4 gap-2 md:gap-4 mb-4 max-w-[450px]">
               {CHARACTERS.slice(0, 12).map((char) => {
                 const unlocked = unlockedCharacters.includes(char.id);
                 return (
@@ -212,9 +184,9 @@ export default function ShopPage() {
                       <Image
                         src={char.image}
                         alt={char.name}
-                        width={80}
-                        height={80}
-                        className="w-[65%] h-[65%] object-contain"
+                        width={100}
+                        height={100}
+                        className="w-[75%] h-[75%] object-fill object-center"
                       />
                     ) : (
                       <span className="text-white font-quicksand font-bold text-[24px] md:text-[32px]">?</span>
@@ -224,11 +196,56 @@ export default function ShopPage() {
               })}
             </div>
 
-            {/* Info Text */}
-            <div className="mt-auto pt-6">
-              <p className="font-quicksand text-[#473025]/70 text-[14px] md:text-[16px] text-center">
-                Buy boxes to unlock new characters! Each box costs 100 coins.
-              </p>
+            {/* Buy Box Button - Desktop centered under collection */}
+            <div className="hidden lg:flex mt-6 justify-center">
+              <button
+                onClick={openBox}
+                disabled={coins < 100 || openingBox}
+                className={`bg-[#95b607] border-[#006029] border-[3px] rounded-[14px] w-[210px] h-[104px] flex flex-col items-center justify-center shadow-[0px_0px_22px_0px_rgba(0,0,0,0.53),0px_4px_0px_0px_#006029] hover:shadow-[0px_0px_15px_0px_rgba(0,0,0,0.4),0px_2px_0px_0px_#006029] hover:translate-y-[2px] active:shadow-[0px_0px_10px_0px_rgba(0,0,0,0.3),0px_1px_0px_0px_#006029] active:translate-y-[3px] transition-all ${
+                  coins < 100 || openingBox ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+                }`}
+              >
+                <p className="font-quicksand font-bold text-white text-[28px] text-center mb-2">
+                  {openingBox ? 'OPENING...' : 'BUY BOX'}
+                </p>
+                <div className="bg-[rgba(0,96,41,0.26)] rounded-full h-[32px] w-[157px] flex items-center justify-center gap-1">
+                  <span className="font-quicksand font-bold text-white text-[13px]">x</span>
+                  <Image
+                    src="/assets/shop/coin.png"
+                    alt="Coin"
+                    width={25}
+                    height={25}
+                    className="w-[25px] h-[25px]"
+                  />
+                  <span className="font-quicksand font-bold text-white text-[18px]">100</span>
+                </div>
+              </button>
+            </div>
+
+            {/* Buy Box Button - Mobile only */}
+            <div className="lg:hidden mt-6 flex justify-center">
+              <button
+                onClick={openBox}
+                disabled={coins < 100 || openingBox}
+                className={`bg-[#95b607] border-[#006029] border-[3px] rounded-[14px] w-[200px] h-[100px] flex flex-col items-center justify-center shadow-[0px_0px_22px_0px_rgba(0,0,0,0.53),0px_4px_0px_0px_#006029] hover:shadow-[0px_0px_15px_0px_rgba(0,0,0,0.4),0px_2px_0px_0px_#006029] hover:translate-y-[2px] active:shadow-[0px_0px_10px_0px_rgba(0,0,0,0.3),0px_1px_0px_0px_#006029] active:translate-y-[3px] transition-all ${
+                  coins < 100 || openingBox ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+                }`}
+              >
+                <p className="font-quicksand font-bold text-white text-[26px] text-center mb-2">
+                  {openingBox ? 'OPENING...' : 'BUY BOX'}
+                </p>
+                <div className="bg-[rgba(0,96,41,0.26)] rounded-full h-[32px] w-[150px] flex items-center justify-center gap-1">
+                  <span className="font-quicksand font-bold text-white text-[13px]">x</span>
+                  <Image
+                    src="/assets/shop/coin.png"
+                    alt="Coin"
+                    width={25}
+                    height={25}
+                    className="w-[25px] h-[25px]"
+                  />
+                  <span className="font-quicksand font-bold text-white text-[18px]">100</span>
+                </div>
+              </button>
             </div>
           </div>
         </div>
