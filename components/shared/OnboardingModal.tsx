@@ -11,94 +11,51 @@ interface OnboardingModalProps {
   userRole: 'TEACHER' | 'STUDENT';
 }
 
-interface OnboardingCard {
-  step: number;
-  title: string;
-  description: string;
+interface OnboardingScreen {
   image: string;
-  imageAlt: string;
-  imageWidth: number;
-  imageHeight: number;
-  imagePosition?: string;
-  showCoins?: boolean;
+  alt: string;
   isLastCard?: boolean;
 }
 
-const teacherCards: OnboardingCard[] = [
+const teacherScreens: OnboardingScreen[] = [
   {
-    step: 1,
-    title: 'Create Games\nfor your Students',
-    description: 'Upload PDFs or create custom quizzes powered by AI. Turn any content into engaging games your students will love!',
-    image: '/assets/onboarding/27f0bc773218feb1f33fcb7da210f02c61215925.png',
-    imageAlt: 'AI Floopa',
-    imageWidth: 220,
-    imageHeight: 228,
-    imagePosition: 'right-[20px] bottom-[10px]',
+    image: '/assets/onboarding/Upload - Teacher.png',
+    alt: 'Upload Content - Teachers can upload PDFs and other learning materials',
   },
   {
-    step: 2,
-    title: 'Track Student\nProgress',
-    description: 'Monitor individual and class performance with detailed analytics. See which questions challenge your students most.',
-    image: '/assets/onboarding/c7d97bc4f08e16c5bf0692b8a1696dd9b6696103.png',
-    imageAlt: 'Student Progress',
-    imageWidth: 228,
-    imageHeight: 236,
-    imagePosition: 'right-[15px] bottom-[20px]',
+    image: '/assets/onboarding/Share - Teacher.png',
+    alt: 'Share Games - Create and share interactive games with your students',
   },
   {
-    step: 3,
-    title: 'Watch students\neager to learn',
-    description: 'With gamified learning and instant feedback, students stay motivated and engaged. Learning has never been this fun!',
-    image: '/assets/dashboard/woah-floopa.png',
-    imageAlt: 'Excited Students',
-    imageWidth: 150,
-    imageHeight: 150,
-    imagePosition: 'right-[50px] bottom-[30px]',
+    image: '/assets/onboarding/Track - Teacher.png',
+    alt: 'Track Progress - Monitor student performance and learning outcomes',
     isLastCard: true,
   },
 ];
 
-const studentCards: OnboardingCard[] = [
+const studentScreens: OnboardingScreen[] = [
   {
-    step: 1,
-    title: 'Join Games',
-    description: 'Use the game code your teacher gives you to join fun quizzes and challenges. Compete with classmates and test your knowledge!',
-    image: '/assets/onboarding/8e89875a574638f8c7324ec764e151aae13edc02.png',
-    imageAlt: 'Woah Floopa',
-    imageWidth: 280,
-    imageHeight: 290,
-    imagePosition: 'right-0 bottom-0',
+    image: '/assets/onboarding/Join Games - Student.png',
+    alt: 'Join Games - Access fun educational games shared by your teachers',
   },
   {
-    step: 2,
-    title: 'Earn Coins to\nspend in the Shop!',
-    description: 'Get rewarded for correct answers and completing games. Collect coins to unlock awesome items and customize your experience!',
-    image: '/assets/onboarding/coin.png',
-    imageAlt: 'Coins',
-    imageWidth: 180,
-    imageHeight: 77,
-    imagePosition: 'left-1/2 -translate-x-1/2 bottom-[80px]',
-    showCoins: true,
+    image: '/assets/onboarding/Coins - Student.png',
+    alt: 'Earn Coins - Collect coins as you play and learn',
   },
   {
-    step: 3,
-    title: 'Learn and\nhave Fun!',
-    description: 'Master new topics while having a blast! See your progress, beat your high scores, and become a learning champion!',
-    image: '/assets/onboarding/4e9b715f5084e888d240a18368dbfaab69eb1299.png',
-    imageAlt: 'Learning Floopa',
-    imageWidth: 220,
-    imageHeight: 228,
-    imagePosition: 'left-1/2 -translate-x-1/2 bottom-[20px]',
+    image: '/assets/onboarding/Learn and Have Fun - Student.png',
+    alt: 'Learn and Have Fun - Make learning exciting with interactive games',
     isLastCard: true,
   },
 ];
 
 export default function OnboardingModal({ isOpen, onClose, userRole }: OnboardingModalProps) {
   const [currentStep, setCurrentStep] = useState(0);
-  const cards = userRole === 'TEACHER' ? teacherCards : studentCards;
-  const currentCard = cards[currentStep];
+  const screens = userRole === 'TEACHER' ? teacherScreens : studentScreens;
+  const currentScreen = screens[currentStep];
+  const isLastScreen = currentStep === screens.length - 1;
 
-  const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const screenRefs = useRef<(HTMLDivElement | null)[]>([]);
   const modalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -108,12 +65,12 @@ export default function OnboardingModal({ isOpen, onClose, userRole }: Onboardin
       if (modalRef.current) {
         gsap.fromTo(
           modalRef.current,
-          { opacity: 0, scale: 0.85, y: 50 },
+          { opacity: 0, scale: 0.9, y: 30 },
           {
             opacity: 1,
             scale: 1,
             y: 0,
-            duration: 0.6,
+            duration: 0.5,
             ease: 'power3.out'
           }
         );
@@ -124,14 +81,13 @@ export default function OnboardingModal({ isOpen, onClose, userRole }: Onboardin
   const handleNext = () => {
     const nextStep = currentStep + 1;
 
-    if (nextStep < cards.length) {
-      // Smooth slide and fade out current card
-      if (cardRefs.current[currentStep]) {
-        gsap.to(cardRefs.current[currentStep], {
-          x: -50,
+    if (nextStep < screens.length) {
+      // Smooth fade transition
+      if (screenRefs.current[currentStep]) {
+        gsap.to(screenRefs.current[currentStep], {
           opacity: 0,
           scale: 0.95,
-          duration: 0.3,
+          duration: 0.25,
           ease: 'power2.in',
           onComplete: () => {
             setCurrentStep(nextStep);
@@ -139,9 +95,13 @@ export default function OnboardingModal({ isOpen, onClose, userRole }: Onboardin
         });
       }
     } else {
-      // Last card - close modal
+      // Last screen - close modal
       handleClose();
     }
+  };
+
+  const handleSkip = () => {
+    handleClose();
   };
 
   const handleClose = () => {
@@ -149,8 +109,8 @@ export default function OnboardingModal({ isOpen, onClose, userRole }: Onboardin
       gsap.to(modalRef.current, {
         opacity: 0,
         scale: 0.95,
-        y: 30,
-        duration: 0.4,
+        y: 20,
+        duration: 0.3,
         ease: 'power2.in',
         onComplete: () => {
           onClose();
@@ -160,16 +120,15 @@ export default function OnboardingModal({ isOpen, onClose, userRole }: Onboardin
   };
 
   useEffect(() => {
-    // Animate card entrance when step changes with smooth slide and fade
-    if (cardRefs.current[currentStep] && currentStep > 0) {
+    // Animate screen entrance when step changes
+    if (screenRefs.current[currentStep] && currentStep > 0) {
       gsap.fromTo(
-        cardRefs.current[currentStep],
-        { x: 50, opacity: 0, scale: 0.95 },
+        screenRefs.current[currentStep],
+        { opacity: 0, scale: 0.95 },
         {
-          x: 0,
           opacity: 1,
           scale: 1,
-          duration: 0.5,
+          duration: 0.4,
           ease: 'power3.out',
         }
       );
@@ -179,19 +138,20 @@ export default function OnboardingModal({ isOpen, onClose, userRole }: Onboardin
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-2 md:p-4 overflow-y-auto">
       <div
         ref={modalRef}
-        className="relative w-full max-w-[90vw] sm:max-w-[600px] md:max-w-[700px] bg-[#fffaf2] rounded-[20px] shadow-xl overflow-hidden"
+        className="relative w-full max-w-[90vw] md:max-w-[85vw] lg:max-w-[900px] bg-[#fffaf2] rounded-[12px] md:rounded-[20px] shadow-2xl overflow-hidden my-auto mt-16 md:mt-20"
       >
         {/* Close button */}
         <button
           onClick={handleClose}
-          className="absolute top-4 right-4 z-50 w-10 h-10 rounded-full bg-white/80 hover:bg-white flex items-center justify-center text-[#473025] transition-colors"
+          className="absolute top-2 right-2 md:top-4 md:right-4 z-50 w-8 h-8 md:w-10 md:h-10 rounded-full bg-white/90 hover:bg-white flex items-center justify-center text-[#473025] transition-all hover:scale-110 shadow-lg"
+          aria-label="Close onboarding"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            className="h-6 w-6"
+            className="h-4 w-4 md:h-6 md:w-6"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -205,88 +165,56 @@ export default function OnboardingModal({ isOpen, onClose, userRole }: Onboardin
           </svg>
         </button>
 
-        {/* Welcome header */}
-        <div className="bg-[#473025] py-4 px-6 rounded-t-[20px]">
-          <p className="font-quicksand font-bold text-[#fffaf2] text-[20px] sm:text-[22px] text-center">
-            Welcome to LearnWyrm!
-          </p>
-        </div>
-
-        {/* Card content */}
+        {/* Onboarding Screen Image */}
         <div
           ref={(el) => {
-            cardRefs.current[currentStep] = el;
+            screenRefs.current[currentStep] = el;
           }}
-          className="relative px-6 py-6 sm:px-8 sm:py-8"
-          style={{ perspective: '1000px' }}
+          className="relative w-full aspect-[16/9] max-h-[50vh] md:max-h-[60vh]"
         >
-          {/* Step indicator and title */}
-          <div className="flex items-start gap-3 mb-4">
-            <div className="bg-[#95b607] rounded-full w-[50px] h-[50px] sm:w-[60px] sm:h-[60px] flex items-center justify-center flex-shrink-0">
-              <p className="font-quicksand font-bold text-[#fffaf2] text-[28px] sm:text-[36px]">
-                {currentCard.step}
-              </p>
-            </div>
-            <div className="flex-1">
-              <h2 className="font-quicksand font-bold text-[#473025] text-[20px] sm:text-[24px] leading-[1.2] whitespace-pre-line mb-2">
-                {currentCard.title}
-              </h2>
-              <p className="font-quicksand text-[#473025] text-[14px] sm:text-[16px] leading-[1.4]">
-                {currentCard.description}
-              </p>
-            </div>
-          </div>
+          <Image
+            src={currentScreen.image}
+            alt={currentScreen.alt}
+            fill
+            className="object-contain"
+            priority
+          />
+        </div>
 
-          {/* Content card */}
-          <div className="relative bg-[#fffaf2] border-3 border-[#473025] rounded-[12px] w-full h-[250px] sm:h-[300px] overflow-hidden mb-4">
-            {/* Image */}
-            {currentCard.image && (
-              <div className={`absolute ${currentCard.imagePosition}`}>
-                <Image
-                  src={currentCard.image}
-                  alt={currentCard.imageAlt}
-                  width={currentCard.imageWidth}
-                  height={currentCard.imageHeight}
-                  className="object-contain max-w-full h-auto"
-                />
-              </div>
-            )}
-
-            {/* Coins indicator */}
-            {currentCard.showCoins && (
-              <p className="absolute top-[30%] left-1/2 -translate-x-1/2 font-quicksand font-bold text-[#473025] text-[24px] sm:text-[28px]">
-                +100
-              </p>
-            )}
-
-            {/* Got it button for last card */}
-            {currentCard.isLastCard && (
-              <div className="absolute bottom-[20px] left-1/2 -translate-x-1/2">
-                <Button
-                  onClick={handleNext}
-                  variant="primary"
-                  size="md"
-                  className="bg-[#473025] hover:bg-[#5a3d2e] text-[#fffaf2] text-[18px] sm:text-[20px] px-6 sm:px-8"
-                >
-                  Got it!
-                </Button>
-              </div>
-            )}
-          </div>
-
-          {/* Next button (for non-last cards) */}
-          {!currentCard.isLastCard && (
-            <div className="flex justify-end">
-              <Button
-                onClick={handleNext}
-                variant="success"
-                size="md"
-                className="text-[16px] sm:text-[18px] px-6"
-              >
-                Next →
-              </Button>
-            </div>
+        {/* Navigation Buttons */}
+        <div className="flex items-center justify-center gap-3 md:gap-4 px-4 md:px-6 py-4 md:py-6 bg-[#fffaf2]">
+          {!isLastScreen && (
+            <Button
+              variant="secondary"
+              size="md"
+              onClick={handleSkip}
+              className="text-sm md:text-base"
+            >
+              Skip
+            </Button>
           )}
+          <Button
+            variant="success"
+            size="md"
+            onClick={handleNext}
+            className="min-w-[140px] md:min-w-[180px] text-sm md:text-base"
+          >
+            {isLastScreen ? "Go!" : "Continue"}
+          </Button>
+        </div>
+
+        {/* Progress Indicators */}
+        <div className="flex gap-2 justify-center pb-4 md:pb-6">
+          {screens.map((_, index) => (
+            <div
+              key={index}
+              className={`h-1.5 md:h-2 rounded-full transition-all ${
+                index === currentStep
+                  ? 'w-6 md:w-8 bg-[#95b607]'
+                  : 'w-1.5 md:w-2 bg-[#473025]/30'
+              }`}
+            />
+          ))}
         </div>
       </div>
     </div>
