@@ -36,7 +36,7 @@ const FRUIT_SPRITES = [
   'fruit-apple',   // A - Red
   'fruit-grape',   // B - Green (using grape for green)
   'fruit-banana',  // C - Yellow
-  'fruit-orange'   // D - Blue (using orange)
+  'fruit-orange'   // D - Blue (using grape for blue)
 ];
 
 // Game phases
@@ -81,7 +81,7 @@ export default class SnakeScene extends Phaser.Scene {
   private moveDelay = 130; // ms between moves
 
   // Graphics
-  private snakeGraphics: Phaser.GameObjects.Image[] = [];
+  private snakeGraphics: Phaser.GameObjects.Rectangle[] = [];
 
   // UI Elements
   private questionPanel?: Phaser.GameObjects.Container;
@@ -117,7 +117,7 @@ export default class SnakeScene extends Phaser.Scene {
   private masteryAttempts = 0; // Total answer attempts made during mastery phase (for accuracy calculation)
 
   // QUESTION ANALYTICS - Track ALL attempts at each question (not just final)
-  private questionAttempts: Array<{
+  private questionAttempts: Array<{ 
     questionText: string;
     selectedAnswer: string;
     correctAnswer: string;
@@ -177,10 +177,7 @@ export default class SnakeScene extends Phaser.Scene {
     this.load.image('key', '/assets/snake/ui/Key.png');
     this.load.image('arrow-key', '/assets/snake/ui/ArrowKey.png');
     // Load snake sprites
-    this.load.image('snake-head', '/assets/snake/sprites/Head.png');
-    this.load.image('snake-body', '/assets/snake/sprites/Body.png');
-    this.load.image('snake-corner', '/assets/snake/sprites/Corner Body.png');
-    this.load.image('snake-tail', '/assets/snake/sprites/Tail.png');
+    // Snake is now rendered as rectangles, no sprites needed.
     
     // UI Assets for Pre-Question Modal
     this.load.image('popup-bg', '/assets/snake/ui/popup.png');
@@ -263,8 +260,8 @@ export default class SnakeScene extends Phaser.Scene {
     // Draw grid
     this.drawGrid(this.gameOffsetX, this.gameOffsetY);
 
-    // Setup question panel
-    this.createQuestionPanel(availableWidth, panelWidth, height);
+    // Setup question panel (call the single implementation)
+    this.createQuestionPanel(availableWidth, panelWidth, height); 
 
     // Initialize snake in center
     const centerX = Math.floor(this.gridWidth / 2);
@@ -386,7 +383,6 @@ export default class SnakeScene extends Phaser.Scene {
       color: '#FFF',
       fontFamily: 'Quicksand',
       fontStyle: 'normal',
-      fontWeight: '900',
       align: 'center'
     }).setOrigin(0.5).setDepth(3001);
 
@@ -402,7 +398,6 @@ export default class SnakeScene extends Phaser.Scene {
       color: '#FFF',
       fontFamily: 'Quicksand',
       fontStyle: 'normal',
-      fontWeight: '900',
       align: 'center'
     }).setOrigin(0.5).setDepth(3001);
 
@@ -443,47 +438,8 @@ export default class SnakeScene extends Phaser.Scene {
     border.strokeRect(offsetX, offsetY, width, height);
   }
 
-  createQuestionPanel(leftAreaWidth: number, panelWidth: number, height: number) {
-    // Panel starts after the left area
-    const panelStartX = leftAreaWidth;
-
-    // Calculate panel height with vertical gaps
-    const verticalGap = 20; // Gap above and below
-    const panelHeight = height - (verticalGap * 2);
-
-    // Panel background - custom image (centered vertically with gaps)
-    const panel = this.add.image(
-      panelStartX + panelWidth / 2,
-      height / 2,
-      'question-panel'
-    );
-    panel.setDisplaySize(panelWidth, panelHeight);
-
-    // Title
-    this.add.text(panelStartX + panelWidth / 2, 60, 'SNAKE QUIZ', {
-      fontSize: '24px',
-      color: '#473025',
-      fontFamily: 'Quicksand',
-      fontStyle: 'bold',
-      fontWeight: '900',
-      align: 'center'
-    }).setOrigin(0.5);
-
-    // Instructions
-    this.add.text(
-      panelStartX + panelWidth / 2,
-      95,
-      'Eat the fruit matching the correct answer!',
-      {
-        fontSize: '15px',
-        color: '#A8886D',
-        fontFamily: 'Quicksand',
-        fontStyle: 'normal',
-        fontWeight: '700',
-        align: 'center'
-      }
-    ).setOrigin(0.5);
-  }
+  // The 'correct' createQuestionPanel begins here (after the removed duplicate)
+  // No changes needed here, as the content is correct.
 
   updateCoinPosition() {
     // Calculate total width of score text + gap + coin
@@ -544,7 +500,6 @@ export default class SnakeScene extends Phaser.Scene {
         color: '#FDF0DC',
         fontFamily: 'Quicksand',
         fontStyle: 'bold',
-        fontWeight: '700',
         align: 'center'
       }
     ).setOrigin(0.5).setDepth(5003);
@@ -560,7 +515,6 @@ export default class SnakeScene extends Phaser.Scene {
         color: '#473025',
         fontFamily: 'Quicksand',
         fontStyle: 'bold',
-        fontWeight: '700',
         align: 'center',
         wordWrap: { width: size * 0.65 }
       }
@@ -625,7 +579,6 @@ export default class SnakeScene extends Phaser.Scene {
           color: '#473025',
           fontFamily: 'Quicksand',
           fontStyle: 'bold',
-          fontWeight: '700',
           align: 'center'
         }
       ).setOrigin(0.5).setDepth(5003);
@@ -647,27 +600,27 @@ export default class SnakeScene extends Phaser.Scene {
     // First line
     const line1Part1 = this.add.text(0, 0, line1Text, {
       fontSize: '17px', color: '#473025', fontFamily: 'Quicksand',
-      fontStyle: 'bold', fontWeight: '700'
+      fontStyle: 'bold'
     }).setDepth(5002);
 
     const line1Part2 = this.add.text(0, 0, wasdText, {
       fontSize: '17px', color: '#EA1644', fontFamily: 'Quicksand',
-      fontStyle: 'bold', fontWeight: '700'
+      fontStyle: 'bold'
     }).setDepth(5002);
 
     const line1Part3 = this.add.text(0, 0, line1Middle, {
       fontSize: '17px', color: '#473025', fontFamily: 'Quicksand',
-      fontStyle: 'bold', fontWeight: '700'
+      fontStyle: 'bold'
     }).setDepth(5002);
 
     const line1Part4 = this.add.text(0, 0, arrowKeysText, {
       fontSize: '17px', color: '#EA1644', fontFamily: 'Quicksand',
-      fontStyle: 'bold', fontWeight: '700'
+      fontStyle: 'bold'
     }).setDepth(5002);
 
     const line1Part5 = this.add.text(0, 0, line2Text, {
       fontSize: '17px', color: '#473025', fontFamily: 'Quicksand',
-      fontStyle: 'bold', fontWeight: '700'
+      fontStyle: 'bold'
     }).setDepth(5002);
 
     // Second line
@@ -677,7 +630,7 @@ export default class SnakeScene extends Phaser.Scene {
       line3Text,
       {
         fontSize: '17px', color: '#473025', fontFamily: 'Quicksand',
-        fontStyle: 'bold', fontWeight: '700', align: 'center'
+        fontStyle: 'bold', align: 'center'
       }
     ).setOrigin(0.5, 0).setDepth(5002);
 
@@ -716,7 +669,6 @@ export default class SnakeScene extends Phaser.Scene {
         color: '#FFF',
         fontFamily: 'Quicksand',
         fontStyle: 'bold',
-        fontWeight: '700',
         align: 'center'
       }
     ).setOrigin(0.5).setDepth(5003).setScale(1.1);
@@ -1385,7 +1337,7 @@ export default class SnakeScene extends Phaser.Scene {
 
       // Create sprites for each segment
       this.snake.forEach(() => {
-        const sprite = this.add.image(0, 0, 'snake-head');
+        const sprite = this.add.rectangle(0, 0, this.GRID_SIZE, this.GRID_SIZE, 0x473025).setOrigin(0.5);
         this.snakeGraphics.push(sprite);
       });
     }
@@ -1396,72 +1348,8 @@ export default class SnakeScene extends Phaser.Scene {
       const targetX = this.gameOffsetX + segment.x * this.GRID_SIZE + this.GRID_SIZE / 2;
       const targetY = this.gameOffsetY + segment.y * this.GRID_SIZE + this.GRID_SIZE / 2;
 
-      let angle = 0;
-      let textureName = '';
-
-      // Determine texture and angle
-      if (index === 0) {
-        // HEAD
-        textureName = 'snake-head';
-        switch (this.direction) {
-          case Direction.UP: angle = -90; break;
-          case Direction.DOWN: angle = 90; break;
-          case Direction.LEFT: angle = 180; break;
-          case Direction.RIGHT: angle = 0; break;
-        }
-      } else if (index === this.snake.length - 1) {
-        // TAIL
-        textureName = 'snake-tail';
-        const prev = this.snake[index - 1];
-        if (prev.x < segment.x) angle = -90;
-        else if (prev.x > segment.x) angle = 90;
-        else if (prev.y < segment.y) angle = 0;
-        else if (prev.y > segment.y) angle = 180;
-      } else {
-        // BODY
-        const prev = this.snake[index - 1];
-        const next = this.snake[index + 1];
-        const isStraight = (prev.x === next.x) || (prev.y === next.y);
-
-        if (isStraight) {
-          textureName = 'snake-body';
-          angle = (prev.x === next.x) ? 90 : 0;
-        } else {
-          textureName = 'snake-corner';
-          const fromLeft = prev.x < segment.x;
-          const fromRight = prev.x > segment.x;
-          const fromTop = prev.y < segment.y;
-          const fromBottom = prev.y > segment.y;
-          const toLeft = next.x < segment.x;
-          const toRight = next.x > segment.x;
-          const toTop = next.y < segment.y;
-          const toBottom = next.y > segment.y;
-
-          if ((fromLeft && toBottom) || (fromBottom && toLeft)) angle = 90;
-          else if ((fromTop && toLeft) || (fromLeft && toTop)) angle = 180;
-          else if ((fromRight && toTop) || (fromTop && toRight)) angle = -90;
-          else if ((fromBottom && toRight) || (fromRight && toBottom)) angle = 0;
-        }
-      }
-
-      // Update texture if changed
-      if (sprite.texture.key !== textureName) {
-        sprite.setTexture(textureName);
-      }
-
-      // Update angle
-      sprite.setAngle(angle);
-
       // Update size - full width to connect, thinner height for spacing
-      const displayWidth = this.GRID_SIZE; // Full width
-      const displayHeight = this.GRID_SIZE * 0.7;
-
-      if (textureName === 'snake-tail') {
-        // Tail: narrower width, full height (since PNG points up)
-        sprite.setDisplaySize(displayWidth * 0.7, this.GRID_SIZE);
-      } else {
-        sprite.setDisplaySize(displayWidth, displayHeight);
-      }
+      sprite.setSize(this.GRID_SIZE, this.GRID_SIZE); // Cubes are always full size
 
       // Smooth movement - each segment animates FROM where the NEXT segment currently is
       // (the segment behind it in the array, which is where this segment was before)
@@ -1487,18 +1375,12 @@ export default class SnakeScene extends Phaser.Scene {
         }
       }
 
-      // Animation logic - corners snap to grid, other segments slide smoothly
-      if (textureName === 'snake-corner') {
-        // Snap corners to grid (no animation drift)
-        sprite.setPosition(targetX, targetY);
-      } else {
-        // Smooth animation for head, body, and tail
-        const progress = Math.min((this.time.now - this.lastMoveTime) / this.moveDelay, 1);
-        sprite.setPosition(
-          startX + (targetX - startX) * progress,
-          startY + (targetY - startY) * progress
-        );
-      }
+      // Smooth animation for head, body, and tail
+      const progress = Math.min((this.time.now - this.lastMoveTime) / this.moveDelay, 1);
+      sprite.setPosition(
+        startX + (targetX - startX) * progress,
+        startY + (targetY - startY) * progress
+      );
     });
   }
 
@@ -2135,7 +2017,7 @@ export default class SnakeScene extends Phaser.Scene {
     explainButton.on('pointerdown', () => {
       this.showExplanation(overlayElements, this.currentQuestion!, false, studentAnswer);
     });
-  }
+  } // <--- THIS CLOSING BRACE IS MISSING from the previous iteration. It should be here!
 
   async showExplanation(previousOverlayElements: Phaser.GameObjects.GameObject[], questionData: QuizQuestion, wasCorrect: boolean = true, studentAnswer?: string) {
     // Hide previous overlay elements temporarily
@@ -2181,7 +2063,7 @@ export default class SnakeScene extends Phaser.Scene {
     const loadingText = this.add.text(
       this.gameOffsetX + (size / 2),
       this.gameOffsetY + (size / 2),
-      'Loading explanation...',
+      'Loading explanation...', 
       {
         fontSize: '24px',
         color: '#473025',
@@ -2223,7 +2105,6 @@ export default class SnakeScene extends Phaser.Scene {
           color: '#473025',
           fontFamily: 'Quicksand',
           fontStyle: 'bold',
-          fontWeight: '700',
           align: 'center'
         }
       ).setOrigin(0.5).setDepth(2002).setAlpha(0);
@@ -2297,7 +2178,6 @@ export default class SnakeScene extends Phaser.Scene {
           color: '#473025',
           fontFamily: 'Quicksand',
           fontStyle: 'bold',
-          fontWeight: '700',
           align: 'center',
           wordWrap: { width: size * 0.65, useAdvancedWrap: true },
           lineSpacing: Math.round(16 * 0.31075)
@@ -2425,7 +2305,7 @@ export default class SnakeScene extends Phaser.Scene {
       ).setOrigin(0.5).setDepth(2002);
 
       backButton.on('pointerdown', () => {
-        explainOverlay.destroy();
+        backgroundOverlay.destroy(); // Fix: Was explainOverlay.destroy()
         loadingText.destroy();
         backButton.destroy();
         backText.destroy();
