@@ -16,6 +16,28 @@ const TowerDefenseGame = ({ quiz }: TowerDefenseGameProps) => {
   // ref for phaser game instance
   const gameInstance = useRef<Phaser.Game | null>(null);
 
+  // effect hook to prevent touch rubber-banding on mobile
+  useEffect(() => {
+    /**
+     * Prevent rubber-band scrolling on mobile devices
+     * This stops the whole page from bouncing when user swipes
+     */
+    const preventTouchMove = (e: TouchEvent) => {
+      // Only prevent default on the game container, not on UI elements
+      const target = e.target as HTMLElement;
+      if (target.closest('#phaser-container')) {
+        e.preventDefault();
+      }
+    };
+
+    // Add listener with passive: false to allow preventDefault()
+    document.addEventListener('touchmove', preventTouchMove, { passive: false });
+
+    return () => {
+      document.removeEventListener('touchmove', preventTouchMove);
+    };
+  }, []);
+
   // effect hook to create/destroy phaser game
   useEffect(() => {
     // async creates phaser game instance
@@ -36,17 +58,16 @@ const TowerDefenseGame = ({ quiz }: TowerDefenseGameProps) => {
           type: Phaser.AUTO, // auto choose WebGL/Canvas
           width: 1920,
           height: 1080,
-          parent: gameRef.current, // DOM element to render in
+          parent: 'phaser-container', // Target specific container div
           backgroundColor: '#8bc34a',
-          antialias: false, // Disable antialiasing for crisp UI
-          pixelArt: true, // Enable pixel art mode for sharp edges
+          antialias: false, // Disable antialiasing for crisp UI (not pixel art)
+          pixelArt: false, // Disable pixel art mode (this is NOT a pixel art game)
           scale: {
-            mode: Phaser.Scale.RESIZE, // Dynamic resizing to match container
+            mode: Phaser.Scale.FIT, // FIT mode maintains aspect ratio and fits in container
             autoCenter: Phaser.Scale.CENTER_BOTH,
-            parent: gameRef.current,
+            parent: 'phaser-container', // Crucial: target specific div for CSS control
             width: 1920,
             height: 1080,
-            // Remove min/max constraints to allow more flexible scaling on mobile
             expandParent: false,
             autoRound: true
           },
@@ -54,12 +75,13 @@ const TowerDefenseGame = ({ quiz }: TowerDefenseGameProps) => {
             createContainer: true // Enable DOM element support
           },
           render: {
-            antialias: false, // Disable antialiasing for crisp UI
-            antialiasGL: false,
-            roundPixels: true, // Snap to whole pixels to prevent sub-pixel blur
-            pixelArt: true, // Enable pixel art mode for sharp edges
+            antialias: true, // Enable antialiasing for smooth graphics (not pixel art)
+            antialiasGL: true,
+            roundPixels: false, // Allow sub-pixel rendering for smooth scaling
+            pixelArt: false, // Disable pixel art mode (not a pixel art game)
+            // High-DPI/Retina support - cap at 2x to balance quality and performance
+            resolution: Math.min(window.devicePixelRatio || 1, 2)
           },
-          // Note: resolution property removed - not supported in current Phaser version
           physics: {
             default: 'arcade',
             arcade: {

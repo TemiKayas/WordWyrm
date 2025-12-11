@@ -27,9 +27,10 @@ export const metadata: Metadata = {
 
 export const viewport = {
   width: 'device-width',
-  initialScale: 1,
-  maximumScale: 1,
-  userScalable: false, // Prevent zoom on mobile for game controls
+  initialScale: 1.0,
+  maximumScale: 1.0,
+  userScalable: 'no', // Prevent zoom on mobile for game controls
+  viewportFit: 'cover', // Handle iPhone notch and safe areas
 };
 
 export default function RootLayout({

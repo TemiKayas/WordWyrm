@@ -135,10 +135,12 @@ function TowerDefenseContent() {
         top: 0,
         left: 0,
         width: '100vw',
-        height: '100vh',
-        // Safari iOS-specific fix for dynamic address bar
-        minHeight: '-webkit-fill-available',
-        overflow: 'hidden'
+        width: '100dvw', // Dynamic viewport width
+        height: '100vh', // Fallback for older browsers
+        height: '100dvh', // Dynamic viewport height - fixes Safari address bar
+        overflow: 'hidden',
+        margin: 0,
+        padding: 0
       }}
     >
       <TowerDefenseGame quiz={quiz} />

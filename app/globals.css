@@ -17,8 +17,15 @@ html {
   scroll-behavior: smooth;
   overscroll-behavior: none;
   overflow-x: hidden;
-  /* Safari iOS fix - prevents address bar from affecting viewport */
-  height: -webkit-fill-available;
+  /*
+   * Modern Dynamic Viewport Height (dvh) - fixes Safari address bar issue
+   * dvh = dynamic viewport height (adapts as address bar shows/hides)
+   * Fallbacks for older browsers
+   */
+  min-height: 100vh; /* Fallback for older browsers */
+  min-height: -webkit-fill-available; /* Fallback for older Safari */
+  min-height: 100dvh; /* Modern solution - dynamic viewport */
+  height: 100dvh;
 }
 
 body {
@@ -27,9 +34,15 @@ body {
   font-family: var(--font-quicksand), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
   overscroll-behavior: none;
   position: relative;
-  /* Safari iOS fix - ensures body fills the available height */
-  min-height: 100vh;
-  min-height: -webkit-fill-available;
+  margin: 0;
+  padding: 0;
+  /*
+   * Dynamic Viewport Height - fixes Safari iOS address bar issues
+   * dvh automatically adjusts when address bar appears/disappears
+   */
+  min-height: 100vh; /* Fallback for older browsers */
+  min-height: -webkit-fill-available; /* Fallback for older Safari */
+  min-height: 100dvh; /* Modern solution - respects dynamic address bar */
 }
 
 /* custom animations */
