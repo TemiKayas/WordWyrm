@@ -157,7 +157,7 @@ export default function ShopPage() {
               {/* Coins Display */}
               <div className="bg-[#fffcf8] border-[#473025] border-[3px] rounded-full h-[56px] md:h-[63px] px-4 flex items-center justify-center gap-2">
                 <Image
-                  src="/assets/shop/b5537993144d95b93a959b526aa2e8089401a375.png"
+                  src="/assets/shop/coin.png"
                   alt="Coin"
                   width={49}
                   height={49}
