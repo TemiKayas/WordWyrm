@@ -134,10 +134,10 @@ function TowerDefenseContent() {
         position: 'fixed',
         top: 0,
         left: 0,
-        width: '100vw',
-        width: '100dvw', // Dynamic viewport width
-        height: '100vh', // Fallback for older browsers
-        height: '100dvh', // Dynamic viewport height - fixes Safari address bar
+        // Use dvh (dynamic viewport height) to fix Safari address bar issue
+        // Falls back to 100vh via Tailwind's h-screen class for older browsers
+        width: '100dvw',
+        height: '100dvh',
         overflow: 'hidden',
         margin: 0,
         padding: 0
