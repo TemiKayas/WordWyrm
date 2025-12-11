@@ -18,6 +18,7 @@ interface Game {
   shareCode?: string;
   hasGame: boolean;
   qrCodeUrl?: string | null;
+  imageUrl?: string | null;
   gameMode?: GameMode;
 }
 
@@ -61,6 +62,7 @@ export default function GamesView({ onCreateGame, classId, hideTitle = false }: 
           shareCode: quiz.shareCode,
           hasGame: quiz.hasGame,
           qrCodeUrl: quiz.qrCodeUrl || null,
+          imageUrl: quiz.imageUrl || null,
           gameMode: quiz.gameMode as GameMode | undefined,
         }));
         setGames(formattedGames);

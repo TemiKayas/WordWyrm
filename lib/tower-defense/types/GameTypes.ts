@@ -43,6 +43,7 @@ export interface Enemy {
   frozen?: boolean; // true when frozen by Freeze ability (prevents commander aura from resetting speed)
   stunned?: boolean; // true when stunned by Cannon Concussive Blast
   stunnedUntil?: number; // timestamp when stun expires
+  _resizeProgressT?: number; // normalized progress (0.0 to 1.0) on current path segment for screen resize repositioning
 }
 
 // Tower entity - attacks enemies in range

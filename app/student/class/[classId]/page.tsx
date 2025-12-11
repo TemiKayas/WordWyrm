@@ -20,6 +20,7 @@ type ClassDetails = {
     id: string;
     title: string;
     shareCode: string;
+    imageUrl: string | null;
     gameMode: string;
     createdAt: Date;
   }>;
@@ -146,56 +147,62 @@ export default function StudentClassDetailPage() {
               {classDetails.games.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {classDetails.games.map((game, index) => {
-                    // Rotate through different color schemes
+                    // Rotate through different color schemes for border/button
                     const colorSchemes = [
-                      { bg: 'from-[#96b902]/10 to-[#7a9700]/10', border: 'border-[#96b902]', accent: 'bg-[#96b902]', button: 'bg-[#96b902] border-[#006029] hover:bg-[#7a9700]' },
-                      { bg: 'from-[#ff9f22]/10 to-[#fd9227]/10', border: 'border-[#ff9f22]', accent: 'bg-[#ff9f22]', button: 'bg-[#fd9227] border-[#cc7425] hover:bg-[#e6832b]' },
-                      { bg: 'from-[#ff3875]/10 to-[#ff5a8f]/10', border: 'border-[#ff3875]', accent: 'bg-[#ff3875]', button: 'bg-[#ff3875] border-[#730f11] hover:bg-[#e6326a]' },
+                      { border: 'border-[#96b902]', button: 'bg-[#96b902] border-[#006029] hover:bg-[#7a9700]' },
+                      { border: 'border-[#ff9f22]', button: 'bg-[#fd9227] border-[#cc7425] hover:bg-[#e6832b]' },
+                      { border: 'border-[#ff3875]', button: 'bg-[#ff3875] border-[#730f11] hover:bg-[#e6326a]' },
                     ];
                     const scheme = colorSchemes[index % colorSchemes.length];
 
                     return (
                       <div
                         key={game.id}
-                        className={`bg-gradient-to-br ${scheme.bg} border-[3px] ${scheme.border} rounded-[15px] p-6 hover:shadow-lg hover:scale-[1.02] transition-all`}
+                        className={`bg-white border-[3px] ${scheme.border} rounded-[15px] overflow-hidden hover:shadow-lg hover:scale-[1.02] transition-all`}
                       >
-                        <div className="flex items-start gap-3 mb-4">
-                          <div className={`w-12 h-12 ${scheme.accent} rounded-[10px] flex items-center justify-center flex-shrink-0`}>
-                            <span className="font-quicksand font-bold text-white text-[20px]">
-                              {game.title.charAt(0).toUpperCase()}
-                            </span>
-                          </div>
-                          <div className="flex-1">
-                            <h3 className="font-quicksand font-bold text-[#473025] text-[18px] mb-2">
-                              {game.title}
-                            </h3>
-                            <div className="flex items-center gap-2 mb-2">
-                              <span className="font-quicksand text-[12px] text-[#473025]/70 bg-white/50 px-2 py-1 rounded-[5px]">
-                                {game.gameMode === 'TOWER_DEFENSE' ? 'Tower Defense' : game.gameMode === 'SNAKE' ? 'Snake' : 'Traditional'}
-                              </span>
-                            </div>
-                            <p className="font-quicksand text-[12px] text-[#473025]/60">
-                              Created {new Date(game.createdAt).toLocaleDateString()}
-                            </p>
-                          </div>
-                        </div>
-
-                        <button
-                          onClick={() => handlePlayGame(game.shareCode)}
-                          className={`w-full ${scheme.button} border-[3px] rounded-[15px] h-[46px] flex items-center justify-center gap-2.5 hover:shadow-md active:scale-[0.98] transition-all cursor-pointer`}
-                        >
-                          <div className="w-[20px] h-[20px] relative flex-shrink-0">
+                        {/* Game Thumbnail */}
+                        {game.imageUrl && (
+                          <div className="relative w-full h-[140px] bg-gradient-to-br from-[#fffaf2] to-[#f5f0e8]">
                             <Image
-                              src="/assets/dashboard/play-icon.svg"
-                              alt="Play"
+                              src={game.imageUrl}
+                              alt={game.title}
                               fill
-                              className="object-contain brightness-0 invert"
+                              className="object-cover"
                             />
                           </div>
-                          <span className="font-quicksand font-bold text-white text-[18px]">
-                            Play Game
-                          </span>
-                        </button>
+                        )}
+
+                        {/* Game Info */}
+                        <div className="p-6">
+                          <h3 className="font-quicksand font-bold text-[#473025] text-[18px] mb-2">
+                            {game.title}
+                          </h3>
+                          <div className="flex items-center gap-2 mb-3">
+                            <span className="font-quicksand text-[12px] text-[#473025]/70 bg-[#fffaf2] px-2 py-1 rounded-[5px]">
+                              {game.gameMode === 'TOWER_DEFENSE' ? 'Tower Defense' : game.gameMode === 'SNAKE' ? 'Snake' : 'Traditional'}
+                            </span>
+                          </div>
+                          <p className="font-quicksand text-[12px] text-[#473025]/60 mb-4">
+                            Created {new Date(game.createdAt).toLocaleDateString()}
+                          </p>
+
+                          <button
+                            onClick={() => handlePlayGame(game.shareCode)}
+                            className={`w-full ${scheme.button} border-[3px] rounded-[15px] h-[46px] flex items-center justify-center gap-2.5 hover:shadow-md active:scale-[0.98] transition-all cursor-pointer`}
+                          >
+                            <div className="w-[20px] h-[20px] relative flex-shrink-0">
+                              <Image
+                                src="/assets/dashboard/play-icon.svg"
+                                alt="Play"
+                                fill
+                                className="object-contain brightness-0 invert"
+                              />
+                            </div>
+                            <span className="font-quicksand font-bold text-white text-[18px]">
+                              Play Game
+                            </span>
+                          </button>
+                        </div>
                       </div>
                     );
                   })}

@@ -506,7 +506,7 @@ export default class UIScene extends Phaser.Scene {
     // Start game button
     const startGameHandler = () => {
       console.log('[UIScene] Start game button clicked!');
-      const tdScene = this.scene.get('TowerDefenseScene') as any;
+      const tdScene = this.scene.get('TowerDefenseScene') as Phaser.Scene & { startGame?: () => void };
       console.log('[UIScene] TowerDefenseScene found:', !!tdScene);
       if (tdScene && tdScene.startGame) {
         console.log('[UIScene] Calling startGame()...');
@@ -591,7 +591,7 @@ export default class UIScene extends Phaser.Scene {
         this.speedButtonText.setText(`SPEED ${this.currentSpeed}x`);
       }
 
-      const tdScene = this.scene.get('TowerDefenseScene') as any;
+      const tdScene = this.scene.get('TowerDefenseScene') as Phaser.Scene & { startGame?: () => void; pauseGame?: () => void; resumeGame?: () => void; restartGame?: () => void; exitGame?: () => void; setGameSpeed?: (speed: number) => void; startNextWave?: () => void };
       if (tdScene && tdScene.setGameSpeed) {
         tdScene.setGameSpeed(this.currentSpeed);
       }
@@ -608,7 +608,7 @@ export default class UIScene extends Phaser.Scene {
 
     // Start round button
     const startRoundHandler = () => {
-      const tdScene = this.scene.get('TowerDefenseScene') as any;
+      const tdScene = this.scene.get('TowerDefenseScene') as Phaser.Scene & { startGame?: () => void; pauseGame?: () => void; resumeGame?: () => void; restartGame?: () => void; exitGame?: () => void; setGameSpeed?: (speed: number) => void; startNextWave?: () => void };
       if (tdScene && tdScene.startNextWave) {
         tdScene.startNextWave();
       }
@@ -631,7 +631,7 @@ export default class UIScene extends Phaser.Scene {
     }
     button.setInteractive({ useHandCursor: true });
     button.on('pointerdown', () => {
-      const tdScene = this.scene.get('TowerDefenseScene') as any;
+      const tdScene = this.scene.get('TowerDefenseScene') as Phaser.Scene & { startGame?: () => void; pauseGame?: () => void; resumeGame?: () => void; restartGame?: () => void; exitGame?: () => void; setGameSpeed?: (speed: number) => void; startNextWave?: () => void; selectTowerType?: (towerType: string) => void; activatePower?: (powerType: string) => void };
       if (tdScene && tdScene.selectTowerType) {
         tdScene.selectTowerType(towerType);
       }
@@ -645,7 +645,7 @@ export default class UIScene extends Phaser.Scene {
     }
     button.setInteractive({ useHandCursor: true });
     button.on('pointerdown', () => {
-      const tdScene = this.scene.get('TowerDefenseScene') as any;
+      const tdScene = this.scene.get('TowerDefenseScene') as Phaser.Scene & { startGame?: () => void; pauseGame?: () => void; resumeGame?: () => void; restartGame?: () => void; exitGame?: () => void; setGameSpeed?: (speed: number) => void; startNextWave?: () => void; selectTowerType?: (towerType: string) => void; activatePower?: (powerType: string) => void };
       if (tdScene && tdScene.activatePower) {
         tdScene.activatePower(powerType);
       }

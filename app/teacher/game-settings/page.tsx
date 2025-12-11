@@ -349,7 +349,7 @@ function GameSettingsContent() {
                       </div>
                       <div className="w-[120px] h-[80px] bg-[#f1e8d9] rounded-[6px] overflow-hidden flex-shrink-0">
                         <Image
-                          src="/assets/game/GrassMap1080p.png"
+                          src="/assets/td-thumbnail.png"
                           alt="Tower Defense"
                           width={120}
                           height={80}
@@ -382,8 +382,14 @@ function GameSettingsContent() {
                           <div className="w-[10px] h-[10px] rounded-full bg-[#96b902]"></div>
                         )}
                       </div>
-                      <div className="w-[120px] h-[80px] bg-[#d1c5b8] rounded-[6px] flex items-center justify-center flex-shrink-0">
-                        <span className="font-quicksand text-[#a7613c] text-[11px]">Preview coming soon</span>
+                      <div className="w-[120px] h-[80px] bg-[#f1e8d9] rounded-[6px] overflow-hidden flex-shrink-0">
+                        <Image
+                          src="/assets/snake-thumbnail.png"
+                          alt="Snake Game"
+                          width={120}
+                          height={80}
+                          className="w-full h-full object-cover"
+                        />
                       </div>
                       <div className="flex-1 min-w-0">
                         <h3 className="font-quicksand font-bold text-[#473025] text-[15px] mb-1">

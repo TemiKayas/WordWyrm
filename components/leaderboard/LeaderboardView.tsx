@@ -13,7 +13,7 @@ type LeaderboardEntry = {
   totalQuestions: number;
   completedAt: Date;
   isCurrentUser: boolean;
-  metadata: any | null;
+  metadata: unknown;
 };
 
 type GameInfo = {
@@ -239,8 +239,8 @@ export default function LeaderboardView({
               <tbody>
                 {currentLeaderboard.map((entry, index) => {
                   // Use masteryAccuracy from metadata if available, otherwise calculate
-                  const percentage = entry.metadata?.masteryAccuracy !== undefined
-                    ? Math.round(entry.metadata.masteryAccuracy)
+                  const percentage = entry.metadata && typeof entry.metadata === 'object' && 'masteryAccuracy' in entry.metadata
+                    ? Math.round((entry.metadata as { masteryAccuracy: number }).masteryAccuracy)
                     : entry.totalQuestions > 0
                     ? Math.round((entry.correctAnswers / entry.totalQuestions) * 100)
                     : 0;

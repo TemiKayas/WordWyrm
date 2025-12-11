@@ -73,7 +73,7 @@ const studentCards: OnboardingCard[] = [
     step: 2,
     title: 'Earn Coins to\nspend in the Shop!',
     description: 'Get rewarded for correct answers and completing games. Collect coins to unlock awesome items and customize your experience!',
-    image: '/assets/onboarding/b5537993144d95b93a959b526aa2e8089401a375.png',
+    image: '/assets/onboarding/coin.png',
     imageAlt: 'Coins',
     imageWidth: 180,
     imageHeight: 77,
