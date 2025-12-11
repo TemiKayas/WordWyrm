@@ -54,16 +54,19 @@ export class QuizPopupManager {
     });
 
     // 2. Panel Configuration
-    // Use a fixed ideal width but constrain it on smaller screens
-    const panelWidth = Math.min(600, width * 0.90);
-    
+    // Mobile-first responsive sizing
+    const isMobile = width < 768; // Detect mobile/tablet
+    const panelWidth = isMobile
+      ? width * 0.95  // 95% width on mobile for maximum space
+      : Math.min(700, width * 0.85); // Larger on desktop
+
     // 3. Vertical Stack Layout Calculation
     let currentY = 0; // Relative Y position inside the container
-    const padding = 20;
+    const padding = isMobile ? 24 : 20; // Larger padding on mobile
     const contentElements: Phaser.GameObjects.GameObject[] = [];
 
     // --- Header ---
-    const headerHeight = 80;
+    const headerHeight = isMobile ? 100 : 80; // Taller header on mobile
     // Header background (temporarily positioned at 0,0, will be adjusted later)
     const headerColor = config.headerColor ?? 0x96b902; // Default green
     const headerBg = this.scene.add.rectangle(0, 0, panelWidth, headerHeight, headerColor);
@@ -73,8 +76,9 @@ export class QuizPopupManager {
 
     // Header Text
     const headerTextStr = config.headerText ?? 'Quiz Question';
+    const headerFontSize = isMobile ? getResponsiveFontSize(24, height) : getResponsiveFontSize(18, height);
     const headerText = this.scene.add.text(0, 0, headerTextStr, {
-      fontSize: getResponsiveFontSize(18, height),
+      fontSize: headerFontSize,
       color: '#ffffff',
       fontFamily: 'Quicksand, sans-serif',
       fontStyle: 'bold',
@@ -84,8 +88,9 @@ export class QuizPopupManager {
     // Timer Text (if applicable)
     let timerText: Phaser.GameObjects.Text | undefined;
     if (config.timer) {
+      const timerFontSize = isMobile ? getResponsiveFontSize(18, height) : getResponsiveFontSize(14, height);
       timerText = this.scene.add.text(0, -25, `Time: ${config.timer}s`, {
-        fontSize: getResponsiveFontSize(14, height),
+        fontSize: timerFontSize,
         color: '#ffffff',
         fontFamily: 'Quicksand, sans-serif',
         fontStyle: 'bold',
@@ -100,25 +105,26 @@ export class QuizPopupManager {
     currentY += headerHeight / 2 + padding; 
 
     // --- Question Body ---
+    const questionFontSize = isMobile ? getResponsiveFontSize(22, height) : getResponsiveFontSize(18, height);
     const questionText = this.scene.add.text(0, currentY, config.question, {
-      fontSize: getResponsiveFontSize(18, height),
+      fontSize: questionFontSize,
       color: '#473025', // Dark brown text for better contrast on cream background
       fontFamily: 'Quicksand, sans-serif',
       fontStyle: 'bold',
       align: 'center',
-      wordWrap: { width: panelWidth - 60 },
+      wordWrap: { width: panelWidth - (isMobile ? 40 : 60) },
       resolution: 2
     }).setOrigin(0.5, 0); // Top-center origin for dynamic text growth
 
     contentElements.push(questionText);
-    
+
     // Update Y based on actual text height
     currentY += questionText.height + padding * 1.5;
 
     // --- Answer Buttons ---
-    const buttonWidth = panelWidth - 50;
-    const buttonHeight = 60;
-    const buttonSpacing = 15;
+    const buttonWidth = panelWidth - (isMobile ? 30 : 50);
+    const buttonHeight = isMobile ? 80 : 60; // Larger touch targets on mobile (Apple recommends 44px minimum)
+    const buttonSpacing = isMobile ? 18 : 15;
     const buttons: Phaser.GameObjects.Container[] = [];
 
     config.options.forEach((option, index) => {
@@ -127,12 +133,12 @@ export class QuizPopupManager {
       // Create button at (0, 0) first, will position later
       // Passing 0 as panelHeight initially, will update on click logic
       const btnContainer = this.createButton(
-        0, 0, buttonWidth, buttonHeight, option, height,
+        0, 0, buttonWidth, buttonHeight, option, height, isMobile,
         () => {
             // We need the FINAL calculated panel height here for feedback positioning
             // Since we haven't finished calculating it, we'll access the background height later
             const finalPanelHeight = (this.activePopupContainer?.list[0] as Phaser.GameObjects.Rectangle)?.height || 500;
-            this.handleAnswer(isCorrect, config, buttons, finalPanelHeight);
+            this.handleAnswer(isCorrect, config, buttons, finalPanelHeight, isMobile);
         }
       );
       
@@ -223,7 +229,7 @@ export class QuizPopupManager {
    * Create a standardized answer button
    */
   private createButton(
-    x: number, y: number, width: number, height: number, text: string, screenHeight: number,
+    x: number, y: number, width: number, height: number, text: string, screenHeight: number, isMobile: boolean,
     onClick: () => void
   ): Phaser.GameObjects.Container {
     const shadow = this.scene.add.rectangle(x + 4, y + 4, width, height, 0x000000, 0.15);
@@ -231,8 +237,9 @@ export class QuizPopupManager {
     bg.setStrokeStyle(3, 0xc4a46f);
     bg.setInteractive({ useHandCursor: true });
 
+    const buttonFontSize = isMobile ? getResponsiveFontSize(20, screenHeight) : getResponsiveFontSize(17, screenHeight);
     const label = this.scene.add.text(x, y, text, {
-      fontSize: getResponsiveFontSize(17, screenHeight),
+      fontSize: buttonFontSize,
       color: '#473025',
       fontFamily: 'Quicksand, sans-serif',
       fontStyle: 'bold',
@@ -273,10 +280,11 @@ export class QuizPopupManager {
    * Handle answer selection
    */
   private handleAnswer(
-    isCorrect: boolean, 
-    config: QuizConfig, 
+    isCorrect: boolean,
+    config: QuizConfig,
     buttons: Phaser.GameObjects.Container[],
-    panelHeight: number
+    panelHeight: number,
+    isMobile: boolean
   ) {
     // Stop timer if active
     if (this.activeTimerEvent) {
