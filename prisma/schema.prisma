@@ -15,15 +15,14 @@ datasource db {
 // ============================================================================
 
 model User {
-  id                    String    @id @default(cuid())
-  email                 String    @unique
-  emailVerified         DateTime? // Required by NextAuth adapter
-  passwordHash          String?   // Optional for OAuth users
+  id                    String   @id @default(cuid())
+  email                 String   @unique
+  passwordHash          String? // Optional for OAuth users
   name                  String
-  image                 String?   // Profile picture URL from OAuth
-  role                  Role?     // Nullable - OAuth users select role after first sign-in
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+  image                 String? // Profile image (OAuth providers)
+  role                  Role     @default(STUDENT)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 
   // Relations
   teacherProfile   Teacher?
@@ -113,6 +112,9 @@ model Student {
   id     String  @id @default(cuid())
   userId String  @unique
   grade  String?
+
+  coins              Int      @default(0) // Currency for shop
+  unlockedCharacters Json     @default("[1]") // List of character IDs owned
 
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   gameSessions GameSession[]
@@ -258,6 +260,7 @@ model Game {
   description String?  @db.Text
   shareCode   String   @unique // Short code for joining (e.g., "ABC123")
   qrCodeUrl   String? // Vercel Blob URL for QR code image
+  imageUrl    String? // Game thumbnail image URL (defaults based on gameMode)
   isPublic    Boolean  @default(false) // Whether game is publicly discoverable
   wasEverPublic Boolean @default(false) // Track if game was ever made public (for persistent leaderboards)
   gameMode    GameMode @default(TRADITIONAL) // Quiz format (traditional or tower defense)

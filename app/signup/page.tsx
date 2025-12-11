@@ -53,6 +53,7 @@ export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showClassCode, setShowClassCode] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [selectedRole, setSelectedRole] = useState<'TEACHER' | 'STUDENT'>('TEACHER');
   const router = useRouter();
 
   const cardRef = useRef<HTMLDivElement>(null);
@@ -134,38 +135,101 @@ export default function SignupPage() {
         </div>
       </header>
 
-      <div className="min-h-screen pt-16 flex">
-        <div ref={dragonRef} className="hidden lg:flex w-1/2 items-center justify-center bg-[#fffaf2]">
-          <div className="text-center px-8">
-            <TypingDragon isTyping={isTyping} />
-            <h2 className="font-quicksand font-bold text-[#473025] text-[28px] mb-3">
+      <div className="min-h-screen pt-16 flex flex-col lg:flex-row max-w-[1400px] mx-auto">
+        {/* Mobile character - shown above form on small screens */}
+        <div className="lg:hidden flex items-center justify-center bg-[#fffaf2] px-4 py-4">
+          <div className="text-center">
+            <div className="scale-[0.70]">
+              <TypingDragon isTyping={isTyping} />
+            </div>
+            <h2 className="font-quicksand font-bold text-[#473025] text-[18px] mb-1">
               Start your journey!
             </h2>
-            <p className="font-quicksand text-[#473025]/70 text-[16px] max-w-sm mx-auto">
+            <p className="font-quicksand text-[#473025]/70 text-[13px] max-w-[280px] mx-auto">
               Join thousands of learners making education fun and engaging. Create your account today!
             </p>
           </div>
         </div>
 
-        <div className="w-full lg:w-1/2 flex items-center justify-center p-6 lg:p-12">
+        {/* Desktop character - shown on left side on large screens */}
+        <div className="hidden lg:flex lg:w-[35%] items-center justify-center bg-[#fffaf2] px-4">
+          <div className="text-center">
+            <div className="scale-90">
+              <TypingDragon isTyping={isTyping} />
+            </div>
+            <h2 className="font-quicksand font-bold text-[#473025] text-[22px] mb-2">
+              Start your journey!
+            </h2>
+            <p className="font-quicksand text-[#473025]/70 text-[14px] max-w-xs mx-auto">
+              Join thousands of learners making education fun and engaging. Create your account today!
+            </p>
+          </div>
+        </div>
+
+        <div className="w-full lg:w-[65%] flex items-center justify-center p-4 sm:p-6">
           <div
             ref={cardRef}
-            className="bg-[#fffaf2] border-3 border-[#473025] shadow-lg w-full max-w-[550px] rounded-[20px]"
+            className="bg-[#fffaf2] border-3 border-[#473025] shadow-lg w-full max-w-[95%] sm:max-w-[85%] lg:max-w-[65%] rounded-[20px]"
           >
-            <div className="p-6 sm:p-8">
-              <h2 className="font-quicksand font-bold text-[#473025] text-[28px] text-center mb-5">
+            <div className="p-6">
+              <h2 className="font-quicksand font-bold text-[#473025] text-[28px] text-center mb-4">
                 Create Account
               </h2>
 
-              <form action={handleSubmit} className="space-y-3">
+              <form action={handleSubmit} className="space-y-2.5">
                 {error && (
                   <div className="bg-red-100 border-2 border-red-400 rounded-lg p-2">
                     <span className="font-quicksand text-sm text-red-600">{error}</span>
                   </div>
                 )}
 
+                {/* Role Selection */}
+                <div className="space-y-1.5">
+                  <label className="font-quicksand font-bold text-[#473025] text-[14px]">
+                    I am a
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedRole('STUDENT')}
+                      className={`p-1.5 rounded-[10px] border-[2px] transition-all ${
+                        selectedRole === 'STUDENT'
+                          ? 'bg-[#95b607] border-[#006029] text-white shadow-[0_2px_0_0_#006029]'
+                          : 'bg-white border-[#473025] text-[#473025] hover:border-[#fd9227]'
+                      }`}
+                    >
+                      <div className="flex flex-col items-center gap-0.5">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          <path d="M20.59 22C20.59 18.13 16.74 15 12 15C7.26 15 3.41 18.13 3.41 22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                        <span className="font-quicksand font-bold text-[13px]">Student</span>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setSelectedRole('TEACHER')}
+                      className={`p-1.5 rounded-[10px] border-[2px] transition-all ${
+                        selectedRole === 'TEACHER'
+                          ? 'bg-[#95b607] border-[#006029] text-white shadow-[0_2px_0_0_#006029]'
+                          : 'bg-white border-[#473025] text-[#473025] hover:border-[#fd9227]'
+                      }`}
+                    >
+                      <div className="flex flex-col items-center gap-0.5">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M12 14L21 9L12 4L3 9L12 14Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          <path d="M12 14V20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          <path d="M6 11.5V16.5C6 17 8.68629 19 12 19C15.3137 19 18 17 18 16.5V11.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                        <span className="font-quicksand font-bold text-[13px]">Teacher</span>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
                 <div className="space-y-1">
-                  <label htmlFor="name" className="font-quicksand font-bold text-[#473025] text-[14px]">
+                  <label htmlFor="name" className="font-quicksand font-bold text-[#473025] text-[13px]">
                     Full Name
                   </label>
                   <input
@@ -174,13 +238,13 @@ export default function SignupPage() {
                     name="name"
                     required
                     placeholder="Enter your first AND last name"
-                    className="w-full bg-[#fffaf2] border-2 border-[#473025] rounded-[8px] h-[46px] px-4 font-quicksand font-medium text-[#473025] text-[14px] placeholder:text-[#cdac8b] focus:outline-none focus:border-[#fd9227] transition-colors"
+                    className="w-full bg-[#fffaf2] border-2 border-[#473025] rounded-[8px] h-[42px] px-4 font-quicksand font-medium text-[#473025] text-[14px] placeholder:text-[#cdac8b] focus:outline-none focus:border-[#fd9227] transition-colors"
                     onChange={handleTyping}
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <label htmlFor="email" className="font-quicksand font-bold text-[#473025] text-[14px]">
+                  <label htmlFor="email" className="font-quicksand font-bold text-[#473025] text-[13px]">
                     Email
                   </label>
                   <input
@@ -189,13 +253,13 @@ export default function SignupPage() {
                     name="email"
                     required
                     placeholder="Enter your email address"
-                    className="w-full bg-[#fffaf2] border-2 border-[#473025] rounded-[8px] h-[46px] px-4 font-quicksand font-medium text-[#473025] text-[14px] placeholder:text-[#cdac8b] focus:outline-none focus:border-[#fd9227] transition-colors"
+                    className="w-full bg-[#fffaf2] border-2 border-[#473025] rounded-[8px] h-[42px] px-4 font-quicksand font-medium text-[#473025] text-[14px] placeholder:text-[#cdac8b] focus:outline-none focus:border-[#fd9227] transition-colors"
                     onChange={handleTyping}
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <label htmlFor="password" className="font-quicksand font-bold text-[#473025] text-[14px]">
+                  <label htmlFor="password" className="font-quicksand font-bold text-[#473025] text-[13px]">
                     Password
                   </label>
                   <div className="relative">
@@ -206,7 +270,7 @@ export default function SignupPage() {
                       required
                       minLength={6}
                       placeholder="••••••••"
-                      className="w-full bg-[#fffaf2] border-2 border-[#473025] rounded-[8px] h-[46px] px-4 pr-11 font-quicksand font-medium text-[#473025] text-[14px] placeholder:text-[#cdac8b] focus:outline-none focus:border-[#fd9227] transition-colors"
+                      className="w-full bg-[#fffaf2] border-2 border-[#473025] rounded-[8px] h-[42px] px-4 pr-11 font-quicksand font-medium text-[#473025] text-[14px] placeholder:text-[#cdac8b] focus:outline-none focus:border-[#fd9227] transition-colors"
                       onChange={handleTyping}
                     />
                     <button
@@ -219,13 +283,13 @@ export default function SignupPage() {
                   </div>
                 </div>
 
-                <input type="hidden" name="role" value="STUDENT" />
+                <input type="hidden" name="role" value={selectedRole} />
 
                 <div className="space-y-1">
                   <button
                     type="button"
                     onClick={() => setShowClassCode(!showClassCode)}
-                    className="flex items-center gap-2 font-quicksand font-bold text-[#473025] text-[13px] hover:opacity-70 transition-opacity cursor-pointer"
+                    className="flex items-center gap-2 font-quicksand font-bold text-[#473025] text-[12px] hover:opacity-70 transition-opacity cursor-pointer"
                   >
                     <ChevronIcon isOpen={showClassCode} />
                     <span>Have a class invite code? (Optional)</span>
@@ -237,17 +301,19 @@ export default function SignupPage() {
                       id="classCode"
                       name="classCode"
                       placeholder="Enter class invite code"
-                      className="w-full bg-[#fffaf2] border-2 border-[#473025] rounded-[8px] h-[46px] px-4 font-quicksand font-medium text-[#473025] text-[14px] placeholder:text-[#cdac8b] focus:outline-none focus:border-[#fd9227] transition-colors mt-1"
+                      className="w-full bg-[#fffaf2] border-2 border-[#473025] rounded-[8px] h-[42px] px-4 font-quicksand font-medium text-[#473025] text-[14px] placeholder:text-[#cdac8b] focus:outline-none focus:border-[#fd9227] transition-colors mt-1"
                       onChange={handleTyping}
                     />
                   )}
                 </div>
 
-                <Button type="submit" variant="primary" size="lg" fullWidth disabled={isPending}>
-                  {isPending ? 'Creating Account...' : 'Sign Up'}
-                </Button>
+                <div className="pt-1">
+                  <Button type="submit" variant="primary" size="lg" fullWidth disabled={isPending}>
+                    {isPending ? 'Creating Account...' : 'Sign Up'}
+                  </Button>
+                </div>
 
-                <div className="relative flex items-center justify-center py-1">
+                <div className="relative flex items-center justify-center py-1.5">
                   <div className="absolute w-full h-[1px] bg-[#dfc8a3]"></div>
                   <div className="relative bg-[#fffaf2] px-4">
                     <p className="font-quicksand font-bold text-[#dfc8a3] text-[12px]">OR</p>
@@ -258,7 +324,7 @@ export default function SignupPage() {
                   Continue with Google
                 </Button>
 
-                <div className="text-center pt-1">
+                <div className="text-center pt-1.5">
                   <p className="font-quicksand font-bold text-[#473025] text-[15px]">
                     Already have an account?{' '}
                     <Link href="/login" className="text-[#fd9227] underline hover:opacity-80 transition-opacity">

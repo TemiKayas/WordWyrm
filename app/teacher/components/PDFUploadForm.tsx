@@ -9,6 +9,7 @@ import Button from '@/components/ui/Button';
 import { useToast } from '@/components/providers/ToastProvider';
 import { gsap } from 'gsap';
 import ProcessingModal from '@/components/ui/ProcessingModal';
+import { Info } from 'lucide-react';
 
 const MAX_TOTAL_SIZE_MB = 25;
 const MAX_TOTAL_SIZE_BYTES = MAX_TOTAL_SIZE_MB * 1024 * 1024;
@@ -26,14 +27,14 @@ export default function PDFUploadForm({ onFileSelect }: PDFUploadFormProps) {
   const [isPending, startTransition] = useTransition();
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [numQuestions, setNumQuestions] = useState<number>(5);
-  const [subject, setSubject] = useState<string>('');
+  const [difficulty, setDifficulty] = useState<string>('HARD');
   const [textContent, setTextContent] = useState<string>('');
 
   // GSAP refs
   const stepRef = useRef<HTMLDivElement>(null);
   const uploadRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
-  const subjectRef = useRef<HTMLDivElement>(null);
+  const difficultyRef = useRef<HTMLDivElement>(null);
   const questionsRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLDivElement>(null);
 
@@ -64,7 +65,7 @@ export default function PDFUploadForm({ onFileSelect }: PDFUploadFormProps) {
           { x: 0, opacity: 1, duration: 0.4, ease: 'power2.out' },
           '-=0.3'
         )
-        .fromTo(subjectRef.current,
+        .fromTo(difficultyRef.current,
           { x: -20, opacity: 0 },
           { x: 0, opacity: 1, duration: 0.4, ease: 'power2.out' },
           '-=0.2'
@@ -100,6 +101,16 @@ export default function PDFUploadForm({ onFileSelect }: PDFUploadFormProps) {
     setSelectedFiles(files);
     onFileSelect?.(file);
   }
+
+  // Determine content type for modal
+  const getContentType = (): 'pdf' | 'text' | 'both' => {
+    const hasText = textContent.trim().length > 0;
+    const hasPDFs = selectedFiles.length > 0;
+
+    if (hasText && hasPDFs) return 'both';
+    if (hasText) return 'text';
+    return 'pdf';
+  };
 
   async function handleSubmit() {
     const hasText = textContent.trim().length > 0;
@@ -156,9 +167,7 @@ export default function PDFUploadForm({ onFileSelect }: PDFUploadFormProps) {
         // Add metadata
         formData.append('classId', classId);
         formData.append('numQuestions', numQuestions.toString());
-        if (subject) {
-          formData.append('subject', subject);
-        }
+        formData.append('difficulty', difficulty);
 
         const result = await processContentForQuiz(formData);
 
@@ -250,27 +259,32 @@ export default function PDFUploadForm({ onFileSelect }: PDFUploadFormProps) {
         )}
       </div>
 
-      {/* Subject Selection */}
-      <div ref={subjectRef} className="mb-4 opacity-0">
-        <label
-          htmlFor="subject"
-          className="block text-[#473025] font-bold text-base mb-2"
-        >
-          Subject
-        </label>
+      {/* Difficulty Selection */}
+      <div ref={difficultyRef} className="mb-4 opacity-0">
+        <div className="flex items-center gap-2 mb-2">
+          <label
+            htmlFor="difficulty"
+            className="text-[#473025] font-bold text-base"
+          >
+            Difficulty
+          </label>
+          <div className="group relative">
+            <Info size={16} className="text-[#473025] cursor-help" />
+            <div className="hidden group-hover:block absolute left-full ml-2 w-48 p-2 bg-gray-800 text-white text-xs rounded shadow-lg z-10">
+              Difficulty adjusts how similar the wrong answers are to the correct answer.
+            </div>
+          </div>
+        </div>
         <select
-          id="subject"
-          value={subject}
-          onChange={(e) => setSubject(e.target.value)}
+          id="difficulty"
+          value={difficulty}
+          onChange={(e) => setDifficulty(e.target.value)}
           disabled={isPending}
           className="w-full px-4 py-3 bg-[#fff6e8] border-2 border-[#473025] rounded-xl font-semibold text-[#473025] text-sm focus:ring-4 focus:ring-[#96b902]/30 focus:border-[#96b902] transition-all disabled:opacity-50 cursor-pointer"
         >
-          <option value="">General / No specific subject</option>
-          <option value="ENGLISH">English</option>
-          <option value="MATH">Math</option>
-          <option value="SCIENCE">Science</option>
-          <option value="HISTORY">History</option>
-          <option value="LANGUAGE">Language</option>
+          <option value="EASY">Easy</option>
+          <option value="MEDIUM">Medium</option>
+          <option value="HARD">Hard</option>
         </select>
       </div>
 
@@ -331,7 +345,7 @@ export default function PDFUploadForm({ onFileSelect }: PDFUploadFormProps) {
       {/* Processing Modal */}
       <ProcessingModal
         isOpen={isPending}
-        message="Creating your quiz... This may take a moment."
+        contentType={getContentType()}
       />
     </div>
   );

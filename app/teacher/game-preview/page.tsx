@@ -276,7 +276,7 @@ function GamePreviewContent() {
             {/* gaming character */}
             <div className="flex justify-center">
               <img
-                src="/assets/gaming-floop.png"
+                src="/assets/gaming-floopa.png"
                 alt="Gaming Floop"
                 className="w-full max-w-[364px] h-auto"
               />

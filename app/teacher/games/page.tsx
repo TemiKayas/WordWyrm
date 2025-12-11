@@ -16,6 +16,8 @@ interface Game {
   title: string;
   shareCode: string;
   qrCodeUrl: string | null;
+  imageUrl: string | null;
+  gameMode: string;
   numQuestions: number;
   classId: string;
   createdAt: Date;
@@ -59,6 +61,8 @@ function TeacherGamesContent() {
             title: quiz.title || 'Untitled Game',
             shareCode: quiz.shareCode!,
             qrCodeUrl: quiz.qrCodeUrl || null,
+            imageUrl: quiz.imageUrl || null,
+            gameMode: quiz.gameMode || 'TRADITIONAL',
             numQuestions: quiz.numQuestions,
             classId: quiz.classId || '',
             createdAt: quiz.createdAt,
@@ -212,15 +216,28 @@ function TeacherGamesContent() {
     <>
       <TeacherPageLayout>
         <div className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full">
-          {/* Header */}
-          <div className="mb-6">
+          {/* Header with Gaming Floopa */}
+          <div className="mb-1">
             <BackButton href="/teacher/dashboard" variant="text">Back to Dashboard</BackButton>
-            <h1 className="font-quicksand font-bold text-[#473025] text-[32px] md:text-[40px] mt-4">
-              My Games
-            </h1>
-            <p className="font-quicksand text-[#473025]/70 text-[16px] mt-1">
-              {filteredGames.length} {filteredGames.length === 1 ? 'game' : 'games'}
-            </p>
+            <div className="flex items-center justify-between mt-4">
+              <div>
+                <h1 className="font-quicksand font-bold text-[#473025] text-[32px] md:text-[40px]">
+                  My Games
+                </h1>
+                <p className="font-quicksand text-[#473025]/70 text-[16px] mt-1">
+                  {filteredGames.length} {filteredGames.length === 1 ? 'game' : 'games'}
+                </p>
+              </div>
+              <div className="hidden md:block">
+                <Image
+                  src="/assets/gaming-floopa.png"
+                  alt="Gaming Floopa"
+                  width={240}
+                  height={240}
+                  className="object-contain"
+                />
+              </div>
+            </div>
           </div>
 
           {/* Class Filter Buttons */}
@@ -269,10 +286,10 @@ function TeacherGamesContent() {
               <div className="flex gap-2 flex-wrap">
                 <button
                   onClick={() => toggleSort('created')}
-                  className={`flex items-center gap-2 px-4 py-3 rounded-[12px] font-quicksand font-bold text-[14px] transition-all border-[3px] ${
+                  className={`flex items-center gap-2 px-4 py-3 rounded-[15px] font-quicksand font-bold text-[14px] transition-all border-[3px] shadow-sm ${
                     sortBy === 'created'
-                      ? 'bg-[#473025] text-white border-[#473025]'
-                      : 'bg-white text-[#473025] border-[#473025]/20 hover:border-[#473025]'
+                      ? 'bg-[#96b902] text-white border-[#96b902] shadow-md'
+                      : 'bg-white text-[#473025] border-[#473025]/20 hover:border-[#96b902] hover:shadow-md'
                   }`}
                 >
                   <Calendar size={16} className={sortBy === 'created' && sortOrder === 'desc' ? 'rotate-180' : ''} />
@@ -280,10 +297,10 @@ function TeacherGamesContent() {
                 </button>
                 <button
                   onClick={() => toggleSort('title')}
-                  className={`flex items-center gap-2 px-4 py-3 rounded-[12px] font-quicksand font-bold text-[14px] transition-all border-[3px] ${
+                  className={`flex items-center gap-2 px-4 py-3 rounded-[15px] font-quicksand font-bold text-[14px] transition-all border-[3px] shadow-sm ${
                     sortBy === 'title'
-                      ? 'bg-[#473025] text-white border-[#473025]'
-                      : 'bg-white text-[#473025] border-[#473025]/20 hover:border-[#473025]'
+                      ? 'bg-[#96b902] text-white border-[#96b902] shadow-md'
+                      : 'bg-white text-[#473025] border-[#473025]/20 hover:border-[#96b902] hover:shadow-md'
                   }`}
                 >
                   <ArrowUpDown size={16} className={sortBy === 'title' && sortOrder === 'desc' ? 'rotate-180' : ''} />
@@ -291,10 +308,10 @@ function TeacherGamesContent() {
                 </button>
                 <button
                   onClick={() => toggleSort('questions')}
-                  className={`flex items-center gap-2 px-4 py-3 rounded-[12px] font-quicksand font-bold text-[14px] transition-all border-[3px] ${
+                  className={`flex items-center gap-2 px-4 py-3 rounded-[15px] font-quicksand font-bold text-[14px] transition-all border-[3px] shadow-sm ${
                     sortBy === 'questions'
-                      ? 'bg-[#473025] text-white border-[#473025]'
-                      : 'bg-white text-[#473025] border-[#473025]/20 hover:border-[#473025]'
+                      ? 'bg-[#96b902] text-white border-[#96b902] shadow-md'
+                      : 'bg-white text-[#473025] border-[#473025]/20 hover:border-[#96b902] hover:shadow-md'
                   }`}
                 >
                   <Hash size={16} className={sortBy === 'questions' && sortOrder === 'desc' ? 'rotate-180' : ''} />
@@ -302,10 +319,10 @@ function TeacherGamesContent() {
                 </button>
                 <button
                   onClick={() => toggleSort('code')}
-                  className={`flex items-center gap-2 px-4 py-3 rounded-[12px] font-quicksand font-bold text-[14px] transition-all border-[3px] ${
+                  className={`flex items-center gap-2 px-4 py-3 rounded-[15px] font-quicksand font-bold text-[14px] transition-all border-[3px] shadow-sm ${
                     sortBy === 'code'
-                      ? 'bg-[#473025] text-white border-[#473025]'
-                      : 'bg-white text-[#473025] border-[#473025]/20 hover:border-[#473025]'
+                      ? 'bg-[#96b902] text-white border-[#96b902] shadow-md'
+                      : 'bg-white text-[#473025] border-[#473025]/20 hover:border-[#96b902] hover:shadow-md'
                   }`}
                 >
                   <ArrowUpDown size={16} className={sortBy === 'code' && sortOrder === 'desc' ? 'rotate-180' : ''} />
@@ -331,57 +348,74 @@ function TeacherGamesContent() {
               key={game.id}
               className="bg-white rounded-[20px] border-[3px] border-[#473025]/20 shadow-md hover:shadow-lg transition-all p-6"
             >
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <h2 className="font-quicksand font-bold text-[#473025] text-[24px]">
+                    {game.title}
+                  </h2>
+                  {/* Class Badge */}
+                  <span className="inline-block mt-1 px-3 py-1 bg-[#ff9f22]/10 border-[2px] border-[#ff9f22] rounded-full font-quicksand font-bold text-[#ff9f22] text-[12px]">
+                    {getClassName(game.classId)}
+                  </span>
+                </div>
+                <button
+                  onClick={() => setFullscreenGame(game)}
+                  className="p-2 rounded-[8px] border-[2px] border-[#96b902] text-[#96b902] hover:bg-[#96b902] hover:text-white transition-all"
+                  title="Fullscreen view"
+                >
+                  <Maximize2 size={20} />
+                </button>
+              </div>
+
+              <div className="flex items-center gap-4 mb-4">
+                <div className="inline-flex items-center gap-2 bg-[#96b902]/10 border-[2px] border-[#96b902] rounded-full px-4 py-2">
+                  <span className="font-quicksand font-bold text-[#473025] text-[16px]">
+                    {game.numQuestions}
+                  </span>
+                  <span className="font-quicksand text-[#473025]/70 text-[14px]">
+                    Questions
+                  </span>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Left: Game Info */}
-                <div className="lg:col-span-2">
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <h2 className="font-quicksand font-bold text-[#473025] text-[24px]">
-                        {game.title}
-                      </h2>
-                      {/* Class Badge */}
-                      <span className="inline-block mt-1 px-3 py-1 bg-[#ff9f22]/10 border-[2px] border-[#ff9f22] rounded-full font-quicksand font-bold text-[#ff9f22] text-[12px]">
-                        {getClassName(game.classId)}
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => setFullscreenGame(game)}
-                      className="p-2 rounded-[8px] border-[2px] border-[#96b902] text-[#96b902] hover:bg-[#96b902] hover:text-white transition-all"
-                      title="Fullscreen view"
-                    >
-                      <Maximize2 size={20} />
-                    </button>
-                  </div>
-
-                  <div className="flex items-center gap-4 mb-4">
-                    <div className="inline-flex items-center gap-2 bg-[#96b902]/10 border-[2px] border-[#96b902] rounded-full px-4 py-2">
-                      <span className="font-quicksand font-bold text-[#473025] text-[16px]">
-                        {game.numQuestions}
-                      </span>
-                      <span className="font-quicksand text-[#473025]/70 text-[14px]">
-                        Questions
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Share Code Section */}
-                  <div className="bg-[#fff6e8] border-[3px] border-[#ff9f22] rounded-[15px] p-4 mb-4">
-                    <p className="font-quicksand font-bold text-[#473025] text-[14px] mb-2">
-                      Game Code for Students
-                    </p>
-                    <div className="flex items-center gap-3">
-                      <p className="font-quicksand font-bold text-[#473025] text-[32px] tracking-wider">
-                        {game.shareCode}
+                {/* Left/Center: Game Code and Share Link */}
+                <div className="lg:col-span-2 space-y-4">
+                  {/* Share Code Section with Thumbnail */}
+                  <div className="flex gap-4">
+                    <div className="flex-1 bg-[#fff6e8] border-[3px] border-[#ff9f22] rounded-[15px] p-4">
+                      <p className="font-quicksand font-bold text-[#473025] text-[14px] mb-2">
+                        Game Code for Students
                       </p>
-                      <Button
-                        onClick={() => handleCopyCode(game.id, game.shareCode)}
-                        variant={copiedId === game.id ? "success" : "primary"}
-                        size="sm"
-                        icon={<Copy size={16} />}
-                      >
-                        {copiedId === game.id ? 'Copied!' : 'Copy'}
-                      </Button>
+                      <div className="flex items-center gap-3">
+                        <p className="font-quicksand font-bold text-[#473025] text-[32px] tracking-wider">
+                          {game.shareCode}
+                        </p>
+                        <Button
+                          onClick={() => handleCopyCode(game.id, game.shareCode)}
+                          variant={copiedId === game.id ? "success" : "primary"}
+                          size="sm"
+                          icon={<Copy size={16} />}
+                        >
+                          {copiedId === game.id ? 'Copied!' : 'Copy'}
+                        </Button>
+                      </div>
                     </div>
+
+                    {/* Game Thumbnail */}
+                    {game.imageUrl && (
+                      <div className="hidden lg:block w-[180px]">
+                        <div className="bg-white rounded-[15px] overflow-hidden border-[3px] border-[#473025]/30 h-full">
+                          <Image
+                            src={game.imageUrl}
+                            alt={`${game.title} thumbnail`}
+                            width={180}
+                            height={120}
+                            className="object-cover w-full h-full"
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Share Link */}
@@ -412,26 +446,26 @@ function TeacherGamesContent() {
                 <div className="flex flex-col items-center justify-center bg-[#fffaf2] rounded-[15px] border-[3px] border-[#473025]/20 p-6">
                   {game.qrCodeUrl ? (
                     <>
-                      <p className="font-quicksand font-bold text-[#473025] text-[16px] mb-3 text-center">
+                      <p className="font-quicksand font-bold text-[#473025] text-[14px] mb-3 text-center">
                         Scan to Join
                       </p>
                       <div className="bg-white rounded-[12px] p-4 border-[3px] border-[#473025]/30">
                         <Image
                           src={game.qrCodeUrl}
                           alt={`QR Code for ${game.title}`}
-                          width={200}
-                          height={200}
+                          width={160}
+                          height={160}
                           className="object-contain"
                         />
                       </div>
                       <p className="font-quicksand text-[#473025]/60 text-[12px] mt-3 text-center">
-                        Students can scan this QR code to join
+                        Students can scan this
                       </p>
                     </>
                   ) : (
                     <div className="text-center">
                       <p className="font-quicksand text-[#473025]/60 text-[14px]">
-                        QR Code not available
+                        QR Code unavailable
                       </p>
                     </div>
                   )}

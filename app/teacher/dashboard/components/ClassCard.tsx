@@ -42,7 +42,7 @@ export default function ClassCard({ classItem, onMenuClick }: ClassCardProps) {
       onClick={() => router.push(`/teacher/class/${classItem.id}`)}
     >
       {/* Image Header */}
-      <div className="relative h-[140px] border-b-[3px] border-[#473025] overflow-visible bg-gradient-to-br from-white to-[#f8fef0]">
+      <div className="relative h-[140px] border-b-[3px] border-[#473025] overflow-visible bg-gradient-to-b from-white to-[#96b902]/10">
         {classItem.imageUrl ? (
           <div className="relative w-full h-full overflow-hidden">
             <Image
@@ -53,7 +53,7 @@ export default function ClassCard({ classItem, onMenuClick }: ClassCardProps) {
             />
           </div>
         ) : (
-          <div className="relative w-full h-full bg-gradient-to-br from-white to-[#f8fef0] flex items-end pb-4 px-6 overflow-hidden">
+          <div className="relative w-full h-full bg-gradient-to-b from-white to-[#96b902]/10 flex items-end pb-4 px-6 overflow-hidden">
             <p className="font-quicksand font-bold text-[#473025] text-[24px] z-10">
               {classItem.name}
             </p>
@@ -99,7 +99,7 @@ export default function ClassCard({ classItem, onMenuClick }: ClassCardProps) {
       </div>
 
       {/* Card Content */}
-      <div className="p-5 bg-[#fffaf2]">
+      <div className="p-5 bg-[#f8ecdd]">
         {classItem.imageUrl && (
           <h3 className="font-quicksand font-bold text-[#473025] text-[22px] mb-3">
             {classItem.name}
